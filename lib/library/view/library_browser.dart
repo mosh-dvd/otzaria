@@ -27,6 +27,7 @@ import 'package:otzaria/bookmarks/bookmarks_dialog.dart';
 import 'package:otzaria/widgets/workspace_icon_button.dart';
 import 'package:otzaria/widgets/responsive_action_bar.dart';
 import 'package:otzaria/utils/open_book.dart';
+import 'package:otzaria/widgets/generic_settings_dialog.dart';
 
 class LibraryBrowser extends StatefulWidget {
   const LibraryBrowser({super.key});
@@ -166,14 +167,28 @@ class _LibraryBrowserState extends State<LibraryBrowser>
                   },
                 ),
               ),
-              if (settingsState.showExternalBooks)
-                IconButton(
-                  icon: const Icon(Icons.filter_list),
-                  onPressed: () => _showFilterDialog(context, state),
-                ),
+              _buildSettingsButton(context, settingsState, state),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSettingsButton(BuildContext context, SettingsState settingsState, LibraryState state) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: IconButton(
+        icon: const Icon(Icons.settings_outlined),
+        tooltip: 'הגדרות',
+        onPressed: () => _showLibrarySettingsDialog(context, settingsState, state),
+        style: IconButton.styleFrom(
+          foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       ),
     );
   }
@@ -397,43 +412,63 @@ class _LibraryBrowserState extends State<LibraryBrowser>
     );
   }
 
-  void _showFilterDialog(BuildContext context, LibraryState state) {
+  void _showLibrarySettingsDialog(
+    BuildContext context,
+    SettingsState settingsState,
+    LibraryState state,
+  ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        content: BlocBuilder<SettingsBloc, SettingsState>(
-          builder: (context, settingsState) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CheckboxListTile(
-                  title: const Text('הצג ספרים מאוצר החכמה'),
-                  value: settingsState.showOtzarHachochma,
-                  onChanged: (bool? value) {
-                    setState(() {
-                      context.read<SettingsBloc>().add(
-                            UpdateShowOtzarHachochma(value!),
-                          );
-                      _update(context, state, settingsState);
-                    });
-                  },
-                ),
-                CheckboxListTile(
-                  title: const Text('הצג ספרים מהיברובוקס'),
-                  value: settingsState.showHebrewBooks,
-                  onChanged: (bool? value) {
-                    setState(() {
-                      context.read<SettingsBloc>().add(
-                            UpdateShowHebrewBooks(value!),
-                          );
-                      _update(context, state, settingsState);
-                    });
-                  },
-                ),
-              ],
-            );
-          },
-        ),
+      builder: (context) => BlocBuilder<SettingsBloc, SettingsState>(
+        builder: (context, currentSettingsState) {
+          return GenericSettingsDialog(
+            title: 'הגדרות ספרייה',
+            width: 500,
+            items: [
+              SwitchSettingsItem(
+                title: 'האם להציג ספרים מאתרים חיצוניים?',
+                subtitle: currentSettingsState.showExternalBooks
+                    ? 'יוצגו גם ספרים מאתרים חיצוניים'
+                    : 'יוצגו רק ספרים מספריית אוצריא',
+                value: currentSettingsState.showExternalBooks,
+                onChanged: (value) {
+                  context.read<SettingsBloc>().add(UpdateShowExternalBooks(value));
+                  context.read<SettingsBloc>().add(UpdateShowHebrewBooks(value));
+                  context.read<SettingsBloc>().add(UpdateShowOtzarHachochma(value));
+                  _update(context, state, currentSettingsState);
+                },
+                dependentItems: currentSettingsState.showExternalBooks
+                    ? [
+                        CheckboxSettingsItem(
+                          title: 'הצג ספרים מאוצר החכמה',
+                          value: currentSettingsState.showOtzarHachochma,
+                          onChanged: (bool? value) {
+                            if (value != null) {
+                              context.read<SettingsBloc>().add(
+                                    UpdateShowOtzarHachochma(value),
+                                  );
+                              _update(context, state, currentSettingsState);
+                            }
+                          },
+                        ),
+                        CheckboxSettingsItem(
+                          title: 'הצג ספרים מהיברובוקס',
+                          value: currentSettingsState.showHebrewBooks,
+                          onChanged: (bool? value) {
+                            if (value != null) {
+                              context.read<SettingsBloc>().add(
+                                    UpdateShowHebrewBooks(value),
+                                  );
+                              _update(context, state, currentSettingsState);
+                            }
+                          },
+                        ),
+                      ]
+                    : null,
+              ),
+            ],
+          );
+        },
       ),
     ).then((_) => _refocusSearchBar());
   }

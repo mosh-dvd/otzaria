@@ -492,26 +492,6 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                         },
                         activeColor: Theme.of(context).cardColor,
                       ),
-                      SwitchSettingsTile(
-                        settingKey: 'key-show-external-books',
-                        title: 'איתור ספרים באתרים חיצוניים',
-                        enabledLabel: 'יוצגו גם ספרים מאתרים חיצוניים',
-                        disabledLabel: 'יוצגו רק ספרים מספריית אוצריא',
-                        leading: const Icon(Icons.open_in_new),
-                        defaultValue: state.showExternalBooks,
-                        onChange: (value) {
-                          context
-                              .read<SettingsBloc>()
-                              .add(UpdateShowExternalBooks(value));
-                          context
-                              .read<SettingsBloc>()
-                              .add(UpdateShowHebrewBooks(value));
-                          context
-                              .read<SettingsBloc>()
-                              .add(UpdateShowOtzarHachochma(value));
-                        },
-                        activeColor: Theme.of(context).cardColor,
-                      ),
                     ]),
                   ],
                 ),
