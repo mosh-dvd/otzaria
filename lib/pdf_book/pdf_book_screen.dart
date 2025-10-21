@@ -703,7 +703,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     } else if (screenWidth < 900) {
       maxButtons = 10; // 10 כפתורים + "..." במסכים גדולים
     } else {
-      maxButtons = 999; // כל הכפתורים החיצוניים במסכים רחבים (ההדפסה תמיד בתפריט)
+      maxButtons =
+          999; // כל הכפתורים החיצוניים במסכים רחבים (ההדפסה תמיד בתפריט)
     }
 
     return [
@@ -796,8 +797,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
           tooltip: 'הקודם',
           onPressed: () => widget.tab.pdfViewerController.isReady
               ? widget.tab.pdfViewerController.goToPage(
-                  pageNumber: max(
-                      widget.tab.pdfViewerController.pageNumber! - 1, 1))
+                  pageNumber:
+                      max(widget.tab.pdfViewerController.pageNumber! - 1, 1))
               : null,
         ),
         icon: Icons.chevron_left,
@@ -822,7 +823,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         widget: IconButton(
           onPressed: () => widget.tab.pdfViewerController.isReady
               ? widget.tab.pdfViewerController.goToPage(
-                  pageNumber: min(widget.tab.pdfViewerController.pageNumber! + 1,
+                  pageNumber: min(
+                      widget.tab.pdfViewerController.pageNumber! + 1,
                       widget.tab.pdfViewerController.pageCount))
               : null,
           icon: const Icon(Icons.chevron_right),

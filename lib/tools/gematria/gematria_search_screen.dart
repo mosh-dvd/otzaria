@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:otzaria/settings/settings_bloc.dart';
+import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'gematria_search.dart';
 
 class GematriaSearchScreen extends StatefulWidget {
@@ -259,8 +263,7 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         boxShadow: [
-          BoxShadow(
-            
+          BoxShadow(            
             color: Colors.black.withValues(alpha:0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -425,31 +428,48 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // נתיב (כותרות) - אם קיים, אחרת שם הקובץ
-                    Text(
-                      result.internalPath.isNotEmpty
-                          ? result.internalPath
-                          : result.bookTitle,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.right,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    BlocBuilder<SettingsBloc, SettingsState>(
+                      builder: (context, settingsState) {
+                        String displayPath = result.internalPath.isNotEmpty
+                            ? result.internalPath
+                            : result.bookTitle;
+                        if (settingsState.replaceHolyNames) {
+                          displayPath = utils.replaceHolyNames(displayPath);
+                        }
+                        return Text(
+                          displayPath,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.right,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
                     ),
                     const SizedBox(height: 8),
                     // המילים שנמצאו - בולטות
                     if (result.preview.isNotEmpty)
-                      Text(
-                        result.preview,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          height: 1.5,
-                        ),
-                        textAlign: TextAlign.right,
+                      BlocBuilder<SettingsBloc, SettingsState>(
+                        builder: (context, settingsState) {
+                          String displayText = result.preview;
+                          if (settingsState.replaceHolyNames) {
+                            displayText = utils.replaceHolyNames(displayText);
+                          }
+                          return Text(
+                            displayText,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                              height: 1.5,
+                            ),
+                            textAlign: TextAlign.right,
+                          );
+                        },
                       ),
                   ],
                 ),
