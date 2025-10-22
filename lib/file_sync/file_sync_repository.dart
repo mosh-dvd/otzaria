@@ -104,11 +104,11 @@ class FileSyncRepository {
   }
 
   Future<Map<String, dynamic>> _getRemoteManifest() async {
-    // Using files_manifest_new.json which contains full paths from source directories
+    // Using files_manifest.json which contains full paths from source directories
     // This allows direct file access without the need for merged folders
     // The _normalizeFilePath function extracts the correct local path from these full paths
     final url =
-        'https://raw.githubusercontent.com/$githubOwner/$repositoryName/$branch/files_manifest_new.json';
+        'https://raw.githubusercontent.com/$githubOwner/$repositoryName/$branch/files_manifest.json';
     try {
       final response = await http.get(
         Uri.parse(url),

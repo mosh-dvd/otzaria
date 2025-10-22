@@ -33,9 +33,9 @@ void main() {
       expect(input, equals(expected));
     });
 
-    test('handles files_manifest_new.json as root file', () {
-      const input = 'files_manifest_new.json';
-      const expected = 'files_manifest_new.json';
+    test('handles files_manifest.json as root file', () {
+      const input = 'files_manifest.json';
+      const expected = 'files_manifest.json';
 
       expect(input, equals(expected));
     });
