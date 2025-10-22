@@ -253,7 +253,7 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
                 if (thisLinksSnapshot.data!.isEmpty) {
                   // בדיקה אם אין מפרשים פעילים כלל
                   if (state.activeCommentators.isEmpty) {
-                    return const Center(child: Text("בחר מפרשים להצגה"));
+                    return const Center(child: Text("לא נבחרו מפרשים להצגה"));
                   } else {
                     return const Center(child: Text("לא נמצאו מפרשים להצגה"));
                   }
