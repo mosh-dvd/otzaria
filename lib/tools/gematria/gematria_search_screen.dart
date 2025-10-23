@@ -60,6 +60,31 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
     _searchController.addListener(() {
       setState(() {});
     });
+    _loadSettings();
+  }
+
+  // טעינת הגדרות שמורות
+  void _loadSettings() {
+    setState(() {
+      _maxResults = Settings.getValue<int>('key-gematria-max-results') ?? 100;
+      _filterDuplicates = Settings.getValue<bool>('key-gematria-filter-duplicates') ?? false;
+      _wholeVerseOnly = Settings.getValue<bool>('key-gematria-whole-verse-only') ?? false;
+      _torahOnly = Settings.getValue<bool>('key-gematria-torah-only') ?? false;
+      _useSmallGematria = Settings.getValue<bool>('key-gematria-use-small') ?? false;
+      _useFinalLetters = Settings.getValue<bool>('key-gematria-use-final-letters') ?? false;
+      _useWithKolel = Settings.getValue<bool>('key-gematria-use-with-kolel') ?? false;
+    });
+  }
+
+  // שמירת הגדרות
+  Future<void> _saveSettings() async {
+    await Settings.setValue<int>('key-gematria-max-results', _maxResults);
+    await Settings.setValue<bool>('key-gematria-filter-duplicates', _filterDuplicates);
+    await Settings.setValue<bool>('key-gematria-whole-verse-only', _wholeVerseOnly);
+    await Settings.setValue<bool>('key-gematria-torah-only', _torahOnly);
+    await Settings.setValue<bool>('key-gematria-use-small', _useSmallGematria);
+    await Settings.setValue<bool>('key-gematria-use-final-letters', _useFinalLetters);
+    await Settings.setValue<bool>('key-gematria-use-with-kolel', _useWithKolel);
   }
 
   @override
@@ -323,6 +348,7 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
                     setState(() {
                       _maxResults = value;
                     });
+                    _saveSettings();
                     setDialogState(() {});
                   }
                 },
@@ -338,6 +364,7 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
                   setState(() {
                     _filterDuplicates = value ?? false;
                   });
+                  _saveSettings();
                   setDialogState(() {});
                 },
                 controlAffinity: ListTileControlAffinity.leading,
@@ -353,6 +380,7 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
                   setState(() {
                     _wholeVerseOnly = value ?? false;
                   });
+                  _saveSettings();
                   setDialogState(() {});
                 },
                 controlAffinity: ListTileControlAffinity.leading,
@@ -368,6 +396,7 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
                   setState(() {
                     _torahOnly = value ?? false;
                   });
+                  _saveSettings();
                   setDialogState(() {});
                 },
                 controlAffinity: ListTileControlAffinity.leading,
@@ -395,6 +424,7 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
                       _useFinalLetters = false; // לא יכול להיות שתי שיטות יחד
                     }
                   });
+                  _saveSettings();
                   setDialogState(() {});
                 },
                 controlAffinity: ListTileControlAffinity.leading,
@@ -413,6 +443,7 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
                       _useSmallGematria = false; // לא יכול להיות שתי שיטות יחד
                     }
                   });
+                  _saveSettings();
                   setDialogState(() {});
                 },
                 controlAffinity: ListTileControlAffinity.leading,
@@ -429,6 +460,7 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
                   setState(() {
                     _useWithKolel = value ?? false;
                   });
+                  _saveSettings();
                   setDialogState(() {});
                 },
                 controlAffinity: ListTileControlAffinity.leading,
