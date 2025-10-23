@@ -963,7 +963,11 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         icon: Icons.notes,
         tooltip: 'הצג הערות',
         onPressed: () {
-          context.read<TextBookBloc>().add(const ToggleNotesSidebar());
+          // פתיחת חלונית הצד עם כרטיסיית ההערות (אינדקס 2)
+          setState(() {
+            _sidebarTabIndex = 2; // כרטיסיית ההערות
+          });
+          context.read<TextBookBloc>().add(const ToggleSplitView(true));
         },
       ),
 
@@ -1098,8 +1102,11 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
   Widget _buildShowNotesButton(BuildContext context, TextBookLoaded state) {
     return IconButton(
       onPressed: () {
-        // נוסיף event חדש ל-TextBookBloc להצגת/הסתרת הערות
-        context.read<TextBookBloc>().add(const ToggleNotesSidebar());
+        // פתיחת חלונית הצד עם כרטיסיית ההערות (אינדקס 2)
+        setState(() {
+          _sidebarTabIndex = 2; // כרטיסיית ההערות
+        });
+        context.read<TextBookBloc>().add(const ToggleSplitView(true));
       },
       icon: const Icon(Icons.notes),
       tooltip: 'הצג הערות',
@@ -1131,9 +1138,8 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
 
   void _showNoteEditor(BuildContext context, String selectedText, int charStart,
       int charEnd, String bookId) {
-    // שמירת ה-context המקורי וה-bloc
+    // שמירת ה-context המקורי
     final originalContext = context;
-    final textBookBloc = context.read<TextBookBloc>();
 
     showDialog(
       context: context,
@@ -1157,12 +1163,6 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
 
             if (originalContext.mounted) {
               // Dialog is already closed by NoteEditorDialog
-              // הצגת סרגל ההערות אם הוא לא פתוח
-              final currentState = textBookBloc.state;
-              if (currentState is TextBookLoaded &&
-                  !currentState.showNotesSidebar) {
-                textBookBloc.add(const ToggleNotesSidebar());
-              }
               UiSnack.show(UiSnack.noteCreated);
             }
           } catch (e) {
