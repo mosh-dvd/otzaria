@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/settings/gematria_settings_dialog.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:otzaria/core/scaffold_messenger.dart';
 import 'gematria_search.dart';
@@ -68,24 +69,18 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
   void _loadSettings() {
     setState(() {
       _maxResults = Settings.getValue<int>('key-gematria-max-results') ?? 100;
-      _filterDuplicates = Settings.getValue<bool>('key-gematria-filter-duplicates') ?? false;
-      _wholeVerseOnly = Settings.getValue<bool>('key-gematria-whole-verse-only') ?? false;
+      _filterDuplicates =
+          Settings.getValue<bool>('key-gematria-filter-duplicates') ?? false;
+      _wholeVerseOnly =
+          Settings.getValue<bool>('key-gematria-whole-verse-only') ?? false;
       _torahOnly = Settings.getValue<bool>('key-gematria-torah-only') ?? false;
-      _useSmallGematria = Settings.getValue<bool>('key-gematria-use-small') ?? false;
-      _useFinalLetters = Settings.getValue<bool>('key-gematria-use-final-letters') ?? false;
-      _useWithKolel = Settings.getValue<bool>('key-gematria-use-with-kolel') ?? false;
+      _useSmallGematria =
+          Settings.getValue<bool>('key-gematria-use-small') ?? false;
+      _useFinalLetters =
+          Settings.getValue<bool>('key-gematria-use-final-letters') ?? false;
+      _useWithKolel =
+          Settings.getValue<bool>('key-gematria-use-with-kolel') ?? false;
     });
-  }
-
-  // שמירת הגדרות
-  Future<void> _saveSettings() async {
-    await Settings.setValue<int>('key-gematria-max-results', _maxResults);
-    await Settings.setValue<bool>('key-gematria-filter-duplicates', _filterDuplicates);
-    await Settings.setValue<bool>('key-gematria-whole-verse-only', _wholeVerseOnly);
-    await Settings.setValue<bool>('key-gematria-torah-only', _torahOnly);
-    await Settings.setValue<bool>('key-gematria-use-small', _useSmallGematria);
-    await Settings.setValue<bool>('key-gematria-use-final-letters', _useFinalLetters);
-    await Settings.setValue<bool>('key-gematria-use-with-kolel', _useWithKolel);
   }
 
   @override
@@ -313,178 +308,22 @@ class GematriaSearchScreenState extends State<GematriaSearchScreen> {
     final oldWholeVerseOnly = _wholeVerseOnly;
     final oldFilterDuplicates = _filterDuplicates;
 
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('הגדרות חיפוש', textAlign: TextAlign.right),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Align(
-                alignment: Alignment.centerRight,
-                child: Text('מספר תוצאות מקסימלי:'),
-              ),
-              const SizedBox(height: 8),
-              DropdownButton<int>(
-                value: _maxResults,
-                isExpanded: true,
-                items: [50, 100, 200, 500, 1000].map((value) {
-                  return DropdownMenuItem<int>(
-                    value: value,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Text('$value'),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _maxResults = value;
-                    });
-                    _saveSettings();
-                    setDialogState(() {});
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              CheckboxListTile(
-                title: const Text(
-                  'סינון תוצאות כפולות',
-                  textAlign: TextAlign.right,
-                ),
-                value: _filterDuplicates,
-                onChanged: (value) {
-                  setState(() {
-                    _filterDuplicates = value ?? false;
-                  });
-                  _saveSettings();
-                  setDialogState(() {});
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              ),
-              CheckboxListTile(
-                title: const Text(
-                  'חיפוש פסוק שלם בלבד',
-                  textAlign: TextAlign.right,
-                ),
-                value: _wholeVerseOnly,
-                onChanged: (value) {
-                  setState(() {
-                    _wholeVerseOnly = value ?? false;
-                  });
-                  _saveSettings();
-                  setDialogState(() {});
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              ),
-              CheckboxListTile(
-                title: const Text(
-                  'חיפוש בתורה בלבד',
-                  textAlign: TextAlign.right,
-                ),
-                value: _torahOnly,
-                onChanged: (value) {
-                  setState(() {
-                    _torahOnly = value ?? false;
-                  });
-                  _saveSettings();
-                  setDialogState(() {});
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              ),
-              const SizedBox(height: 16),
-              const Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  'שיטת חישוב גימטריה:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 8),
-              CheckboxListTile(
-                title: const Text(
-                  'גימטריה קטנה',
-                  textAlign: TextAlign.right,
-                ),
-                value: _useSmallGematria,
-                onChanged: (value) {
-                  setState(() {
-                    _useSmallGematria = value ?? false;
-                    if (_useSmallGematria) {
-                      _useFinalLetters = false; // לא יכול להיות שתי שיטות יחד
-                    }
-                  });
-                  _saveSettings();
-                  setDialogState(() {});
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              ),
-              CheckboxListTile(
-                title: const Text(
-                  'אותיות סופיות שונות',
-                  textAlign: TextAlign.right,
-                ),
-                value: _useFinalLetters,
-                onChanged: (value) {
-                  setState(() {
-                    _useFinalLetters = value ?? false;
-                    if (_useFinalLetters) {
-                      _useSmallGematria = false; // לא יכול להיות שתי שיטות יחד
-                    }
-                  });
-                  _saveSettings();
-                  setDialogState(() {});
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              ),
-              const SizedBox(height: 16),
-              CheckboxListTile(
-                title: const Text(
-                  'עם הכולל',
-                  textAlign: TextAlign.right,
-                ),
-                value: _useWithKolel,
-                onChanged: (value) {
-                  setState(() {
-                    _useWithKolel = value ?? false;
-                  });
-                  _saveSettings();
-                  setDialogState(() {});
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // בדיקה אם השתנו הגדרות שדורשות חיפוש מחדש
-                final settingsChanged = oldMaxResults != _maxResults ||
-                    oldTorahOnly != _torahOnly ||
-                    oldWholeVerseOnly != _wholeVerseOnly ||
-                    oldFilterDuplicates != _filterDuplicates;
+    showGematriaSettingsDialog(context);
 
-                // אם יש טקסט חיפוש והגדרות השתנו, בצע חיפוש מחדש
-                if (settingsChanged && _lastSearchText.isNotEmpty) {
-                  _performSearch();
-                }
-              },
-              child: const Text('סגור'),
-            ),
-          ],
-        ),
-      ),
-    );
+    // טעינה מחדש של ההגדרות אחרי סגירת הדיאלוג
+    Future.delayed(Duration.zero, () {
+      _loadSettings();
+      // בדיקה אם השתנו הגדרות שדורשות חיפוש מחדש
+      final settingsChanged = oldMaxResults != _maxResults ||
+          oldTorahOnly != _torahOnly ||
+          oldWholeVerseOnly != _wholeVerseOnly ||
+          oldFilterDuplicates != _filterDuplicates;
+
+      // אם יש טקסט חיפוש והגדרות השתנו, בצע חיפוש מחדש
+      if (settingsChanged && _lastSearchText.isNotEmpty) {
+        _performSearch();
+      }
+    });
   }
 
   Widget _buildSearchBar() {

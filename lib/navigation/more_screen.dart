@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/tools/measurement_converter/measurement_converter_screen.dart';
 import 'package:otzaria/tools/gematria/gematria_search_screen.dart';
 import 'package:otzaria/settings/settings_repository.dart';
+import 'package:otzaria/settings/calendar_settings_dialog.dart';
+import 'package:otzaria/settings/gematria_settings_dialog.dart';
 import 'package:shamor_zachor/shamor_zachor.dart';
 import 'calendar_widget.dart';
 import 'calendar_cubit.dart';
@@ -136,12 +138,9 @@ class _MoreScreenState extends State<MoreScreen> {
 
     switch (index) {
       case 0:
-        return [buildSettingsButton(() => _showSettingsDialog(context))];
+        return [buildSettingsButton(() => showCalendarSettingsDialog(context))];
       case 3:
-        return [
-          buildSettingsButton(
-              () => _gematriaKey.currentState?.showSettingsDialog())
-        ];
+        return [buildSettingsButton(() => showGematriaSettingsDialog(context))];
       default:
         return null;
     }
@@ -165,53 +164,5 @@ class _MoreScreenState extends State<MoreScreen> {
       default:
         return Container();
     }
-  }
-
-  void _showSettingsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return BlocBuilder<CalendarCubit, CalendarState>(
-          bloc: _calendarCubit,
-          builder: (context, state) {
-            return AlertDialog(
-              title: const Text('הגדרות לוח שנה'),
-              content: RadioGroup<CalendarType>(
-                groupValue: state.calendarType,
-                onChanged: (value) {
-                  if (value != null) {
-                    _calendarCubit.changeCalendarType(value);
-                    Navigator.of(dialogContext).pop();
-                  }
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    RadioListTile<CalendarType>(
-                      title: Text('לוח עברי'),
-                      value: CalendarType.hebrew,
-                    ),
-                    RadioListTile<CalendarType>(
-                      title: Text('לוח לועזי'),
-                      value: CalendarType.gregorian,
-                    ),
-                    RadioListTile<CalendarType>(
-                      title: Text('לוח משולב'),
-                      value: CalendarType.combined,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('סגור'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 }

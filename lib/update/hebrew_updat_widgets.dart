@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:updat/updat.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,7 +22,7 @@ Widget hebrewFlatChip({
       final prefs = await SharedPreferences.getInstance();
       final shownKey = 'update_dialog_shown_$latestVersion';
       final alreadyShown = prefs.getBool(shownKey) ?? false;
-      
+
       if (!alreadyShown && context.mounted) {
         // סמן שהדיאלוג הוצג לגרסה זו
         await prefs.setBool(shownKey, true);
@@ -228,7 +229,7 @@ void hebrewDefaultDialog({
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(changelog!),
+              child: Markdown(data: changelog!),
             ),
           ],
         ],

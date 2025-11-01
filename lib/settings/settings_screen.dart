@@ -15,6 +15,9 @@ import 'package:otzaria/settings/settings_state.dart';
 import 'package:otzaria/library/bloc/library_bloc.dart';
 import 'package:otzaria/library/bloc/library_event.dart';
 import 'package:otzaria/settings/reading_settings_dialog.dart';
+import 'package:otzaria/settings/library_settings_dialog.dart';
+import 'package:otzaria/settings/calendar_settings_dialog.dart';
+import 'package:otzaria/settings/gematria_settings_dialog.dart';
 import 'dart:async';
 
 class MySettingsScreen extends StatefulWidget {
@@ -30,6 +33,53 @@ class _MySettingsScreenState extends State<MySettingsScreen>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
+
+  Widget _buildSettingsCard({
+    required BuildContext context,
+    required String title,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: 160,
+      height: 140,
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 36,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildColumns(int maxColumns, List<Widget> children) {
     const double rowSpacing = 16.0;
@@ -247,11 +297,50 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                       },
                       activeColor: Theme.of(context).cardColor,
                     ),
-                    SimpleSettingsTile(
-                      title: 'הגדרות תצוגת הספרים',
-                      subtitle: 'גופן, ניקוד, סרגל צד ועוד',
-                      leading: const Icon(Icons.menu_book),
-                      onTap: () => showReadingSettingsDialog(context),
+                    // קוביות הגדרות
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Wrap(
+                        spacing: 12.0,
+                        runSpacing: 12.0,
+                        alignment: WrapAlignment.end,
+                        children: [
+                          _buildSettingsCard(
+                            context: context,
+                            title: 'הגדרות מסך ספרייה',
+                            icon: Icons.library_books,
+                            onTap: () => showLibrarySettingsDialog(context),
+                          ),
+                          _buildSettingsCard(
+                            context: context,
+                            title: 'הגדרות תצוגת הספרים',
+                            icon: Icons.menu_book,
+                            onTap: () => showReadingSettingsDialog(context),
+                          ),
+                          _buildSettingsCard(
+                            context: context,
+                            title: 'הגדרות לוח שנה',
+                            icon: Icons.calendar_today,
+                            onTap: () => showCalendarSettingsDialog(context),
+                          ),
+                          // הגדרות זכור ושמור - מוסתר כרגע
+                          if (false)
+                            _buildSettingsCard(
+                              context: context,
+                              title: 'הגדרות זכור ושמור',
+                              icon: Icons.book_outlined,
+                              onTap: () {
+                                // יוסף בעתיד
+                              },
+                            ),
+                          _buildSettingsCard(
+                            context: context,
+                            title: 'הגדרות גימטריות',
+                            icon: Icons.calculate,
+                            onTap: () => showGematriaSettingsDialog(context),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

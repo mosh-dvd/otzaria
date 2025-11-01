@@ -5,7 +5,6 @@ import 'package:otzaria/library/bloc/library_bloc.dart';
 import 'package:otzaria/library/bloc/library_event.dart';
 import 'package:otzaria/library/bloc/library_state.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
-import 'package:otzaria/settings/settings_event.dart';
 import 'package:otzaria/settings/settings_state.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/library/models/library.dart';
@@ -27,7 +26,7 @@ import 'package:otzaria/bookmarks/bookmarks_dialog.dart';
 import 'package:otzaria/widgets/workspace_icon_button.dart';
 import 'package:otzaria/widgets/responsive_action_bar.dart';
 import 'package:otzaria/utils/open_book.dart';
-import 'package:otzaria/widgets/generic_settings_dialog.dart';
+import 'package:otzaria/settings/library_settings_dialog.dart';
 
 class LibraryBrowser extends StatefulWidget {
   const LibraryBrowser({super.key});
@@ -175,16 +174,18 @@ class _LibraryBrowserState extends State<LibraryBrowser>
     );
   }
 
-  Widget _buildSettingsButton(BuildContext context, SettingsState settingsState, LibraryState state) {
+  Widget _buildSettingsButton(
+      BuildContext context, SettingsState settingsState, LibraryState state) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
       child: IconButton(
         icon: const Icon(Icons.settings_outlined),
         tooltip: 'הגדרות',
-        onPressed: () => _showLibrarySettingsDialog(context, settingsState, state),
+        onPressed: () => showLibrarySettingsDialog(context),
         style: IconButton.styleFrom(
           foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          backgroundColor:
+              Theme.of(context).colorScheme.surfaceContainerHighest,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -410,67 +411,6 @@ class _LibraryBrowserState extends State<LibraryBrowser>
       context: context,
       builder: (context) => const WorkspaceSwitcherDialog(),
     );
-  }
-
-  void _showLibrarySettingsDialog(
-    BuildContext context,
-    SettingsState settingsState,
-    LibraryState state,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) => BlocBuilder<SettingsBloc, SettingsState>(
-        builder: (context, currentSettingsState) {
-          return GenericSettingsDialog(
-            title: 'הגדרות ספרייה',
-            width: 500,
-            items: [
-              SwitchSettingsItem(
-                title: 'האם להציג ספרים מאתרים חיצוניים?',
-                subtitle: currentSettingsState.showExternalBooks
-                    ? 'יוצגו גם ספרים מאתרים חיצוניים'
-                    : 'יוצגו רק ספרים מספריית אוצריא',
-                value: currentSettingsState.showExternalBooks,
-                onChanged: (value) {
-                  context.read<SettingsBloc>().add(UpdateShowExternalBooks(value));
-                  context.read<SettingsBloc>().add(UpdateShowHebrewBooks(value));
-                  context.read<SettingsBloc>().add(UpdateShowOtzarHachochma(value));
-                  _update(context, state, currentSettingsState);
-                },
-                dependentItems: currentSettingsState.showExternalBooks
-                    ? [
-                        CheckboxSettingsItem(
-                          title: 'הצג ספרים מאוצר החכמה',
-                          value: currentSettingsState.showOtzarHachochma,
-                          onChanged: (bool? value) {
-                            if (value != null) {
-                              context.read<SettingsBloc>().add(
-                                    UpdateShowOtzarHachochma(value),
-                                  );
-                              _update(context, state, currentSettingsState);
-                            }
-                          },
-                        ),
-                        CheckboxSettingsItem(
-                          title: 'הצג ספרים מהיברובוקס',
-                          value: currentSettingsState.showHebrewBooks,
-                          onChanged: (bool? value) {
-                            if (value != null) {
-                              context.read<SettingsBloc>().add(
-                                    UpdateShowHebrewBooks(value),
-                                  );
-                              _update(context, state, currentSettingsState);
-                            }
-                          },
-                        ),
-                      ]
-                    : null,
-              ),
-            ],
-          );
-        },
-      ),
-    ).then((_) => _refocusSearchBar());
   }
 
   List<String> _getAllTopics(List<Book> books) {
