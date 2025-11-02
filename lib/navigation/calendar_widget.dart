@@ -2122,25 +2122,28 @@ class _HoverableDayCell extends StatefulWidget {
 }
 
 class _HoverableDayCellState extends State<_HoverableDayCell> {
-  bool _isHovering = false;
+  bool _showButton = false;
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
+      onEnter: (_) => setState(() => _showButton = true),
+      onExit: (_) => setState(() => _showButton = false),
       child: Stack(
         alignment: Alignment.topCenter,
         children: [
-          widget.child,
-          // כפתור הוספה שמופיע בריחוף
+          Listener(
+            onPointerDown: (_) => setState(() => _showButton = true),
+            child: widget.child,
+          ),
+          // כפתור הוספה שמופיע בריחוף או בלחיצה
           AnimatedOpacity(
-            opacity: _isHovering ? 1.0 : 0.0,
+            opacity: _showButton ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 200),
             child: Padding(
               padding: const EdgeInsets.only(top: 12),
               child: IgnorePointer(
-                ignoring: !_isHovering, // מונע מהכפתור לחסום קליקים כשהוא שקוף
+                ignoring: !_showButton, // מונע מהכפתור לחסום קליקים כשהוא שקוף
                 child: Tooltip(
                   message: 'צור אירוע',
                   verticalOffset: -40.0,
