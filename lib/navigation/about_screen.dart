@@ -581,7 +581,7 @@ class _AboutScreenState extends State<AboutScreen> {
 
               final isSmallScreen = screenWidth < 800;
 
-              return Container(
+              return SizedBox(
                 width: isSmallScreen ? screenWidth * 0.9 : 300,
                 child: SingleChildScrollView(
                   child: Card(
