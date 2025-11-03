@@ -362,7 +362,7 @@ class _AboutScreenState extends State<AboutScreen> {
         child: AlertDialog(
           title: const Text('יומן שינויים'),
           content: SizedBox(
-            width: 300,
+            width: 600,
             height: 400,
             child: Markdown(
               data: changelog,

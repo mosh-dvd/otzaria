@@ -801,7 +801,7 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                     SimpleSettingsTile(
                       title: 'איפוס הגדרות',
                       subtitle:
-                          'פעולה זו תמחק את כל ההגדרות ותחזיר את התוכנה למצב התחלתי',
+                          'פעולה זו תמחק את כל ההגדרות ותחזיר את התוכנה למצב ההתחלתי',
                       leading:
                           const Icon(FluentIcons.arrow_download_24_regular),
                       onTap: () async {
