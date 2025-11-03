@@ -19,6 +19,8 @@ import 'package:otzaria/widgets/filter_list/src/filter_list_dialog.dart';
 import 'package:otzaria/widgets/filter_list/src/theme/filter_list_theme.dart';
 import 'package:otzaria/library/view/grid_items.dart';
 import 'package:otzaria/library/view/otzar_book_dialog.dart';
+import 'package:otzaria/library/view/book_preview_panel.dart';
+import 'package:otzaria/library/view/resizable_preview_panel.dart';
 import 'package:otzaria/workspaces/view/workspace_switcher_dialog.dart';
 import 'package:otzaria/history/history_dialog.dart';
 import 'package:otzaria/history/bloc/history_bloc.dart';
@@ -36,12 +38,18 @@ class LibraryBrowser extends StatefulWidget {
   State<LibraryBrowser> createState() => _LibraryBrowserState();
 }
 
+enum ViewMode { grid, list }
+
 class _LibraryBrowserState extends State<LibraryBrowser>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
   int _depth = 0;
+  bool _showPreview = true; // האם להציג את התצוגה המקדימה
+  ViewMode _viewMode = ViewMode.grid; // מצב תצוגה: רשת או רשימה
+  final Set<String> _expandedCategories = {}; // קטגוריות שנפתחו בתצוגת רשימה
+  
   @override
   void initState() {
     super.initState();
@@ -109,18 +117,74 @@ class _LibraryBrowserState extends State<LibraryBrowser>
                   ],
                 ),
               ),
-              body: Column(
-                children: [
-                  _buildSearchBar(state),
-                  if (context
-                          .read<FocusRepository>()
-                          .librarySearchController
-                          .text
-                          .length >
-                      2)
-                    _buildTopicsSelection(context, state, settingsState),
-                  Expanded(child: _buildContent(state)),
-                ],
+              body: LayoutBuilder(
+                builder: (context, constraints) {
+                  final screenWidth = constraints.maxWidth;
+                  // ברירת מחדל: שליש ברשת, שני שליש ברשימה
+                  final previewWidth = _viewMode == ViewMode.list 
+                      ? (screenWidth * 2 / 3) 
+                      : (screenWidth / 3);
+                  
+                  return Row(
+                    children: [
+                      // תוכן הספרייה - עכשיו בצד ימין
+                      Expanded(
+                        child: Column(
+                          children: [
+                            // שורת חיפוש והגדרות
+                            _buildSearchBar(state),
+                            if (context
+                                    .read<FocusRepository>()
+                                    .librarySearchController
+                                    .text
+                                    .length >
+                                2)
+                              _buildTopicsSelection(context, state, settingsState),
+                            // תוכן הספרייה
+                            Expanded(child: _buildContent(state)),
+                          ],
+                        ),
+                      ),
+                      // פאנל תצוגה מקדימה בצד שמאל עם מסגרת ואפשרות שינוי גודל
+                      if (_showPreview)
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: ResizablePreviewPanel(
+                            key: ValueKey(screenWidth), // מפתח שמשתנה עם רוחב המסך
+                            initialWidth: previewWidth,
+                            minWidth: 300,
+                            maxWidth: screenWidth * 0.6, // מקסימום 60% מהמסך
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surface,
+                                border: Border.all(
+                                  color: Theme.of(context).colorScheme.outline,
+                                  width: 1.5,
+                                ),
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(7.0),
+                                child: BookPreviewPanel(
+                                  book: state.previewBook,
+                                  onOpenInReader: () {
+                                    if (state.previewBook != null) {
+                                      _openBookInReader(state.previewBook!);
+                                    }
+                                  },
+                                  onClose: () {
+                                    setState(() {
+                                      _showPreview = false;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             );
           },
@@ -167,6 +231,52 @@ class _LibraryBrowserState extends State<LibraryBrowser>
                   },
                 ),
               ),
+              // כפתור מעבר בין תצוגת רשת לרשימה
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: IconButton(
+                  icon: Icon(_viewMode == ViewMode.grid ? Icons.list : Icons.grid_view),
+                  tooltip: _viewMode == ViewMode.grid 
+                      ? 'תצוגת רשימה (עץ מתרחב)' 
+                      : 'תצוגת רשת',
+                  onPressed: () {
+                    setState(() {
+                      _viewMode = _viewMode == ViewMode.grid 
+                          ? ViewMode.list 
+                          : ViewMode.grid;
+                    });
+                  },
+                  style: IconButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              if (!_showPreview)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: IconButton(
+                    icon: const Icon(Icons.visibility),
+                    tooltip: 'הצג תצוגה מקדימה',
+                    onPressed: () {
+                      setState(() {
+                        _showPreview = true;
+                      });
+                    },
+                    style: IconButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
               _buildSettingsButton(context, settingsState, state),
             ],
           );
@@ -263,39 +373,45 @@ class _LibraryBrowserState extends State<LibraryBrowser>
   }
 
   Widget _buildContent(LibraryState state) {
-    final items = state.searchResults != null
-        ? _buildSearchResults(state.searchResults!)
-        : _buildCategoryContent(state.currentCategory!);
+    // במצב חיפוש או תצוגת רשת - התנהגות רגילה
+    if (state.searchResults != null || _viewMode == ViewMode.grid) {
+      final items = state.searchResults != null
+          ? _buildSearchResults(state.searchResults!)
+          : _buildCategoryContent(state.currentCategory!);
 
-    return FutureBuilder<List<Widget>>(
-      future: items,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-        if (snapshot.hasData && snapshot.data!.isEmpty) {
-          final focusRepository = context.read<FocusRepository>();
-          return Center(
-            child: Text(
-              focusRepository.librarySearchController.text.isNotEmpty
-                  ? 'אין תוצאות עבור "${focusRepository.librarySearchController.text}"'
-                  : 'אין פריטים להצגה בתיקייה זו',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
+      return FutureBuilder<List<Widget>>(
+        future: items,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (snapshot.hasData && snapshot.data!.isEmpty) {
+            final focusRepository = context.read<FocusRepository>();
+            return Center(
+              child: Text(
+                focusRepository.librarySearchController.text.isNotEmpty
+                    ? 'אין תוצאות עבור "${focusRepository.librarySearchController.text}"'
+                    : 'אין פריטים להצגה בתיקייה זו',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+          return ListView.builder(
+            shrinkWrap: true,
+            key: PageStorageKey(state.currentCategory),
+            itemCount: snapshot.data!.length,
+            itemBuilder: (context, index) => snapshot.data![index],
           );
-        }
-        return ListView.builder(
-          shrinkWrap: true,
-          key: PageStorageKey(state.currentCategory),
-          itemCount: snapshot.data!.length,
-          itemBuilder: (context, index) => snapshot.data![index],
-        );
-      },
-    );
+        },
+      );
+    }
+    
+    // תצוגת רשימה עם עץ מתרחב
+    return _buildListView(state.currentCategory!);
   }
 
   Future<List<Widget>> _buildSearchResults(List<Book> books) async {
@@ -379,14 +495,271 @@ class _LibraryBrowserState extends State<LibraryBrowser>
       );
     }
 
-    return BookGridItem(
-      book: book,
-      showTopics: showTopics,
-      onBookClickCallback: () => _openBook(book),
+    return BlocBuilder<LibraryBloc, LibraryState>(
+      buildWhen: (previous, current) {
+        // רק אם הספר שנבחר השתנה ואחד מהם הוא הספר הנוכחי
+        return (previous.previewBook != current.previewBook) &&
+            (previous.previewBook == book || current.previewBook == book);
+      },
+      builder: (context, state) {
+        final isSelected = state.previewBook == book;
+        
+        return Tooltip(
+          message: 'לחיצה אחת - תצוגה מקדימה | לחיצה כפולה - פתיחה בעיון',
+          child: GestureDetector(
+            onDoubleTap: () => _openBookInReader(book),
+            child: Container(
+              decoration: isSelected
+                  ? BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    )
+                  : null,
+              child: BookGridItem(
+                book: book,
+                showTopics: showTopics,
+                onBookClickCallback: () => _showBookPreview(book),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  void _openBook(Book book) {
+  void _showBookPreview(Book book) {
+    context.read<LibraryBloc>().add(SelectBookForPreview(book));
+  }
+
+  /// בניית תצוגת רשימה עם עץ מתרחב
+  Widget _buildListView(Category category) {
+    return ListView(
+      children: _buildCategoryTree(category, 0),
+    );
+  }
+
+  /// בניית עץ קטגוריות ברקורסיבית
+  List<Widget> _buildCategoryTree(Category category, int level) {
+    List<Widget> widgets = [];
+    
+    // מיון
+    category.books.sort((a, b) => a.order.compareTo(b.order));
+    category.subCategories.sort((a, b) => a.order.compareTo(b.order));
+    
+    // הוספת ספרים בקטגוריה הנוכחית
+    for (final book in category.books) {
+      widgets.add(_buildListBookItem(book, level));
+    }
+    
+    // הוספת תת-קטגוריות
+    for (final subCategory in category.subCategories) {
+      final isExpanded = _expandedCategories.contains(subCategory.path);
+      
+      widgets.add(_buildListCategoryItem(subCategory, level, isExpanded));
+      
+      // אם הקטגוריה פתוחה, הוסף את התוכן שלה
+      if (isExpanded) {
+        widgets.addAll(_buildCategoryTree(subCategory, level + 1));
+      }
+    }
+    
+    return widgets;
+  }
+
+  /// פריט קטגוריה בתצוגת רשימה
+  Widget _buildListCategoryItem(Category category, int level, bool isExpanded) {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (isExpanded) {
+            _expandedCategories.remove(category.path);
+          } else {
+            _expandedCategories.add(category.path);
+          }
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.only(
+          right: 16.0 + (level * 24.0),
+          left: 16.0,
+          top: 12.0,
+          bottom: 12.0,
+        ),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).dividerColor,
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isExpanded ? Icons.folder_open : Icons.folder,
+              color: Theme.of(context).colorScheme.primary,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                category.title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+            Icon(
+              isExpanded ? Icons.expand_less : Icons.expand_more,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// פריט ספר בתצוגת רשימה
+  Widget _buildListBookItem(Book book, int level) {
+    if (book is ExternalBook) {
+      return _buildExternalBookListItem(book, level);
+    }
+    
+    return BlocBuilder<LibraryBloc, LibraryState>(
+      buildWhen: (previous, current) {
+        return (previous.previewBook != current.previewBook) &&
+            (previous.previewBook == book || current.previewBook == book);
+      },
+      builder: (context, state) {
+        final isSelected = state.previewBook == book;
+        
+        return InkWell(
+          onTap: () => _showBookPreview(book),
+          onDoubleTap: () => _openBookInReader(book),
+          child: Container(
+            padding: EdgeInsets.only(
+              right: 16.0 + (level * 24.0) + 32.0, // הזחה נוספת לספרים
+              left: 16.0,
+              top: 10.0,
+              bottom: 10.0,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected 
+                  ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha:0.3)
+                  : null,
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).dividerColor,
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  book is PdfBook ? Icons.picture_as_pdf : Icons.article,
+                  color: Theme.of(context).colorScheme.secondary,
+                  size: 18,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        book.title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                      if (book.author != null && book.author!.isNotEmpty)
+                        Text(
+                          book.author!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// פריט ספר חיצוני בתצוגת רשימה
+  Widget _buildExternalBookListItem(ExternalBook book, int level) {
+    return InkWell(
+      onTap: () => _openOtzarBook(book),
+      child: Container(
+        padding: EdgeInsets.only(
+          right: 16.0 + (level * 24.0) + 32.0,
+          left: 16.0,
+          top: 10.0,
+          bottom: 10.0,
+        ),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).dividerColor,
+              width: 0.5,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Image.asset(
+              book.link.toString().contains('tablet.otzar.org')
+                  ? 'assets/logos/otzar.ico'
+                  : 'assets/logos/hebrew_books.png',
+              width: 18,
+              height: 18,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    book.title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                    ),
+                  ),
+                  if (book.author != null && book.author!.isNotEmpty)
+                    Text(
+                      book.author!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.open_in_new,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openBookInReader(Book book) {
     final index = book is PdfBook ? 1 : 0;
     openBook(context, book, index, '');
   }

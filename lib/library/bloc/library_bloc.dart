@@ -7,6 +7,7 @@ import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 import 'package:otzaria/data/data_providers/tantivy_data_provider.dart';
 import 'package:otzaria/data/repository/data_repository.dart';
 import 'package:otzaria/library/models/library.dart';
+import 'package:otzaria/models/books.dart';
 
 class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
   final DataRepository _repository = DataRepository.instance;
@@ -21,6 +22,7 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     on<SearchBooks>(_onSearchBooks);
     on<SelectTopics>(_onSelectTopics);
     on<UpdateSearchQuery>(_onUpdateSearchQuery);
+    on<SelectBookForPreview>(_onSelectBookForPreview);
   }
 
   Future<void> _onLoadLibrary(
@@ -30,10 +32,14 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     Library library = await _repository.library;
     emit(state.copyWith(isLoading: true));
     try {
+      // בחירת הספר הראשון לתצוגה מקדימה
+      final firstBook = _getFirstTextBook(library);
+      
       emit(state.copyWith(
         library: library,
         currentCategory: library,
         isLoading: false,
+        previewBook: firstBook,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -41,6 +47,26 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
         isLoading: false,
       ));
     }
+  }
+  
+  /// מחזיר את ספר הטקסט הראשון בקטגוריה
+  Book? _getFirstTextBook(Category category) {
+    // חיפוש ספר טקסט בקטגוריה הנוכחית
+    for (final book in category.books) {
+      if (book is TextBook) {
+        return book;
+      }
+    }
+    
+    // אם לא נמצא, חיפוש בתת-קטגוריות
+    for (final subCategory in category.subCategories) {
+      final book = _getFirstTextBook(subCategory);
+      if (book != null) {
+        return book;
+      }
+    }
+    
+    return null;
   }
 
   Future<void> _onRefreshLibrary(
@@ -174,11 +200,15 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     NavigateToCategory event,
     Emitter<LibraryState> emit,
   ) {
+    // בחירת הספר הראשון בקטגוריה החדשה
+    final firstBook = _getFirstTextBook(event.category);
+    
     emit(state.copyWith(
       currentCategory: event.category,
       searchQuery: null,
       searchResults: null,
       selectedTopics: null,
+      previewBook: firstBook,
     ));
   }
 
@@ -239,5 +269,12 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     Emitter<LibraryState> emit,
   ) {
     emit(state.copyWith(selectedTopics: event.topics));
+  }
+
+  void _onSelectBookForPreview(
+    SelectBookForPreview event,
+    Emitter<LibraryState> emit,
+  ) {
+    emit(state.copyWith(previewBook: event.book));
   }
 }
