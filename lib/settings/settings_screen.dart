@@ -190,14 +190,24 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                   children: <Widget>[
                     _buildColumns(3, [
                       if (!(Platform.isAndroid || Platform.isIOS))
-                        SimpleSettingsTile(
-                          title: 'מסך מלא',
-                          subtitle: 'החלף מצב מסך מלא',
-                          leading: const Icon(
-                              FluentIcons.full_screen_maximize_24_regular),
-                          onTap: () async {
-                            final f = await windowManager.isFullScreen();
-                            await windowManager.setFullScreen(!f);
+                        BlocBuilder<SettingsBloc, SettingsState>(
+                          builder: (context, settingsState) {
+                            return SimpleSettingsTile(
+                              title: 'מסך מלא',
+                              subtitle: 'החלף מצב מסך מלא',
+                              leading: Icon(settingsState.isFullscreen
+                                  ? FluentIcons.full_screen_minimize_24_regular
+                                  : FluentIcons
+                                      .full_screen_maximize_24_regular),
+                              onTap: () async {
+                                final newFullscreenState =
+                                    !settingsState.isFullscreen;
+                                context.read<SettingsBloc>().add(
+                                    UpdateIsFullscreen(newFullscreenState));
+                                await windowManager
+                                    .setFullScreen(newFullscreenState);
+                              },
+                            );
                           },
                         ),
                       SwitchSettingsTile(

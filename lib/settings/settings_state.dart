@@ -23,6 +23,9 @@ class SettingsState extends Equatable {
   final String copyWithHeaders;
   final String copyHeaderFormat;
   final bool enableHtmlLinks;
+  final bool isFullscreen;
+  final String libraryViewMode;
+  final bool libraryShowPreview;
 
   const SettingsState({
     required this.isDarkMode,
@@ -46,6 +49,9 @@ class SettingsState extends Equatable {
     required this.copyWithHeaders,
     required this.copyHeaderFormat,
     required this.enableHtmlLinks,
+    required this.isFullscreen,
+    required this.libraryViewMode,
+    required this.libraryShowPreview,
   });
 
   factory SettingsState.initial() {
@@ -71,6 +77,9 @@ class SettingsState extends Equatable {
       copyWithHeaders: 'none',
       copyHeaderFormat: 'same_line_after_brackets',
       enableHtmlLinks: true,
+      isFullscreen: false,
+      libraryViewMode: 'grid',
+      libraryShowPreview: true,
     );
   }
 
@@ -96,6 +105,9 @@ class SettingsState extends Equatable {
     String? copyWithHeaders,
     String? copyHeaderFormat,
     bool? enableHtmlLinks,
+    bool? isFullscreen,
+    String? libraryViewMode,
+    bool? libraryShowPreview,
   }) {
     return SettingsState(
       isDarkMode: isDarkMode ?? this.isDarkMode,
@@ -120,6 +132,9 @@ class SettingsState extends Equatable {
       copyWithHeaders: copyWithHeaders ?? this.copyWithHeaders,
       copyHeaderFormat: copyHeaderFormat ?? this.copyHeaderFormat,
       enableHtmlLinks: enableHtmlLinks ?? this.enableHtmlLinks,
+      isFullscreen: isFullscreen ?? this.isFullscreen,
+      libraryViewMode: libraryViewMode ?? this.libraryViewMode,
+      libraryShowPreview: libraryShowPreview ?? this.libraryShowPreview,
     );
   }
 
@@ -146,5 +161,8 @@ class SettingsState extends Equatable {
         copyWithHeaders,
         copyHeaderFormat,
         enableHtmlLinks,
+        isFullscreen,
+        libraryViewMode,
+        libraryShowPreview,
       ];
 }

@@ -27,6 +27,9 @@ class SettingsRepository {
   static const String keyCopyWithHeaders = 'key-copy-with-headers';
   static const String keyCopyHeaderFormat = 'key-copy-header-format';
   static const String keyEnableHtmlLinks = 'key-enable-html-links';
+  static const String keyIsFullscreen = 'key-is-fullscreen';
+  static const String keyLibraryViewMode = 'key-library-view-mode';
+  static const String keyLibraryShowPreview = 'key-library-show-preview';
 
   final SettingsWrapper _settings;
 
@@ -119,6 +122,18 @@ class SettingsRepository {
       ),
       'enableHtmlLinks': _settings.getValue<bool>(
         keyEnableHtmlLinks,
+        defaultValue: true,
+      ),
+      'isFullscreen': _settings.getValue<bool>(
+        keyIsFullscreen,
+        defaultValue: false,
+      ),
+      'libraryViewMode': _settings.getValue<String>(
+        keyLibraryViewMode,
+        defaultValue: 'grid',
+      ),
+      'libraryShowPreview': _settings.getValue<bool>(
+        keyLibraryShowPreview,
         defaultValue: true,
       ),
     };
@@ -220,6 +235,18 @@ class SettingsRepository {
     await _settings.setValue(keyEnableHtmlLinks, value);
   }
 
+  Future<void> updateIsFullscreen(bool value) async {
+    await _settings.setValue(keyIsFullscreen, value);
+  }
+
+  Future<void> updateLibraryViewMode(String value) async {
+    await _settings.setValue(keyLibraryViewMode, value);
+  }
+
+  Future<void> updateLibraryShowPreview(bool value) async {
+    await _settings.setValue(keyLibraryShowPreview, value);
+  }
+
   /// Initialize default settings to disk if this is the first app launch
   Future<void> _initializeDefaultsIfNeeded() async {
     if (await _checkIfDefaultsNeeded()) {
@@ -260,6 +287,9 @@ class SettingsRepository {
     await _settings.setValue(keyCopyWithHeaders, 'none');
     await _settings.setValue(keyCopyHeaderFormat, 'same_line_after_brackets');
     await _settings.setValue(keyEnableHtmlLinks, true);
+    await _settings.setValue(keyIsFullscreen, false);
+    await _settings.setValue(keyLibraryViewMode, 'grid');
+    await _settings.setValue(keyLibraryShowPreview, true);
 
     // Mark as initialized
     await _settings.setValue('settings_initialized', true);

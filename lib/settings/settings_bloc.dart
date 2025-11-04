@@ -31,6 +31,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdateCopyWithHeaders>(_onUpdateCopyWithHeaders);
     on<UpdateCopyHeaderFormat>(_onUpdateCopyHeaderFormat);
     on<UpdateEnableHtmlLinks>(_onUpdateEnableHtmlLinks);
+    on<UpdateIsFullscreen>(_onUpdateIsFullscreen);
+    on<UpdateLibraryViewMode>(_onUpdateLibraryViewMode);
+    on<UpdateLibraryShowPreview>(_onUpdateLibraryShowPreview);
   }
 
   Future<void> _onLoadSettings(
@@ -60,6 +63,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       copyWithHeaders: settings['copyWithHeaders'],
       copyHeaderFormat: settings['copyHeaderFormat'],
       enableHtmlLinks: settings['enableHtmlLinks'],
+      isFullscreen: settings['isFullscreen'],
+      libraryViewMode: settings['libraryViewMode'],
+      libraryShowPreview: settings['libraryShowPreview'],
     ));
   }
 
@@ -229,5 +235,29 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     await _repository.updateEnableHtmlLinks(event.enableHtmlLinks);
     emit(state.copyWith(enableHtmlLinks: event.enableHtmlLinks));
+  }
+
+  Future<void> _onUpdateIsFullscreen(
+    UpdateIsFullscreen event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateIsFullscreen(event.isFullscreen);
+    emit(state.copyWith(isFullscreen: event.isFullscreen));
+  }
+
+  Future<void> _onUpdateLibraryViewMode(
+    UpdateLibraryViewMode event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateLibraryViewMode(event.libraryViewMode);
+    emit(state.copyWith(libraryViewMode: event.libraryViewMode));
+  }
+
+  Future<void> _onUpdateLibraryShowPreview(
+    UpdateLibraryShowPreview event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateLibraryShowPreview(event.libraryShowPreview);
+    emit(state.copyWith(libraryShowPreview: event.libraryShowPreview));
   }
 }

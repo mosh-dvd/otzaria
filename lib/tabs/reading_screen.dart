@@ -25,6 +25,9 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/widgets/scrollable_tab_bar.dart';
 import 'package:otzaria/settings/reading_settings_dialog.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:otzaria/settings/settings_bloc.dart';
+import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/settings/settings_event.dart';
 
 class ReadingScreen extends StatefulWidget {
   const ReadingScreen({super.key});
@@ -236,12 +239,25 @@ class _ReadingScreenState extends State<ReadingScreen>
                           width: _kAppBarControlsWidth -
                               (_kActionButtonsCount * _kActionButtonWidth)),
                     // כפתור מסך מלא - פעיל תמיד
-                    IconButton(
-                      icon: const Icon(FluentIcons.full_screen_maximize_24_regular),
-                      tooltip: 'מסך מלא',
-                      onPressed: () async {
-                        final isFullScreen = await windowManager.isFullScreen();
-                        await windowManager.setFullScreen(!isFullScreen);
+                    BlocBuilder<SettingsBloc, SettingsState>(
+                      builder: (context, settingsState) {
+                        return IconButton(
+                          icon: Icon(settingsState.isFullscreen
+                              ? FluentIcons.full_screen_minimize_24_regular
+                              : FluentIcons.full_screen_maximize_24_regular),
+                          tooltip: settingsState.isFullscreen
+                              ? 'צא ממסך מלא'
+                              : 'מסך מלא',
+                          onPressed: () async {
+                            final newFullscreenState =
+                                !settingsState.isFullscreen;
+                            context
+                                .read<SettingsBloc>()
+                                .add(UpdateIsFullscreen(newFullscreenState));
+                            await windowManager
+                                .setFullScreen(newFullscreenState);
+                          },
+                        );
                       },
                     ),
                     // כפתור הגדרות בצד שמאל של שורת הטאבים
@@ -389,7 +405,8 @@ class _ReadingScreenState extends State<ReadingScreen>
                         children: [
                           const Padding(
                             padding: EdgeInsets.all(8.0),
-                            child: Icon(FluentIcons.document_pdf_24_regular, size: 16),
+                            child: Icon(FluentIcons.document_pdf_24_regular,
+                                size: 16),
                           ),
                           Text(truncate(tab.title, 12)),
                         ],
@@ -413,7 +430,8 @@ class _ReadingScreenState extends State<ReadingScreen>
                         maxHeight: 25,
                       ),
                       onPressed: () => closeTab(tab, context),
-                      icon: const Icon(FluentIcons.dismiss_24_regular, size: 10),
+                      icon:
+                          const Icon(FluentIcons.dismiss_24_regular, size: 10),
                     ),
                   ),
                 ],

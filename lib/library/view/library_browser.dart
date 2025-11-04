@@ -7,6 +7,7 @@ import 'package:otzaria/library/bloc/library_event.dart';
 import 'package:otzaria/library/bloc/library_state.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/settings/settings_event.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/library/models/library.dart';
 import 'package:otzaria/daf_yomi/daf_yomi_helper.dart';
@@ -54,6 +55,17 @@ class _LibraryBrowserState extends State<LibraryBrowser>
   void initState() {
     super.initState();
     context.read<LibraryBloc>().add(LoadLibrary());
+    _loadViewPreferences();
+  }
+
+  void _loadViewPreferences() {
+    final settingsState = context.read<SettingsBloc>().state;
+    setState(() {
+      _showPreview = settingsState.libraryShowPreview;
+      _viewMode = settingsState.libraryViewMode == 'list'
+          ? ViewMode.list
+          : ViewMode.grid;
+    });
   }
 
   @override
@@ -178,6 +190,9 @@ class _LibraryBrowserState extends State<LibraryBrowser>
                                     setState(() {
                                       _showPreview = false;
                                     });
+                                    context.read<SettingsBloc>().add(
+                                          const UpdateLibraryShowPreview(false),
+                                        );
                                   },
                                 ),
                               ),
@@ -244,11 +259,16 @@ class _LibraryBrowserState extends State<LibraryBrowser>
                       ? 'תצוגת רשימה (עץ מתרחב)'
                       : 'תצוגת רשת',
                   onPressed: () {
+                    final newViewMode = _viewMode == ViewMode.grid
+                        ? ViewMode.list
+                        : ViewMode.grid;
                     setState(() {
-                      _viewMode = _viewMode == ViewMode.grid
-                          ? ViewMode.list
-                          : ViewMode.grid;
+                      _viewMode = newViewMode;
                     });
+                    context.read<SettingsBloc>().add(
+                          UpdateLibraryViewMode(
+                              newViewMode == ViewMode.list ? 'list' : 'grid'),
+                        );
                   },
                   style: IconButton.styleFrom(
                     foregroundColor:
@@ -271,6 +291,9 @@ class _LibraryBrowserState extends State<LibraryBrowser>
                       setState(() {
                         _showPreview = true;
                       });
+                      context.read<SettingsBloc>().add(
+                            const UpdateLibraryShowPreview(true),
+                          );
                     },
                     style: IconButton.styleFrom(
                       foregroundColor:

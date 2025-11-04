@@ -198,3 +198,30 @@ class UpdateEnableHtmlLinks extends SettingsEvent {
   @override
   List<Object?> get props => [enableHtmlLinks];
 }
+
+class UpdateIsFullscreen extends SettingsEvent {
+  final bool isFullscreen;
+
+  const UpdateIsFullscreen(this.isFullscreen);
+
+  @override
+  List<Object?> get props => [isFullscreen];
+}
+
+class UpdateLibraryViewMode extends SettingsEvent {
+  final String libraryViewMode;
+
+  const UpdateLibraryViewMode(this.libraryViewMode);
+
+  @override
+  List<Object?> get props => [libraryViewMode];
+}
+
+class UpdateLibraryShowPreview extends SettingsEvent {
+  final bool libraryShowPreview;
+
+  const UpdateLibraryShowPreview(this.libraryShowPreview);
+
+  @override
+  List<Object?> get props => [libraryShowPreview];
+}
