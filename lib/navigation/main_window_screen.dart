@@ -9,12 +9,11 @@ import 'package:otzaria/navigation/bloc/navigation_bloc.dart';
 import 'package:otzaria/navigation/bloc/navigation_event.dart';
 import 'package:otzaria/navigation/bloc/navigation_state.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
+import 'package:otzaria/settings/settings_state.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
-import 'package:otzaria/tabs/bloc/tabs_bloc.dart';
-import 'package:otzaria/tabs/bloc/tabs_event.dart';
-import 'package:otzaria/tabs/models/searching_tab.dart';
 import 'package:otzaria/empty_library/empty_library_screen.dart';
 import 'package:otzaria/find_ref/find_ref_dialog.dart';
+import 'package:otzaria/search/view/search_dialog.dart';
 import 'package:otzaria/library/view/library_browser.dart';
 import 'package:otzaria/tabs/reading_screen.dart';
 import 'package:otzaria/settings/settings_screen.dart';
@@ -22,6 +21,9 @@ import 'package:otzaria/navigation/more_screen.dart';
 import 'package:otzaria/navigation/about_dialog.dart';
 import 'package:otzaria/widgets/keyboard_shortcuts.dart';
 import 'package:otzaria/update/my_updat_widget.dart';
+import 'package:otzaria/tabs/bloc/tabs_bloc.dart';
+import 'package:otzaria/tabs/bloc/tabs_event.dart';
+import 'package:otzaria/tabs/models/searching_tab.dart';
 
 class MainWindowScreen extends StatefulWidget {
   const MainWindowScreen({super.key});
@@ -41,17 +43,25 @@ class MainWindowScreenState extends State<MainWindowScreen>
   // rest of the application UI available.
   List<Widget> _pages = [];
 
+  bool _hasCheckedAutoIndex = false;
+
   @override
   void initState() {
     super.initState();
-    final initialPage = _pageIndexForScreen(
+    final initialPage =
+        _pageIndexForScreen(
           context.read<NavigationBloc>().state.currentScreen,
         ) ??
         Screen.library.index;
-    pageController = PageController(
-      initialPage: initialPage,
-    );
-    // Auto start indexing
+    pageController = PageController(initialPage: initialPage);
+  }
+
+  void _checkAndStartIndexing(BuildContext context) {
+    // Only check once, after settings are loaded
+    if (_hasCheckedAutoIndex) return;
+    _hasCheckedAutoIndex = true;
+
+    // Check if auto-update is enabled
     if (context.read<SettingsBloc>().state.autoUpdateIndex) {
       DataRepository.instance.library.then((library) {
         if (!mounted || !context.mounted) return;
@@ -73,8 +83,10 @@ class MainWindowScreenState extends State<MainWindowScreen>
         if (!mounted || !pageController.hasClients) {
           return;
         }
-        final currentScreen =
-            context.read<NavigationBloc>().state.currentScreen;
+        final currentScreen = context
+            .read<NavigationBloc>()
+            .state
+            .currentScreen;
         final targetPage = _pageIndexForScreen(currentScreen);
         if (targetPage == null) {
           return;
@@ -92,12 +104,12 @@ class MainWindowScreenState extends State<MainWindowScreen>
 
     final libraryShortcut =
         Settings.getValue<String>('key-shortcut-open-library-browser') ??
-            'ctrl+l';
+        'ctrl+l';
     final findShortcut =
         Settings.getValue<String>('key-shortcut-open-find-ref') ?? 'ctrl+o';
     final browseShortcut =
         Settings.getValue<String>('key-shortcut-open-reading-screen') ??
-            'ctrl+r';
+        'ctrl+r';
     final searchShortcut =
         Settings.getValue<String>('key-shortcut-open-new-search') ?? 'ctrl+q';
 
@@ -154,7 +166,9 @@ class MainWindowScreenState extends State<MainWindowScreen>
   }
 
   void _handleNavigationChange(
-      BuildContext context, NavigationState state) async {
+    BuildContext context,
+    NavigationState state,
+  ) async {
     if (!mounted || !context.mounted || !pageController.hasClients) {
       return;
     }
@@ -170,19 +184,39 @@ class MainWindowScreenState extends State<MainWindowScreen>
         if (!mounted || !context.mounted) return;
       }
       if (state.currentScreen == Screen.library) {
-        context
-            .read<FocusRepository>()
-            .requestLibrarySearchFocus(selectAll: true);
+        context.read<FocusRepository>().requestLibrarySearchFocus(
+          selectAll: true,
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<NavigationBloc, NavigationState>(
-      listenWhen: (previous, current) =>
-          previous.currentScreen != current.currentScreen,
-      listener: _handleNavigationChange,
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<NavigationBloc, NavigationState>(
+          listenWhen: (previous, current) =>
+              previous.currentScreen != current.currentScreen,
+          listener: _handleNavigationChange,
+        ),
+        BlocListener<SettingsBloc, SettingsState>(
+          listenWhen: (previous, current) {
+            // Trigger when settings are loaded for the first time (not initial state anymore)
+            // or when autoUpdateIndex changes
+            final isInitialLoad =
+                previous == SettingsState.initial() &&
+                current != SettingsState.initial();
+            final hasChanged =
+                previous.autoUpdateIndex != current.autoUpdateIndex;
+            return isInitialLoad || hasChanged;
+          },
+          listener: (context, state) {
+            // When settings are loaded for the first time, check if we should start indexing
+            _checkAndStartIndexing(context);
+          },
+        ),
+      ],
       child: BlocBuilder<NavigationBloc, NavigationState>(
         builder: (context, state) {
           // Build the pages list here so we can inject the EmptyLibraryScreen
@@ -229,50 +263,59 @@ class MainWindowScreenState extends State<MainWindowScreen>
                               child: LayoutBuilder(
                                 builder: (context, constraints) =>
                                     NavigationRail(
-                                  labelType: NavigationRailLabelType.all,
-                                  destinations: [
-                                    for (var destination
-                                        in _buildNavigationDestinations())
-                                      NavigationRailDestination(
-                                        icon: Tooltip(
-                                          preferBelow: false,
-                                          message: destination.tooltip ?? '',
-                                          child: destination.icon,
-                                        ),
-                                        label: Text(destination.label),
-                                        padding: destination.label == 'הגדרות'
-                                            ? EdgeInsets.only(
-                                                top:
-                                                    constraints.maxHeight - 470)
-                                            : null,
+                                      labelType: NavigationRailLabelType.all,
+                                      destinations: [
+                                        for (var destination
+                                            in _buildNavigationDestinations())
+                                          NavigationRailDestination(
+                                            icon: Tooltip(
+                                              preferBelow: false,
+                                              message:
+                                                  destination.tooltip ?? '',
+                                              child: destination.icon,
+                                            ),
+                                            label: Text(destination.label),
+                                            padding:
+                                                destination.label == 'הגדרות'
+                                                ? EdgeInsets.only(
+                                                    top:
+                                                        constraints.maxHeight -
+                                                        470,
+                                                  )
+                                                : null,
+                                          ),
+                                      ],
+                                      selectedIndex: _getSelectedIndex(
+                                        state.currentScreen,
                                       ),
-                                  ],
-                                  selectedIndex:
-                                      _getSelectedIndex(state.currentScreen),
-                                  onDestinationSelected: (index) {
-                                    if (index == Screen.search.index) {
-                                      _handleSearchTabOpen(context);
-                                    } else if (index == Screen.find.index) {
-                                      _handleFindRefOpen(context);
-                                    } else if (index == Screen.about.index) {
-                                      showDialog(
-                                        context: context,
-                                        builder: (context) =>
-                                            const AboutDialogWidget(),
-                                      );
-                                    } else {
-                                      context.read<NavigationBloc>().add(
-                                          NavigateToScreen(
-                                              Screen.values[index]));
-                                    }
-                                    if (index == Screen.library.index) {
-                                      context
-                                          .read<FocusRepository>()
-                                          .requestLibrarySearchFocus(
-                                              selectAll: true);
-                                    }
-                                  },
-                                ),
+                                      onDestinationSelected: (index) {
+                                        if (index == Screen.search.index) {
+                                          _handleSearchTabOpen(context);
+                                        } else if (index == Screen.find.index) {
+                                          _handleFindRefOpen(context);
+                                        } else if (index ==
+                                            Screen.about.index) {
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) =>
+                                                const AboutDialogWidget(),
+                                          );
+                                        } else {
+                                          context.read<NavigationBloc>().add(
+                                            NavigateToScreen(
+                                              Screen.values[index],
+                                            ),
+                                          );
+                                        }
+                                        if (index == Screen.library.index) {
+                                          context
+                                              .read<FocusRepository>()
+                                              .requestLibrarySearchFocus(
+                                                selectAll: true,
+                                              );
+                                        }
+                                      },
+                                    ),
                               ),
                             ),
                             const VerticalDivider(thickness: 1, width: 1),
@@ -285,8 +328,9 @@ class MainWindowScreenState extends State<MainWindowScreen>
                             Expanded(child: pageView),
                             NavigationBar(
                               destinations: _buildNavigationDestinations(),
-                              selectedIndex:
-                                  _getSelectedIndex(state.currentScreen),
+                              selectedIndex: _getSelectedIndex(
+                                state.currentScreen,
+                              ),
                               onDestinationSelected: (index) {
                                 if (index == Screen.search.index) {
                                   _handleSearchTabOpen(context);
@@ -300,13 +344,15 @@ class MainWindowScreenState extends State<MainWindowScreen>
                                   );
                                 } else {
                                   context.read<NavigationBloc>().add(
-                                      NavigateToScreen(Screen.values[index]));
+                                    NavigateToScreen(Screen.values[index]),
+                                  );
                                 }
                                 if (index == Screen.library.index) {
                                   context
                                       .read<FocusRepository>()
                                       .requestLibrarySearchFocus(
-                                          selectAll: true);
+                                        selectAll: true,
+                                      );
                                 }
                               },
                             ),
@@ -342,28 +388,49 @@ class MainWindowScreenState extends State<MainWindowScreen>
   }
 
   void _handleSearchTabOpen(BuildContext context) {
+    final useFastSearch = context.read<SettingsBloc>().state.useFastSearch;
+    if (!useFastSearch) {
+      _openLegacySearchTab(context);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => const SearchDialog(existingTab: null),
+    );
+  }
+
+  void _openLegacySearchTab(BuildContext context) {
     final tabsBloc = context.read<TabsBloc>();
     final navigationBloc = context.read<NavigationBloc>();
-    if (tabsBloc.state.tabs.every((tab) => tab.runtimeType != SearchingTab) ||
-        (navigationBloc.state.currentScreen == Screen.search &&
-            tabsBloc.state.tabs[tabsBloc.state.currentTabIndex].runtimeType ==
-                SearchingTab)) {
+
+    final tabsState = tabsBloc.state;
+    final hasSearchTab = tabsState.tabs.any(
+      (tab) => tab.runtimeType == SearchingTab,
+    );
+
+    if (!hasSearchTab) {
       tabsBloc.add(AddTab(SearchingTab("חיפוש", "")));
+    } else {
+      final currentScreen = navigationBloc.state.currentScreen;
+      final isAlreadySearchTab =
+          currentScreen == Screen.search &&
+          tabsState.tabs[tabsState.currentTabIndex].runtimeType == SearchingTab;
+      if (!isAlreadySearchTab) {
+        final searchTabIndex = tabsState.tabs.indexWhere(
+          (tab) => tab.runtimeType == SearchingTab,
+        );
+        if (searchTabIndex != -1) {
+          tabsBloc.add(SetCurrentTab(searchTabIndex));
+        }
+      }
     }
-    // if sesrch tab exists but not focused, move to it
-    else if (tabsBloc.state.tabs
-        .any((tab) => tab.runtimeType == SearchingTab)) {
-      tabsBloc.add(SetCurrentTab(tabsBloc.state.tabs
-          .indexWhere((tab) => tab.runtimeType == SearchingTab)));
-    }
+
     navigationBloc.add(const NavigateToScreen(Screen.search));
   }
 
   void _handleFindRefOpen(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => FindRefDialog(),
-    );
+    showDialog(context: context, builder: (context) => FindRefDialog());
   }
 
   int _getSelectedIndex(Screen currentScreen) {
@@ -390,10 +457,7 @@ class MainWindowScreenState extends State<MainWindowScreen>
 class KeepAlivePage extends StatefulWidget {
   final Widget child;
 
-  const KeepAlivePage({
-    super.key,
-    required this.child,
-  });
+  const KeepAlivePage({super.key, required this.child});
 
   @override
   State<KeepAlivePage> createState() => _KeepAlivePageState();

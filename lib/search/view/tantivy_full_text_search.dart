@@ -10,10 +10,10 @@ import 'package:otzaria/tabs/bloc/tabs_bloc.dart';
 import 'package:otzaria/navigation/bloc/navigation_bloc.dart';
 import 'package:otzaria/navigation/bloc/navigation_state.dart';
 import 'package:otzaria/search/view/full_text_settings_widgets.dart';
-import 'package:otzaria/search/view/tantivy_search_field.dart';
 import 'package:otzaria/search/view/tantivy_search_results.dart';
 import 'package:otzaria/search/view/full_text_facet_filtering.dart';
 import 'package:otzaria/widgets/resizable_facet_filtering.dart';
+import 'package:otzaria/settings/settings_bloc.dart';
 
 class TantivyFullTextSearch extends StatefulWidget {
   final SearchingTab tab;
@@ -75,10 +75,12 @@ class _TantivyFullTextSearchState extends State<TantivyFullTextSearch>
     return BlocListener<NavigationBloc, NavigationState>(
       listener: (context, state) => _onNavigationChanged(state),
       child: Scaffold(
-        body: LayoutBuilder(builder: (context, constraints) {
-          if (constraints.maxWidth < 800) return _buildForSmallScreens();
-          return _buildForWideScreens();
-        }),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 800) return _buildForSmallScreens();
+            return _buildForWideScreens();
+          },
+        ),
       ),
     );
   }
@@ -89,66 +91,84 @@ class _TantivyFullTextSearchState extends State<TantivyFullTextSearch>
         return Container(
           clipBehavior: Clip.hardEdge,
           decoration: const BoxDecoration(),
-          child: Column(children: [
-            if (_showIndexWarning) _buildIndexWarning(),
-            Row(
-              children: [
-                _buildMenuButton(),
-                Expanded(child: TantivySearchField(widget: widget)),
-              ],
-            ),
-            // השורה התחתונה - מוצגת תמיד!
-            _buildBottomRow(state),
-            _buildDivider(),
-            Expanded(
-              child: Stack(
-                children: [
-                  if (state.isLoading)
-                    const Center(child: CircularProgressIndicator())
-                  else if (state.searchQuery.isEmpty)
-                    const Center(child: Text("לא בוצע חיפוש"))
-                  else if (state.results.isEmpty)
-                    const Center(
-                        child: Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text('אין תוצאות'),
-                    ))
-                  else
-                    Container(
-                      clipBehavior: Clip.hardEdge,
-                      decoration: const BoxDecoration(),
-                      child: TantivySearchResults(tab: widget.tab),
-                    ),
-                  ValueListenableBuilder(
-                      valueListenable: widget.tab.isLeftPaneOpen,
-                      builder: (context, value, child) => AnimatedSize(
-                          duration: const Duration(milliseconds: 300),
-                          child: SizedBox(
-                            width: value ? 500 : 0,
-                            child: Container(
-                              color: Theme.of(context).colorScheme.surface,
-                              child: Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      FuzzyDistance(tab: widget.tab),
-                                      NumOfResults(tab: widget.tab),
-                                    ],
-                                  ),
-                                  SearchModeToggle(tab: widget.tab),
-                                  Expanded(
-                                    child: SearchFacetFiltering(
-                                      tab: widget.tab,
-                                    ),
-                                  ),
-                                ],
+          child: Column(
+            children: [
+              if (_showIndexWarning) _buildIndexWarning(),
+              Row(children: [_buildMenuButton()]),
+              // השורה התחתונה - מוצגת תמיד!
+              _buildBottomRow(state),
+              _buildDivider(),
+              Expanded(
+                child: Stack(
+                  children: [
+                    if (state.isLoading)
+                      const Center(child: CircularProgressIndicator())
+                    else if (state.searchQuery.isEmpty)
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              FluentIcons.search_24_regular,
+                              size: 64,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              "לא בוצע חיפוש",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey.shade600,
                               ),
                             ),
-                          )))
-                ],
+                            const SizedBox(height: 8),
+                            Text(
+                              "לחץ על 'חיפוש חדש' כדי להתחיל",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (state.results.isEmpty)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Text('אין תוצאות'),
+                        ),
+                      )
+                    else
+                      Container(
+                        clipBehavior: Clip.hardEdge,
+                        decoration: const BoxDecoration(),
+                        child: TantivySearchResults(tab: widget.tab),
+                      ),
+                    ValueListenableBuilder(
+                      valueListenable: widget.tab.isLeftPaneOpen,
+                      builder: (context, value, child) => AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        child: SizedBox(
+                          width: value ? 500 : 0,
+                          child: Container(
+                            color: Theme.of(context).colorScheme.surface,
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: SearchFacetFiltering(tab: widget.tab),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            )
-          ]),
+            ],
+          ),
         );
       },
     );
@@ -158,62 +178,206 @@ class _TantivyFullTextSearchState extends State<TantivyFullTextSearch>
     return Container(
       clipBehavior: Clip.hardEdge,
       decoration: const BoxDecoration(),
-      child: Column(children: [
-        if (_showIndexWarning) _buildIndexWarning(),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Expanded(
-              child: TantivySearchField(widget: widget),
-            ),
-            FuzzyDistance(tab: widget.tab),
-            SearchModeToggle(tab: widget.tab)
-          ],
-        ),
-        Expanded(
-          child: BlocBuilder<SearchBloc, SearchState>(
-            builder: (context, state) {
-              return Column(
-                children: [
-                  // השורה התחתונה - מוצגת תמיד!
-                  _buildBottomRow(state),
-                  _buildDivider(),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        ResizableFacetFiltering(tab: widget.tab),
-                        Expanded(
-                          child: Builder(builder: (context) {
-                            if (state.isLoading) {
-                              return const Center(
-                                  child: CircularProgressIndicator());
-                            }
-                            if (state.searchQuery.isEmpty) {
-                              return const Center(child: Text("לא בוצע חיפוש"));
-                            }
-                            if (state.results.isEmpty) {
-                              return const Center(
-                                  child: Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: Text('אין תוצאות'),
-                              ));
-                            }
-                            return Container(
-                              clipBehavior: Clip.hardEdge,
-                              decoration: const BoxDecoration(),
-                              child: TantivySearchResults(tab: widget.tab),
-                            );
-                          }),
-                        )
-                      ],
+      child: Column(
+        children: [
+          if (_showIndexWarning) _buildIndexWarning(),
+          Expanded(
+            child: BlocBuilder<SearchBloc, SearchState>(
+              builder: (context, state) {
+                return Column(
+                  children: [
+                    // שורה אחת פשוטה
+                    Container(
+                      height: 60,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0,
+                        vertical: 4.0,
+                      ),
+                      child: Row(
+                        children: [
+                          // כפתור תפריט
+                          IconButton(
+                            tooltip: "הצג/הסתר עץ ספרים",
+                            icon: const Icon(
+                              FluentIcons.line_horizontal_3_20_regular,
+                            ),
+                            onPressed: () {
+                              widget.tab.isLeftPaneOpen.value =
+                                  !widget.tab.isLeftPaneOpen.value;
+                            },
+                          ),
+                          // רווח כשהעץ פתוח
+                          ValueListenableBuilder(
+                            valueListenable: widget.tab.isLeftPaneOpen,
+                            builder: (context, isOpen, child) {
+                              if (!isOpen) {
+                                return const SizedBox.shrink();
+                              }
+                              final width = context
+                                  .watch<SettingsBloc>()
+                                  .state
+                                  .facetFilteringWidth;
+                              return SizedBox(width: width);
+                            },
+                          ),
+                          // מילות חיפוש + בקרות
+                          Expanded(
+                            child: BlocBuilder<SearchBloc, SearchState>(
+                              builder: (context, searchState) {
+                                if (searchState.searchQuery.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                return Row(
+                                  children: [
+                                    // הודעת "מוצגות תוצאות של חיפוש" - רק בחיפוש מתקדם
+                                    if (searchState.isAdvancedSearchEnabled)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: 16.0,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              'מוצגות תוצאות של חיפוש: ',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.7),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            SearchTermsDisplay(
+                                              tab: widget.tab,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    const Spacer(),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0,
+                                      ),
+                                      child: Text(
+                                        '${searchState.results.length}/${searchState.totalResults} תוצאות',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.7),
+                                        ),
+                                      ),
+                                    ),
+                                    OrderOfResults(
+                                      widget: TantivySearchResults(
+                                        tab: widget.tab,
+                                      ),
+                                    ),
+                                    NumOfResults(tab: widget.tab),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              );
-            },
+                    _buildDivider(),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          // עץ הסינון - עם אפשרות להסתיר/להציג
+                          ValueListenableBuilder(
+                            valueListenable: widget.tab.isLeftPaneOpen,
+                            builder: (context, isOpen, child) {
+                              return AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                width: isOpen ? null : 0,
+                                child: isOpen
+                                    ? ResizableFacetFiltering(tab: widget.tab)
+                                    : const SizedBox.shrink(),
+                              );
+                            },
+                          ),
+                          // תוצאות החיפוש
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: Builder(
+                                    builder: (context) {
+                                      if (state.isLoading) {
+                                        return const Center(
+                                          child: CircularProgressIndicator(),
+                                        );
+                                      }
+                                      if (state.searchQuery.isEmpty) {
+                                        return Center(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                FluentIcons.search_24_regular,
+                                                size: 64,
+                                                color: Colors.grey.shade400,
+                                              ),
+                                              const SizedBox(height: 16),
+                                              Text(
+                                                "לא בוצע חיפוש",
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                "לחץ על כפתור 'חיפוש' בתפריט כדי להתחיל",
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.grey.shade500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                      if (state.results.isEmpty) {
+                                        return const Center(
+                                          child: Padding(
+                                            padding: EdgeInsets.all(8.0),
+                                            child: Text('אין תוצאות'),
+                                          ),
+                                        );
+                                      }
+                                      return Container(
+                                        clipBehavior: Clip.hardEdge,
+                                        decoration: const BoxDecoration(),
+                                        child: TantivySearchResults(
+                                          tab: widget.tab,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
-        )
-      ]),
+        ],
+      ),
     );
   }
 
@@ -230,58 +394,24 @@ class _TantivyFullTextSearchState extends State<TantivyFullTextSearch>
     );
   }
 
-  // השורה התחתונה שמוצגת תמיד
+  // השורה העליונה - רק כפתור תפריט
   Widget _buildBottomRow(SearchState state) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Container(
-          height: 60, // גובה קבוע
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: Row(
-            children: [
-              // מילות החיפוש - תמיד תופס מקום, אבל מוצג רק בחיפוש מתקדם
-              Expanded(
-                child: BlocBuilder<SearchBloc, SearchState>(
-                  builder: (context, searchState) {
-                    return searchState.isAdvancedSearchEnabled
-                        ? SearchTermsDisplay(tab: widget.tab)
-                        : const SizedBox
-                            .shrink(); // מקום ריק שמחזיק את הפרופורציות
-                  },
-                ),
-              ),
-              // ספירת התוצאות עם תווית
-              SizedBox(
-                width: 161, // רוחב קבוע כמו שאר הבקרות
-                height: 52, // אותו גובה כמו הבקרות האחרות
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8.0, vertical: 4.0),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'תוצאות חיפוש',
-                      border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                    ),
-                    child: Center(
-                      child: Text(
-                        state.results.isEmpty && state.searchQuery.isEmpty
-                            ? 'לא בוצע חיפוש'
-                            : '${state.results.length} מתוך ${state.totalResults}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (constraints.maxWidth > 450)
-                OrderOfResults(widget: TantivySearchResults(tab: widget.tab)),
-              if (constraints.maxWidth > 450) NumOfResults(tab: widget.tab),
-            ],
+    return Container(
+      height: 60, // גובה קבוע
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      child: Row(
+        children: [
+          // כפתור פתיחה/סגירה של עץ הספרים - שלושה פסים
+          IconButton(
+            tooltip: "הצג/הסתר עץ ספרים",
+            icon: const Icon(FluentIcons.line_horizontal_3_20_regular),
+            onPressed: () {
+              widget.tab.isLeftPaneOpen.value =
+                  !widget.tab.isLeftPaneOpen.value;
+            },
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -320,7 +450,7 @@ class _TantivyFullTextSearchState extends State<TantivyFullTextSearch>
                 _showIndexWarning = false;
               });
             },
-          )
+          ),
         ],
       ),
     );
