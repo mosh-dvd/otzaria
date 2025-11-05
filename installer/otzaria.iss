@@ -4,7 +4,7 @@
 #define MyAppName "אוצריא"
 #define MyAppVersion "0.9.68"
 #define MyAppPublisher "sivan22"
-#define MyAppURL "https://github.com/Sivan22/otzaria"
+#define MyAppURL "https://github.com/Y-PLONI/otzaria"
 #define MyAppExeName "otzaria.exe"
 
 [Setup]

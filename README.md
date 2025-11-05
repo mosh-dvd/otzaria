@@ -117,13 +117,28 @@ Also, it is a multiplatform framework.
 ## Getting Started
 
 ### windows
-#### Prerequisites
-Make sure that Visual C++ Redistributable is installed on your computer. if not, download it from [Here](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) and install it.
-
 #### Installation
-Download the latest build for windows from [releases](https://github.com/Sivan22/otzaria/releases). 
-The library is included in the .exe file.
+
+**Choose your installer:**
+
+1. **Full Installer (Recommended)** - `otzaria-x.x.x-windows-full.exe`
+   - Includes all required dependencies (Visual C++ Redistributable)
+   - Automatically installs missing components
+   - Best choice for most users
+   - Larger download size (~100MB more)
+
+2. **Regular Installer** - `otzaria-x.x.x-windows.exe`
+   - Smaller download size
+   - Requires Visual C++ Redistributable to be pre-installed
+   - For users who know they already have the required dependencies
+
+Download the latest build for Windows from [releases](https://github.com/Sivan22/otzaria/releases). 
+
+**Note:** The library is included in the .exe file.
 In case you need only the app itself (for upgrading) you can download the .msix file.
+
+#### Prerequisites (for Regular Installer only)
+If using the regular installer, make sure that Visual C++ Redistributable is installed on your computer. If not, download it from [here](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) and install it.
 
 ### linux
 #### Prerequisites

@@ -1,0 +1,8 @@
+# Ignore Visual C++ Redistributable file (large file, should be downloaded separately)
+VisualCppRedist_AIO_x86_x64.exe
+
+# Ignore built installers (but not icon file)
+otzaria-*.exe
+
+# Ignore Inno Setup output directory if it exists
+Output/
