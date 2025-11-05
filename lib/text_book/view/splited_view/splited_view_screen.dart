@@ -34,14 +34,14 @@ class SplitedViewScreen extends StatefulWidget {
 
 class _SplitedViewScreenState extends State<SplitedViewScreen> {
   late final MultiSplitViewController _controller;
-  static final GlobalKey<SelectionAreaState> _selectionKey =
-      GlobalKey<SelectionAreaState>();
+  late final GlobalKey<SelectionAreaState> _selectionKey;
   bool _paneOpen = true;
 
   @override
   void initState() {
     super.initState();
     _controller = MultiSplitViewController(areas: _openAreas());
+    _selectionKey = GlobalKey<SelectionAreaState>();
   }
 
   List<Area> _openAreas() => [

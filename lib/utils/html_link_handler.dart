@@ -28,14 +28,93 @@ class HtmlLinkHandler {
     }
   }
 
+  /// מטפל בקישורים מבוססי תווים (inline links)
+  static Future<void> _handleInlineLink(
+    BuildContext context,
+    String url,
+    Function(TextBookTab) openBookCallback,
+  ) async {
+    try {
+      // פענוח ה-URL ולקיחת הפרמטרים
+      final uri = Uri.parse(url);
+      final path = _safeDecode(uri.queryParameters['path'] ?? '');
+      final indexStr = uri.queryParameters['index'] ?? '';
+      final ref = _safeDecode(uri.queryParameters['ref'] ?? '');
+
+      if (path.isEmpty) {
+        throw Exception('נתיב לא תקין בקישור');
+      }
+
+      // המרת האינדקס למספר (index2 מגיע כ-1-based, אבל אנחנו צריכים 0-based)
+      final index = int.tryParse(indexStr);
+      if (index == null) {
+        throw Exception('אינדקס לא תקין בקישור');
+      }
+
+      // מציאת הספר על פי הנתיב
+      final bookTitle = _getTitleFromPath(path);
+      final library = await DataRepository.instance.library;
+      final foundBook = library.findBookByTitle(bookTitle, TextBook);
+
+      if (foundBook == null) {
+        throw Exception('לא נמצא ספר בשם: $bookTitle');
+      }
+
+      if (foundBook is! TextBook) {
+        throw Exception('הספר $bookTitle אינו ספר טקסט');
+      }
+
+      // פתיחת הספר באינדקס הנכון (המרה ל-0-based)
+      final tab = TextBookTab(
+        book: foundBook,
+        index: index - 1, // המרה מ-1-based ל-0-based
+        openLeftPane: (Settings.getValue<bool>('key-pin-sidebar') ?? false) ||
+            (Settings.getValue<bool>('key-default-sidebar-open') ?? false),
+      );
+
+      openBookCallback(tab);
+
+      if (context.mounted && ref.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('נפתח: $ref'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('שגיאה בטיפול בקישור מבוסס תווים: $e');
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('לא ניתן לפתוח את הקישור: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// מחלץ שם ספר מנתיב קובץ
+  static String _getTitleFromPath(String path) {
+    // הסרת סיומת קובץ ונתיב
+    String title = path.split('/').last.split('\\').last;
+    if (title.endsWith('.txt')) {
+      title = title.substring(0, title.length - 4);
+    }
+    return title;
+  }
+
 
 
   /// מטפל בלחיצה על קישור HTML
   ///
   /// הפונקציה מפרשת קישורים בפורמטים הבאים:
-  /// - book://שם_הספר - פותח ספר בתחילת הספר
+  /// - book://שם_הסxxxxxxxxח ספר בתחילת הספר
   /// - book://שם_הספר#כותרת - פותח ספר ומנווט לכותרת ספציפית
   /// - #כותרת - מנווט לכותרת באותו ספר
+  /// - otzaria://inline-link?path={path}&index={index}&ref={ref} - קישור מבוסס תווים
   ///
   /// דוגמאות:
   /// - <a href="book://ברכות">ברכות</a>
@@ -47,6 +126,12 @@ class HtmlLinkHandler {
     Function(TextBookTab) openBookCallback,
   ) async {
     try {
+      // בדיקה אם זה קישור מבוסס תווים (inline-link)
+      if (url.startsWith('otzaria://inline-link')) {
+        await _handleInlineLink(context, url, openBookCallback);
+        return true;
+      }
+
       // בדיקה אם זה קישור פנימי לכותרת באותו ספר
       if (url.startsWith('#')) {
         final headerName = _safeDecode(url.substring(1));

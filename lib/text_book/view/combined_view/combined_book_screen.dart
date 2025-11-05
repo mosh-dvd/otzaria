@@ -22,6 +22,7 @@ import 'package:otzaria/utils/copy_utils.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:otzaria/utils/html_link_handler.dart';
+import 'package:otzaria/utils/text_with_inline_links.dart';
 
 class CombinedView extends StatefulWidget {
   CombinedView({
@@ -734,28 +735,52 @@ $textWithBreaks
                     BlocBuilder<SettingsBloc, SettingsState>(
                       builder: (context, settingsState) {
                         String data = widget.data[index];
+                        
+                        // הוספת קישורים מבוססי תווים לפני כל עיבוד אחר
+                        // כי start/end מתייחסים לטקסט המקורי
+                        String dataWithLinks = data;
+                        if (settingsState.enableHtmlLinks) {
+                          try {
+                            final linksForLine = state.links
+                                .where((link) => 
+                                    link.index1 == index + 1 &&
+                                    link.start != null && 
+                                    link.end != null)
+                                .toList();
+
+                            if (linksForLine.isNotEmpty) {
+                              dataWithLinks = addInlineLinksToText(data, linksForLine);
+                            }
+                          } catch (e) {
+                            // אם יש שגיאה, פשוט נשתמש בטקסט המקורי
+                            dataWithLinks = data;
+                          }
+                        }
+
+                        // כעת מבצעים את שאר העיבודים
                         if (!settingsState.showTeamim) {
-                          data = utils.removeTeamim(data);
+                          dataWithLinks = utils.removeTeamim(dataWithLinks);
                         }
                         if (settingsState.replaceHolyNames) {
-                          data = utils.replaceHolyNames(data);
+                          dataWithLinks = utils.replaceHolyNames(dataWithLinks);
                         }
+
+                        String processedData = state.removeNikud
+                            ? utils.highLight(
+                                utils.removeVolwels('$dataWithLinks\n'),
+                                state.searchText)
+                            : utils.highLight('$dataWithLinks\n', state.searchText);
+                        
+                        // החלת עיצוב הסוגריים העגולים
+                        processedData = utils.formatTextWithParentheses(processedData);
 
                         return HtmlWidget(
                           '''
                         <div style="text-align: justify; direction: rtl;">
-                          ${() {
-                            String processedData = state.removeNikud
-                                ? utils.highLight(
-                                    utils.removeVolwels('$data\n'),
-                                    state.searchText)
-                                : utils.highLight('$data\n', state.searchText);
-                            // החלת עיצוב הסוגריים העגולים
-                            return utils
-                                .formatTextWithParentheses(processedData);
-                          }()}
+                          $processedData
                         </div>
                         ''',
+                          key: ValueKey('html_${widget.tab.book.title}_$index'),
                           textStyle: TextStyle(
                             fontSize: widget.textSize,
                             fontFamily: settingsState.fontFamily,
