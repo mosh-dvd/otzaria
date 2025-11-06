@@ -626,6 +626,7 @@ const Map<String, Map<String, Map<String, double>>> cityCoordinates = {
   'ארץ ישראל': {
     'אופקים': {'lat': 31.3111, 'lng': 34.6214, 'elevation': 140.0},
     'אילת': {'lat': 29.5581, 'lng': 34.9482, 'elevation': 12.0},
+    'אלעד': {'lat': 32.0519, 'lng': 34.9517, 'elevation': 75.0},
     'אריאל': {'lat': 32.1069, 'lng': 35.1897, 'elevation': 650.0},
     'אשדוד': {'lat': 31.8044, 'lng': 34.6553, 'elevation': 50.0},
     'אשקלון': {'lat': 31.6688, 'lng': 34.5742, 'elevation': 50.0},
