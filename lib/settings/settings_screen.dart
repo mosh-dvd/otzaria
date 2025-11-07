@@ -307,7 +307,7 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                       title: 'הסתרת שמות הקודש',
                       enabledLabel: 'השמות הקדושים יוחלפו מפאת קדושתם',
                       disabledLabel: 'השמות הקדושים יוצגו ככתיבתם',
-                      leading: const Icon(FluentIcons.key_24_regular),
+                      leading: const Icon(FluentIcons.eye_off_24_regular),
                       defaultValue: state.replaceHolyNames,
                       onChange: (value) {
                         context
@@ -339,7 +339,7 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                           _buildSettingsCard(
                             context: context,
                             title: 'הגדרות לוח שנה',
-                            icon: FluentIcons.calendar_24_regular,
+                            icon: Icons.calendar_month_outlined,
                             onTap: () => showCalendarSettingsDialog(context),
                           ),
                           // הגדרות זכור ושמור - מוסתר כרגע

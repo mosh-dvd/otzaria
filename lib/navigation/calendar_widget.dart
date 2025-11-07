@@ -1836,7 +1836,7 @@ class CalendarWidget extends StatelessWidget {
                     IconButton(
                       icon: Icon(state.searchInDescriptions
                           ? FluentIcons.document_text_24_regular
-                          : FluentIcons.text_header_1_24_regular),
+                          : FluentIcons.text_t_24_regular),
                       tooltip: state.searchInDescriptions
                           ? 'חפש רק בכותרת'
                           : 'חפש גם בתיאור',

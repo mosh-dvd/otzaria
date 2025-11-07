@@ -393,7 +393,7 @@ class _AboutScreenState extends State<AboutScreen> {
         children: [
           Row(
             children: [
-              Icon(FluentIcons.heart_24_regular,
+              Icon(Icons.volunteer_activism_outlined,
                   color: Theme.of(context).primaryColor, size: 24),
               const SizedBox(width: 8),
               Text(

@@ -816,7 +816,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       // 7) Navigation Buttons
       ActionButtonData(
         widget: _buildFirstPageButton(state),
-        icon: FluentIcons.arrow_previous_24_regular,
+        icon: FluentIcons.arrow_previous_24_filled,
         tooltip: 'תחילת הספר',
         onPressed: () {
           state.scrollController.scrollTo(
@@ -827,7 +827,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       ),
       ActionButtonData(
         widget: _buildPreviousPageButton(state),
-        icon: FluentIcons.chevron_right_24_regular,
+        icon: FluentIcons.chevron_left_24_regular,
         tooltip: 'הקטע הקודם',
         onPressed: () {
           state.scrollController.scrollTo(
@@ -841,7 +841,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       ),
       ActionButtonData(
         widget: _buildNextPageButton(state),
-        icon: FluentIcons.chevron_left_24_regular,
+        icon: FluentIcons.chevron_right_24_regular,
         tooltip: 'הקטע הבא',
         onPressed: () {
           state.scrollController.scrollTo(
@@ -855,7 +855,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       ),
       ActionButtonData(
         widget: _buildLastPageButton(state),
-        icon: FluentIcons.arrow_forward_24_regular,
+        icon: FluentIcons.arrow_next_24_filled,
         tooltip: 'סוף הספר',
         onPressed: () {
           state.scrollController.scrollTo(
@@ -1096,7 +1096,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
 
   Widget _buildFirstPageButton(TextBookLoaded state) {
     return IconButton(
-      icon: const Icon(FluentIcons.arrow_previous_24_regular),
+      icon: const Icon(FluentIcons.arrow_previous_24_filled),
       tooltip: 'תחילת הספר',
       onPressed: () {
         state.scrollController.scrollTo(
@@ -1109,7 +1109,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
 
   Widget _buildPreviousPageButton(TextBookLoaded state) {
     return IconButton(
-      icon: const Icon(FluentIcons.chevron_right_24_regular),
+      icon: const Icon(FluentIcons.chevron_left_24_regular),
       tooltip: 'הקטע הקודם',
       onPressed: () {
         state.scrollController.scrollTo(
@@ -1125,7 +1125,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
 
   Widget _buildNextPageButton(TextBookLoaded state) {
     return IconButton(
-      icon: const Icon(FluentIcons.chevron_left_24_regular),
+      icon: const Icon(FluentIcons.chevron_right_24_regular),
       tooltip: 'הקטע הבא',
       onPressed: () {
         state.scrollController.scrollTo(
@@ -1141,7 +1141,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
 
   Widget _buildLastPageButton(TextBookLoaded state) {
     return IconButton(
-      icon: const Icon(FluentIcons.arrow_forward_24_regular),
+      icon: const Icon(FluentIcons.arrow_next_24_filled),
       tooltip: 'סוף הספר',
       onPressed: () {
         state.scrollController.scrollTo(
