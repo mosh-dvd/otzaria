@@ -27,7 +27,12 @@ class App extends StatelessWidget {
           locale: const Locale("he", "IL"),
           title: 'אוצריא',
           theme: state.isDarkMode
-              ? ThemeData.dark(useMaterial3: true)
+              ? ThemeData.dark(useMaterial3: true).copyWith(
+                  dialogTheme: DialogThemeData(
+                    barrierColor: const Color(0x22000000),
+                    backgroundColor: ThemeData.dark().scaffoldBackgroundColor,
+                  ),
+                )
               : ThemeData(
                   visualDensity: VisualDensity.adaptivePlatformDensity,
                   fontFamily: 'Roboto',
@@ -37,6 +42,11 @@ class App extends StatelessWidget {
                   textTheme: const TextTheme(
                     bodyMedium:
                         TextStyle(fontSize: 18.0, fontFamily: 'candara'),
+                  ),
+                ).copyWith(
+                  dialogTheme: const DialogThemeData(
+                    barrierColor: Color(0x22000000),
+                    backgroundColor: Colors.white,
                   ),
                 ),
           home: const MainWindowScreen(),
