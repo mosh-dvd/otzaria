@@ -323,7 +323,7 @@ class CalendarWidget extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${_formatHebrewDay(state.selectedJewishDate.getJewishDayOfMonth())} ${hebrewMonths[state.selectedJewishDate.getJewishMonth() - 1]}',
+              '${_formatHebrewDay(state.selectedJewishDate.getJewishDayOfMonth())} ${_getHebrewMonthNameFor(state.selectedJewishDate)}',
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -586,17 +586,42 @@ class CalendarWidget extends StatelessWidget {
               Positioned(
                 top: 4,
                 right: 4,
-                child: Text(
-                  _formatHebrewDay(day),
-                  style: TextStyle(
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.onPrimaryContainer
-                        : Theme.of(context).colorScheme.onSurface,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
-                    fontSize:
-                        state.calendarType == CalendarType.combined ? 12 : 14,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _formatHebrewDay(day),
+                      style: TextStyle(
+                        color: isSelected
+                            ? Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer
+                            : Theme.of(context).colorScheme.onSurface,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        fontSize: state.calendarType == CalendarType.combined
+                            ? 12
+                            : 14,
+                      ),
+                    ),
+                    if (state.calendarType == CalendarType.hebrew &&
+                        (jewishDate.isJewishLeapYear() &&
+                            (jewishDate.getJewishMonth() == 12 ||
+                                jewishDate.getJewishMonth() == 13) &&
+                            day == 1))
+                      Text(
+                        _getHebrewMonthNameFor(jewishDate),
+                        style: TextStyle(
+                          fontSize: 8,
+                          color: isSelected
+                              ? Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               if (state.calendarType == CalendarType.combined)
@@ -751,7 +776,7 @@ class CalendarWidget extends StatelessWidget {
   Widget _buildDateHeader(BuildContext context, CalendarState state) {
     final dayOfWeek = hebrewDays[state.selectedGregorianDate.weekday % 7];
     final jewishDateStr =
-        '${_formatHebrewDay(state.selectedJewishDate.getJewishDayOfMonth())} ${hebrewMonths[state.selectedJewishDate.getJewishMonth() - 1]}';
+    '${_formatHebrewDay(state.selectedJewishDate.getJewishDayOfMonth())} ${_getHebrewMonthNameFor(state.selectedJewishDate)}';
     final gregorianDateStr =
         '${state.selectedGregorianDate.day} ${_getGregorianMonthName(state.selectedGregorianDate.month)} ${state.selectedGregorianDate.year}';
 
@@ -1186,7 +1211,7 @@ class CalendarWidget extends StatelessWidget {
 
     final gregName = _getGregorianMonthName(gregorianDate.month);
     final gregNum = gregorianDate.month;
-    final hebName = hebrewMonths[jewishDate.getJewishMonth() - 1];
+  final hebName = _getHebrewMonthNameFor(jewishDate);
     final hebYear = _formatHebrewYear(jewishDate.getJewishYear());
 
     // Show both calendars for clarity
@@ -1302,10 +1327,20 @@ class CalendarWidget extends StatelessWidget {
   String _formatEventDate(DateTime date) {
     final jewishDate = JewishDate.fromDateTime(date);
     final hebrewStr =
-        '${_formatHebrewDay(jewishDate.getJewishDayOfMonth())} ${hebrewMonths[jewishDate.getJewishMonth() - 1]}';
+        '${_formatHebrewDay(jewishDate.getJewishDayOfMonth())} ${_getHebrewMonthNameFor(jewishDate)}';
     final gregorianStr =
         '${date.day} ${_getGregorianMonthName(date.month)} ${date.year}';
     return '$hebrewStr • $gregorianStr';
+  }
+
+  // Determine Hebrew month name, including Adar I / Adar II in leap years
+  String _getHebrewMonthNameFor(JewishDate jewishDate) {
+    final int m = jewishDate.getJewishMonth();
+    final bool leap = jewishDate.isJewishLeapYear();
+    if (leap && m == 12) return 'אדר א׳';
+    if (leap && m == 13) return 'אדר ב׳';
+    final int idx = (m - 1).clamp(0, hebrewMonths.length - 1);
+    return hebrewMonths[idx];
   }
 
   // פונקציות עזר חדשות לפענוח תאריך עברי
@@ -1622,7 +1657,7 @@ class CalendarWidget extends StatelessWidget {
                                   const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             Text(
-                              'תאריך עברי: ${_formatHebrewDay(displayedJewishDate.getJewishDayOfMonth())} ${hebrewMonths[displayedJewishDate.getJewishMonth() - 1]} ${_formatHebrewYear(displayedJewishDate.getJewishYear())}',
+                              'תאריך עברי: ${_formatHebrewDay(displayedJewishDate.getJewishDayOfMonth())} ${_getHebrewMonthNameFor(displayedJewishDate)} ${_formatHebrewYear(displayedJewishDate.getJewishYear())}',
                               style:
                                   const TextStyle(fontWeight: FontWeight.bold),
                             ),
@@ -1654,7 +1689,7 @@ class CalendarWidget extends StatelessWidget {
                                   DropdownMenuItem<bool>(
                                     value: true,
                                     child: Text(
-                                        'לוח עברי (${_formatHebrewDay(displayedJewishDate.getJewishDayOfMonth())} ${hebrewMonths[displayedJewishDate.getJewishMonth() - 1]})'),
+                                        'לוח עברי (${_formatHebrewDay(displayedJewishDate.getJewishDayOfMonth())} ${_getHebrewMonthNameFor(displayedJewishDate)})'),
                                   ),
                                   DropdownMenuItem<bool>(
                                     value: false,
