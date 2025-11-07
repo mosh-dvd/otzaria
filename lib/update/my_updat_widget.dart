@@ -163,6 +163,8 @@ class MyUpdatWidget extends StatelessWidget {
               String? assetUrl;
 
               // פונקציה לבחירת קובץ Windows לפי סדר עדיפות
+              // חשוב: לא לבחור קובץ -full.exe כי הוא מכיל את הספרייה המלאה
+              // ומיועד רק למשתמשים חדשים, לא לעדכונים
               String? pickWindows(List<String> extsInOrder) {
                 String? foundZip;
                 for (final a in assets) {
@@ -175,6 +177,11 @@ class MyUpdatWidget extends StatelessWidget {
                       name.endsWith('.msixbundle') ||
                       name.endsWith('.appinstaller');
                   if (!isWin) continue;
+
+                  // דלג על קובץ full - מיועד להתקנה ראשונית בלבד
+                  if (name.contains('-full.exe') || name.contains('_full.exe')) {
+                    continue;
+                  }
 
                   for (final ext in extsInOrder) {
                     if (name.endsWith(ext)) return url;
