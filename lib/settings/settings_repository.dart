@@ -8,6 +8,7 @@ class SettingsRepository {
   static const String keyPaddingSize = 'key-padding-size';
   static const String keyFontSize = 'key-font-size';
   static const String keyFontFamily = 'key-font-family';
+  static const String keyCommentatorsFontFamily = 'key-commentators-font-family';
   static const String keyShowOtzarHachochma = 'key-show-otzar-hachochma';
   static const String keyShowHebrewBooks = 'key-show-hebrew-books';
   static const String keyShowExternalBooks = 'key-show-external-books';
@@ -50,6 +51,10 @@ class SettingsRepository {
       'fontFamily': _settings.getValue<String>(
         keyFontFamily,
         defaultValue: 'FrankRuhlCLM',
+      ),
+      'commentatorsFontFamily': _settings.getValue<String>(
+        keyCommentatorsFontFamily,
+        defaultValue: 'NotoRashiHebrew',
       ),
       'showOtzarHachochma': _settings.getValue<bool>(
         keyShowOtzarHachochma,
@@ -152,6 +157,10 @@ class SettingsRepository {
 
   Future<void> updateFontFamily(String value) async {
     await _settings.setValue(keyFontFamily, value);
+  }
+
+  Future<void> updateCommentatorsFontFamily(String value) async {
+    await _settings.setValue(keyCommentatorsFontFamily, value);
   }
 
   Future<void> updateShowOtzarHachochma(bool value) async {

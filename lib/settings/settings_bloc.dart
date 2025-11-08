@@ -15,6 +15,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdatePaddingSize>(_onUpdatePaddingSize);
     on<UpdateFontSize>(_onUpdateFontSize);
     on<UpdateFontFamily>(_onUpdateFontFamily);
+    on<UpdateCommentatorsFontFamily>(_onUpdateCommentatorsFontFamily);
     on<UpdateShowOtzarHachochma>(_onUpdateShowOtzarHachochma);
     on<UpdateShowHebrewBooks>(_onUpdateShowHebrewBooks);
     on<UpdateShowExternalBooks>(_onUpdateShowExternalBooks);
@@ -46,6 +47,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       paddingSize: settings['paddingSize'],
       fontSize: settings['fontSize'],
       fontFamily: settings['fontFamily'],
+      commentatorsFontFamily: settings['commentatorsFontFamily'],
       showOtzarHachochma: settings['showOtzarHachochma'],
       showHebrewBooks: settings['showHebrewBooks'],
       showExternalBooks: settings['showExternalBooks'],
@@ -105,6 +107,14 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     await _repository.updateFontFamily(event.fontFamily);
     emit(state.copyWith(fontFamily: event.fontFamily));
+  }
+
+  Future<void> _onUpdateCommentatorsFontFamily(
+    UpdateCommentatorsFontFamily event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateCommentatorsFontFamily(event.commentatorsFontFamily);
+    emit(state.copyWith(commentatorsFontFamily: event.commentatorsFontFamily));
   }
 
   Future<void> _onUpdateShowOtzarHachochma(

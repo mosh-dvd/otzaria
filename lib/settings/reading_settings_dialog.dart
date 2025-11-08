@@ -49,9 +49,9 @@ void showReadingSettingsDialog(BuildContext context) {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // גודל גופן - 3/4
+                        // גודל גופן - 2/4
                         Expanded(
-                          flex: 3,
+                          flex: 2,
                           child: StatefulBuilder(
                             builder: (context, setState) {
                               double currentFontSize =
@@ -102,8 +102,8 @@ void showReadingSettingsDialog(BuildContext context) {
                             },
                           ),
                         ),
-                        const SizedBox(width: 24),
-                        // גופן - 1/4
+                        const SizedBox(width: 16),
+                        // גופן טקסט ראשי - 1/4
                         Expanded(
                           flex: 1,
                           child: StatefulBuilder(
@@ -118,7 +118,7 @@ void showReadingSettingsDialog(BuildContext context) {
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
-                                          'גופן',
+                                          'גופן טקסט',
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleMedium,
@@ -181,6 +181,94 @@ void showReadingSettingsDialog(BuildContext context) {
                                         context
                                             .read<SettingsBloc>()
                                             .add(UpdateFontFamily(value));
+                                        setState(() {});
+                                      }
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        // גופן מפרשים - 1/4
+                        Expanded(
+                          flex: 1,
+                          child: StatefulBuilder(
+                            builder: (context, setState) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                          FluentIcons.book_24_regular),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'גופן מפרשים',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  DropdownButtonFormField<String>(
+                                    initialValue: settingsState.commentatorsFontFamily,
+                                    decoration: InputDecoration(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    dropdownColor:
+                                        Theme.of(context).colorScheme.surface,
+                                    isExpanded: true,
+                                    items: const [
+                                      DropdownMenuItem(
+                                          value: 'TaameyDavidCLM',
+                                          child: Text('דוד')),
+                                      DropdownMenuItem(
+                                          value: 'FrankRuhlCLM',
+                                          child: Text('פרנק-רוהל')),
+                                      DropdownMenuItem(
+                                          value: 'TaameyAshkenaz',
+                                          child: Text('טעמי אשכנז')),
+                                      DropdownMenuItem(
+                                          value: 'KeterYG', child: Text('כתר')),
+                                      DropdownMenuItem(
+                                          value: 'Shofar', child: Text('שופר')),
+                                      DropdownMenuItem(
+                                          value: 'NotoSerifHebrew',
+                                          child: Text('נוטו')),
+                                      DropdownMenuItem(
+                                          value: 'Tinos', child: Text('טינוס')),
+                                      DropdownMenuItem(
+                                          value: 'NotoRashiHebrew',
+                                          child: Text('רש"י')),
+                                      DropdownMenuItem(
+                                          value: 'Candara',
+                                          child: Text('קנדרה')),
+                                      DropdownMenuItem(
+                                          value: 'roboto',
+                                          child: Text('רובוטו')),
+                                      DropdownMenuItem(
+                                          value: 'Calibri',
+                                          child: Text('קליברי')),
+                                      DropdownMenuItem(
+                                          value: 'Arial', child: Text('אריאל')),
+                                    ],
+                                    onChanged: (value) {
+                                      if (value != null) {
+                                        context
+                                            .read<SettingsBloc>()
+                                            .add(UpdateCommentatorsFontFamily(value));
                                         setState(() {});
                                       }
                                     },

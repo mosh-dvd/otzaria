@@ -7,6 +7,7 @@ class SettingsState extends Equatable {
   final double paddingSize;
   final double fontSize;
   final String fontFamily;
+  final String commentatorsFontFamily;
   final bool showOtzarHachochma;
   final bool showHebrewBooks;
   final bool showExternalBooks;
@@ -32,6 +33,7 @@ class SettingsState extends Equatable {
     required this.paddingSize,
     required this.fontSize,
     required this.fontFamily,
+    required this.commentatorsFontFamily,
     required this.showOtzarHachochma,
     required this.showHebrewBooks,
     required this.showExternalBooks,
@@ -59,6 +61,7 @@ class SettingsState extends Equatable {
       paddingSize: 10,
       fontSize: 16,
       fontFamily: 'FrankRuhlCLM',
+      commentatorsFontFamily: 'NotoRashiHebrew',
       showOtzarHachochma: false,
       showHebrewBooks: false,
       showExternalBooks: false,
@@ -86,6 +89,7 @@ class SettingsState extends Equatable {
     double? paddingSize,
     double? fontSize,
     String? fontFamily,
+    String? commentatorsFontFamily,
     bool? showOtzarHachochma,
     bool? showHebrewBooks,
     bool? showExternalBooks,
@@ -111,6 +115,7 @@ class SettingsState extends Equatable {
       paddingSize: paddingSize ?? this.paddingSize,
       fontSize: fontSize ?? this.fontSize,
       fontFamily: fontFamily ?? this.fontFamily,
+      commentatorsFontFamily: commentatorsFontFamily ?? this.commentatorsFontFamily,
       showOtzarHachochma: showOtzarHachochma ?? this.showOtzarHachochma,
       showHebrewBooks: showHebrewBooks ?? this.showHebrewBooks,
       showExternalBooks: showExternalBooks ?? this.showExternalBooks,
@@ -140,6 +145,7 @@ class SettingsState extends Equatable {
         paddingSize,
         fontSize,
         fontFamily,
+        commentatorsFontFamily,
         showOtzarHachochma,
         showHebrewBooks,
         showExternalBooks,

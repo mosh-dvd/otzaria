@@ -55,6 +55,15 @@ class UpdateFontFamily extends SettingsEvent {
   List<Object?> get props => [fontFamily];
 }
 
+class UpdateCommentatorsFontFamily extends SettingsEvent {
+  final String commentatorsFontFamily;
+
+  const UpdateCommentatorsFontFamily(this.commentatorsFontFamily);
+
+  @override
+  List<Object?> get props => [commentatorsFontFamily];
+}
+
 class UpdateShowOtzarHachochma extends SettingsEvent {
   final bool showOtzarHachochma;
 

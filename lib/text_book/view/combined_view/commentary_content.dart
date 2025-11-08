@@ -111,7 +111,7 @@ class _CommentaryContentState extends State<CommentaryContent> {
                     '<div style="text-align: justify; direction: rtl;">$displayText</div>',
                     textStyle: TextStyle(
                       fontSize: widget.fontSize / 1.2,
-                      fontFamily: settingsState.fontFamily,
+                      fontFamily: settingsState.commentatorsFontFamily,
                     ),
                   );
                 },
