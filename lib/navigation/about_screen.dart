@@ -5,7 +5,9 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import '../services/data_collection_service.dart';
+import 'dart:io';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -351,6 +353,44 @@ class _AboutScreenState extends State<AboutScreen> {
     bookCount = await dataService.getTotalBookCount();
   }
 
+  Future<String?> _getOtzariaSitePath() async {
+    final libraryPath = Settings.getValue('key-library-path');
+    if (libraryPath == null || libraryPath.isEmpty) return null;
+
+    // התיקייה otzaria-site נמצאת באותה תיקייה שבה נמצא "גירסת ספריה.txt"
+    final otzariaSitePath = Directory(
+        '$libraryPath${Platform.pathSeparator}אוצריא${Platform.pathSeparator}אודות התוכנה${Platform.pathSeparator}otzaria-site');
+    if (await otzariaSitePath.exists()) {
+      return otzariaSitePath.path;
+    }
+    return null;
+  }
+
+  Future<void> _openLocalHtmlFile(String fileName) async {
+    final sitePath = await _getOtzariaSitePath();
+    if (sitePath == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('לא נמצאה תיקיית otzaria-site')),
+      );
+      return;
+    }
+
+    final htmlFile = File('$sitePath/$fileName');
+    if (!await htmlFile.exists()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('הקובץ $fileName לא נמצא')),
+      );
+      return;
+    }
+
+    final uri = Uri.file(htmlFile.path);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
   Future<void> _showChangelogDialog(BuildContext context) async {
     final changelog = await rootBundle.loadString('assets/יומן שינויים.md');
 
@@ -444,13 +484,7 @@ class _AboutScreenState extends State<AboutScreen> {
               // כפתור תרומה רגילה
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () async {
-                    const url = 'https://forms.gle/Dq8bn7mw7he4wtTC9';
-                    final uri = Uri.parse(url);
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri);
-                    }
-                  },
+                  onPressed: () => _openLocalHtmlFile('donate.html'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey[600],
                     foregroundColor: Colors.white,
@@ -602,13 +636,8 @@ class _AboutScreenState extends State<AboutScreen> {
                             icon: FluentIcons.code_24_regular,
                             color: Colors.grey[600]!,
                             showGitHubIcon: true,
-                            onTap: () async {
-                              const url = 'https://github.com/Sivan22/otzaria';
-                              final uri = Uri.parse(url);
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri);
-                              }
-                            },
+                            onTap: () =>
+                                _openLocalHtmlFile('tutorial-development.html'),
                           ),
 
                           const SizedBox(height: 20),
@@ -621,13 +650,8 @@ class _AboutScreenState extends State<AboutScreen> {
                             buttonText: 'הצטרף לעריכה',
                             icon: FluentIcons.edit_24_regular,
                             color: Colors.green[600]!,
-                            onTap: () async {
-                              const url = 'https://forms.gle/editing-form-url';
-                              final uri = Uri.parse(url);
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri);
-                              }
-                            },
+                            onTap: () =>
+                                _openLocalHtmlFile('tutorial-dicta.html'),
                           ),
 
                           const SizedBox(height: 20),

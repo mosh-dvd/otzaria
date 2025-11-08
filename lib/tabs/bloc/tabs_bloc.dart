@@ -57,9 +57,25 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
   void _onRemoveTab(RemoveTab event, Emitter<TabsState> emit) async {
     final removedTabIndex = state.tabs.indexOf(event.tab);
     final newTabs = List<OpenedTab>.from(state.tabs)..remove(event.tab);
-    final newIndex = removedTabIndex <= state.currentTabIndex
+    
+    // אם אין טאבים נותרים, נשאיר את האינדקס ב-0
+    if (newTabs.isEmpty) {
+      _repository.saveTabs(newTabs, 0);
+      emit(state.copyWith(
+        tabs: newTabs,
+        currentTabIndex: 0,
+      ));
+      return;
+    }
+    
+    // חישוב האינדקס החדש - אם סגרנו טאב לפני או בדיוק על הטאב הפעיל, זזים אינדקס אחד אחורה
+    var newIndex = removedTabIndex <= state.currentTabIndex
         ? max(state.currentTabIndex - 1, 0)
         : state.currentTabIndex;
+    
+    // וידוא שהאינדקס תקין (לא חורג מגבולות הרשימה)
+    newIndex = min(newIndex, newTabs.length - 1);
+    
     _repository.saveTabs(newTabs, newIndex);
     emit(state.copyWith(
       tabs: newTabs,

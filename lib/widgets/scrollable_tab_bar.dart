@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 
-/// TabBar גלילה עם חיצים לשמאל/ימין.
+/// TabBar גלילה עם חיצים לשמאל/ימין ועיצוב יפה יותר.
 class ScrollableTabBarWithArrows extends StatefulWidget {
   final TabController controller;
   final List<Widget> tabs;
@@ -138,7 +138,7 @@ class _ScrollableTabBarWithArrowsState
             ),
           ),
         ),
-        // TabBar עם isScrollable – לוכדים נוטיפיקציות כדי לדעת אם יש Overflow
+        // TabBar משופר עם עיצוב יפה יותר
         Expanded(
           child: NotificationListener<ScrollMetricsNotification>(
             onNotification: (metricsNotification) {
@@ -173,13 +173,16 @@ class _ScrollableTabBarWithArrowsState
                     controller: widget.controller,
                     isScrollable: true,
                     tabs: widget.tabs,
-                    indicatorSize: TabBarIndicatorSize.tab,
                     tabAlignment: widget.tabAlignment,
                     padding: EdgeInsets.zero,
-                    // לא רוצים קו מפריד מתחת ל-TabBar בתוך ה-AppBar
+                    labelPadding: EdgeInsets.zero,
+                    indicatorPadding: EdgeInsets.zero,
                     dividerColor: Colors.transparent,
-                    // הזזת האינדיקטור מעט, כדי שייראה נקי ב-AppBar
-                    indicatorPadding: const EdgeInsets.only(bottom: -0),
+                    // הסרת האינדיקטור מתחת לטאב
+                    indicator: const BoxDecoration(),
+                    // הסרת ה-hover המרובע
+                    overlayColor: WidgetStateProperty.all(Colors.transparent),
+                    splashFactory: NoSplash.splashFactory,
                   );
                 },
               ),
