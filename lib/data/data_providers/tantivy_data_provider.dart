@@ -48,6 +48,10 @@ class TantivyDataProvider {
     String indexPath = await AppPaths.getIndexPath();
     String refIndexPath = await AppPaths.getRefIndexPath();
 
+    // Ensure directories exist
+    await Directory(indexPath).create(recursive: true);
+    await Directory(refIndexPath).create(recursive: true);
+
     engine = Future.value(SearchEngine(path: indexPath));
 
     try {

@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'package:otzaria/models/books.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:otzaria/models/books.dart';
 import 'package:otzaria/models/links.dart';
 import 'package:otzaria/text_book/bloc/text_book_event.dart';
 import 'package:otzaria/text_book/text_book_repository.dart';
@@ -115,9 +116,18 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       final List<String> availableCommentators;
       final Map<String, List<String>> eras;
       if (event.loadCommentators) {
+        debugPrint('📚 Loading commentators...');
         availableCommentators =
             await _repository.getAvailableCommentators(links);
+        debugPrint('✅ Got ${availableCommentators.length} available commentators');
+        if (availableCommentators.length <= 10) {
+          debugPrint('   Commentators: ${availableCommentators.join(", ")}');
+        }
         eras = await utils.splitByEra(availableCommentators);
+        debugPrint('📊 Split into eras:');
+        eras.forEach((era, list) {
+          debugPrint('   $era: ${list.length} items');
+        });
       } else {
         availableCommentators = [];
         eras = {};
@@ -733,6 +743,8 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
 
   List<CommentatorGroup> _buildCommentatorGroups(
       Map<String, List<String>> eras, List<String> availableCommentators) {
+    debugPrint('🏗️ Building commentator groups...');
+    
     final known = <String>{
       ...?eras['תורה שבכתב'],
       ...?eras['חז"ל'],
@@ -749,26 +761,42 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
             .toSet())
         .toList();
 
+    // Sort each group alphabetically
+    final torahShebichtav = List<String>.from(eras['תורה שבכתב'] ?? [])..sort();
+    final chazal = List<String>.from(eras['חז"ל'] ?? [])..sort();
+    final rishonim = List<String>.from(eras['ראשונים'] ?? [])..sort();
+    final acharonim = List<String>.from(eras['אחרונים'] ?? [])..sort();
+    final modern = List<String>.from(eras['מחברי זמננו'] ?? [])..sort();
+    others.sort();
+
+    debugPrint('📋 Groups built:');
+    debugPrint('   תורה שבכתב: ${torahShebichtav.length}');
+    debugPrint('   חז"ל: ${chazal.length}');
+    debugPrint('   ראשונים: ${rishonim.length}');
+    debugPrint('   אחרונים: ${acharonim.length}');
+    debugPrint('   מחברי זמננו: ${modern.length}');
+    debugPrint('   שאר מפרשים: ${others.length}');
+
     return [
       CommentatorGroup(
         title: 'תורה שבכתב',
-        commentators: eras['תורה שבכתב'] ?? const [],
+        commentators: torahShebichtav,
       ),
       CommentatorGroup(
         title: 'חז"ל',
-        commentators: eras['חז"ל'] ?? const [],
+        commentators: chazal,
       ),
       CommentatorGroup(
         title: 'ראשונים',
-        commentators: eras['ראשונים'] ?? const [],
+        commentators: rishonim,
       ),
       CommentatorGroup(
         title: 'אחרונים',
-        commentators: eras['אחרונים'] ?? const [],
+        commentators: acharonim,
       ),
       CommentatorGroup(
         title: 'מחברי זמננו',
-        commentators: eras['מחברי זמננו'] ?? const [],
+        commentators: modern,
       ),
       CommentatorGroup(
         title: 'שאר מפרשים',

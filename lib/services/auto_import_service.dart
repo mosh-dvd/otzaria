@@ -8,16 +8,23 @@ class AutoImportService {
   static bool _isScanning = false;
 
   /// Check for new folders in the library path and import them
+  /// Set [forceRun] to true to bypass the auto-import setting check (for manual scans)
   static Future<void> scanAndImportNewFolders({
     void Function(String status)? onProgress,
+    bool forceRun = false,
   }) async {
     if (_isScanning) return;
     _isScanning = true;
 
     try {
-      // Check if auto-import is enabled
-      final autoImportEnabled = Settings.getValue<bool>('key-auto-import-new-folders') ?? false;
-      if (!autoImportEnabled) return;
+      // Check if auto-import is enabled (skip check if forceRun is true)
+      if (!forceRun) {
+        final autoImportEnabled = Settings.getValue<bool>('key-auto-import-new-folders') ?? false;
+        if (!autoImportEnabled) {
+          _isScanning = false;
+          return;
+        }
+      }
 
       // Get library path
       final libraryPath = Settings.getValue<String>('key-library-path');
@@ -66,6 +73,7 @@ class AutoImportService {
             (status, {current, total}) {
               onProgress?.call('${path.basename(folder.path)}: $status');
             },
+            deleteSourceFiles: true, // Delete text files from internal folders
           );
         } catch (e) {
           onProgress?.call('שגיאה בייבוא ${path.basename(folder.path)}: $e');

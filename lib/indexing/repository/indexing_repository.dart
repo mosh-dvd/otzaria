@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:otzaria/data/data_providers/tantivy_data_provider.dart';
+import 'package:otzaria/data/data_providers/sqlite_data_provider.dart';
 import 'package:otzaria/library/models/library.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/utils/text_manipulation.dart';
@@ -86,11 +87,65 @@ class IndexingRepository {
   Future<void> _indexTextBook(TextBook book) async {
     final index = await _tantivyDataProvider.engine;
     final refIndex = _tantivyDataProvider.refEngine;
-    var text = await book.text;
     final title = book.title;
     final topics = "/${book.topics.replaceAll(', ', '/')}";
 
-    final texts = text.split('\n');
+    // Try to get lines directly from DB for better performance
+    List<String> texts;
+    try {
+      final sqliteProvider = SqliteDataProvider();
+      texts = await sqliteProvider.getBookLines(title);
+      debugPrint('📚 Indexing "$title" from SQLite (${texts.length} lines)');
+    } catch (e) {
+      // Fallback to reading full text and splitting
+      debugPrint('📁 Indexing "$title" from file (fallback)');
+      var text = await book.text;
+      texts = text.split('\n');
+    }
+
+    // Try to get TOC from DB for reference indexing
+    bool tocIndexed = false;
+    try {
+      final sqliteProvider = SqliteDataProvider();
+      final toc = await sqliteProvider.getBookToc(title);
+      
+      if (toc.isNotEmpty) {
+        debugPrint('📑 Indexing TOC from SQLite for "$title" (${toc.length} entries)');
+        
+        // Index TOC entries as references
+        void indexTocEntry(TocEntry entry, List<String> parentPath) {
+          final fullPath = [...parentPath, entry.text];
+          final refText = fullPath.join(', ');
+          final shortref = replaceParaphrases(removeSectionNames(refText));
+          
+          refIndex.addDocument(
+              id: BigInt.from(DateTime.now().microsecondsSinceEpoch),
+              title: title,
+              reference: refText,
+              shortRef: shortref,
+              segment: BigInt.from(entry.index),
+              isPdf: false,
+              filePath: '');
+          
+          // Recursively index children
+          for (final child in entry.children) {
+            indexTocEntry(child, fullPath);
+          }
+        }
+        
+        // Index all top-level TOC entries
+        for (final entry in toc) {
+          indexTocEntry(entry, []);
+        }
+        
+        tocIndexed = true;
+        debugPrint('✅ Indexed ${toc.length} TOC entries from DB for "$title"');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Could not index TOC from DB for "$title": $e');
+    }
+
+    // Build reference path from HTML headers (fallback if no TOC in DB)
     List<String> reference = [];
 
     // Index each line separately
@@ -105,8 +160,9 @@ class IndexingRepository {
       }
 
       String line = texts[i];
-      // get the reference from the headers
-      if (line.startsWith('<h')) {
+      
+      // If we didn't index TOC from DB, index headers from text
+      if (!tocIndexed && line.startsWith('<h')) {
         if (reference.isNotEmpty &&
             reference.any(
                 (element) => element.substring(0, 4) == line.substring(0, 4))) {
@@ -129,7 +185,10 @@ class IndexingRepository {
             segment: BigInt.from(i),
             isPdf: false,
             filePath: '');
-      } else {
+      }
+      
+      // Always index the line content for search
+      if (!line.startsWith('<h')) {
         line = stripHtmlIfNeeded(line);
         line = removeVolwels(line);
 

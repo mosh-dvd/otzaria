@@ -33,8 +33,8 @@ class FileSystemData {
   /// Future that resolves to metadata for all books and categories
   late Future<Map<String, Map<String, dynamic>>> metadata;
 
-  /// SQLite data provider for database access
-  final SqliteDataProvider _sqliteProvider = SqliteDataProvider();
+  /// SQLite data provider for database access (singleton to prevent memory leaks)
+  static final SqliteDataProvider _sqliteProvider = SqliteDataProvider();
 
   /// Creates a new instance of [FileSystemData] and initializes the title to path mapping
   /// and metadata
@@ -161,9 +161,20 @@ class FileSystemData {
         }
       }
 
+      // Update book order based on generation (from CSV) before sorting
+      if (category.books.isNotEmpty) {
+        debugPrint('📂 Processing category: ${category.title} (${category.books.length} books)');
+        await _updateBooksOrderByGeneration(category.books);
+      }
+      
       // Sort categories and books by their order
       category.subCategories.sort((a, b) => a.order.compareTo(b.order));
       category.books.sort((a, b) => a.order.compareTo(b.order));
+      
+      if (category.books.isNotEmpty && category.books.length <= 5) {
+        debugPrint('   After sort: ${category.books.map((b) => "${b.title} (${b.order})").join(", ")}');
+      }
+      
       return category;
     }
 
@@ -366,38 +377,90 @@ class FileSystemData {
     return text;
   }
 
-  /// Saves text content to a book file.
+  /// Saves text content to a book file and updates SQLite database.
   ///
   /// Only supports plain text files (.txt). DOCX files cannot be edited.
   /// Creates a backup of the original file before saving.
+  /// Updates both the database and file system for consistency.
   Future<void> saveBookText(String title, String content) async {
-    final path = await _getBookPath(title);
-    final file = File(path);
-
-    // Only allow saving to text files, not DOCX
-    if (path.endsWith('.docx')) {
-      throw Exception(
-          'Cannot save to DOCX files. Only text files are supported.');
-    }
-
-    // Create backup of original file
-    final backupPath = '$path.backup.${DateTime.now().millisecondsSinceEpoch}';
-    await file.copy(backupPath);
-
+    debugPrint('💾 Saving "$title" (${content.length} chars)...');
+    
+    // Try to update SQLite first
+    bool updatedInDb = false;
     try {
-      // Save the new content
-      await file.writeAsString(content, encoding: utf8);
-
-      // Clean up old backups after successful save
-      await _cleanupOldBackups(path);
-    } catch (e) {
-      // If save fails, restore from backup
-      final backupFile = File(backupPath);
-      if (await backupFile.exists()) {
-        await backupFile.copy(path);
+      final bookExists = await _sqliteProvider.bookExists(title);
+      if (bookExists) {
+        await _sqliteProvider.updateBookText(title, content);
+        updatedInDb = true;
+        debugPrint('✅ Updated "$title" in SQLite database');
+      } else {
+        debugPrint('ℹ️ Book "$title" not in database, will save to file only');
       }
-      rethrow;
+    } catch (e) {
+      debugPrint('⚠️ Could not update SQLite for "$title": $e');
+      debugPrint('   Will continue to save to file as backup');
     }
+
+    // Also save to file system (as backup or primary storage)
+    try {
+      final path = await _getBookPath(title);
+      
+      // Skip if path not found or is DOCX
+      if (path.startsWith('error:')) {
+        if (updatedInDb) {
+          debugPrint('✅ Saved to database only (no file path)');
+          return;
+        } else {
+          throw Exception('Cannot save: $path');
+        }
+      }
+      
+      if (path.endsWith('.docx')) {
+        if (updatedInDb) {
+          debugPrint('✅ Saved to database only (DOCX not editable)');
+          return;
+        } else {
+          throw Exception('Cannot save to DOCX files. Only text files are supported.');
+        }
+      }
+
+      final file = File(path);
+      
+      // Create backup of original file if it exists
+      if (await file.exists()) {
+        final backupPath = '$path.backup.${DateTime.now().millisecondsSinceEpoch}';
+        await file.copy(backupPath);
+        debugPrint('💾 Created backup: $backupPath');
+      }
+
+      try {
+        // Save the new content
+        await file.writeAsString(content, encoding: utf8);
+        debugPrint('✅ Saved "$title" to file: $path');
+
+        // Clean up old backups after successful save
+        await _cleanupOldBackups(path);
+      } catch (e) {
+        // If save fails, restore from backup
+        final backupPath = '$path.backup.${DateTime.now().millisecondsSinceEpoch}';
+        final backupFile = File(backupPath);
+        if (await backupFile.exists()) {
+          await backupFile.copy(path);
+          debugPrint('⚠️ Restored from backup after save failure');
+        }
+        rethrow;
+      }
+    } catch (e) {
+      if (updatedInDb) {
+        debugPrint('⚠️ File save failed but database was updated: $e');
+        // Don't throw - at least we saved to DB
+      } else {
+        debugPrint('❌ Failed to save "$title": $e');
+        rethrow;
+      }
+    }
+    
+    debugPrint('✅ Save completed for "$title"');
   }
 
   /// Cleans up old backup files for a given file path.
@@ -486,10 +549,25 @@ class FileSystemData {
 
   /// Retrieves the content of a specific link within a book.
   ///
-  /// Reads the file line by line and returns the content at the specified index.
+  /// First tries to read from SQLite database, then falls back to reading from file.
   Future<String> getLinkContent(Link link) async {
     try {
-      String path = await _getBookPath(getTitleFromPath(link.path2));
+      final bookTitle = getTitleFromPath(link.path2);
+      final lineIndex = link.index2 - 1; // Convert to 0-based index
+      
+      // Try SQLite first
+      try {
+        final lines = await _sqliteProvider.getBookLines(bookTitle);
+        if (lines.isNotEmpty && lineIndex >= 0 && lineIndex < lines.length) {
+          debugPrint('✅ Loaded link content from SQLite: $bookTitle line $lineIndex');
+          return lines[lineIndex];
+        }
+      } catch (e) {
+        debugPrint('⚠️ SQLite failed for link content "$bookTitle", trying file: $e');
+      }
+      
+      // Fallback to file system
+      String path = await _getBookPath(bookTitle);
       if (path.startsWith('error:')) {
         return 'שגיאה בטעינת קובץ: ${link.path2}';
       }
@@ -564,21 +642,51 @@ class FileSystemData {
 
   /// Loads and parses the metadata for all books in the library.
   ///
-  /// Reads metadata from a JSON file and creates a structured mapping of
-  /// book titles to their metadata information.
+  /// First tries to read from SQLite database, then falls back to JSON file.
   Future<Map<String, Map<String, dynamic>>> _getMetadata() async {
     if (!Settings.isInitialized) {
       await Settings.init(cacheProvider: HiveCache());
     }
-    String metadataString = '';
+    
     Map<String, Map<String, dynamic>> metadata = {};
+    
+    // Try to get metadata from SQLite first
+    try {
+      final db = await SqliteDataProvider.database;
+      final books = await db.query('book');
+      
+      for (final book in books) {
+        final title = book['title'] as String;
+        metadata[title] = {
+          'author': book['author'] ?? '',
+          'heDesc': book['heDesc'] ?? '',
+          'heShortDesc': book['heShortDesc'] ?? '',
+          'pubDate': book['pubDate'] ?? '',
+          'pubPlace': book['pubPlace'] ?? '',
+          'extraTitles': [title], // Can be enhanced if DB has this field
+          'order': (book['orderIndex'] as num?)?.toInt() ?? 999,
+        };
+      }
+      
+      if (metadata.isNotEmpty) {
+        debugPrint('✅ Loaded metadata from SQLite for ${metadata.length} books');
+        return metadata;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Could not load metadata from SQLite: $e');
+    }
+    
+    // Fallback to JSON file
+    String metadataString = '';
     try {
       File file = File(
           '${Settings.getValue<String>('key-library-path') ?? '.'}${Platform.pathSeparator}metadata.json');
       metadataString = await file.readAsString();
     } catch (e) {
+      debugPrint('⚠️ Could not load metadata from JSON: $e');
       return {};
     }
+    
     final tempMetadata =
         await Isolate.run(() => jsonDecode(metadataString) as List);
 
@@ -601,6 +709,8 @@ class FileSystemData {
                 : row['order'] as int,
       };
     }
+    
+    debugPrint('✅ Loaded metadata from JSON for ${metadata.length} books');
     return metadata;
   }
 
@@ -764,13 +874,17 @@ class FileSystemData {
         }
       }
       
-      // Third pass: add books to categories
+      // Third pass: add books to categories (optimized with batch query)
       int totalAdded = 0;
       print('📚 Adding ${bookTitles.length} books to categories...');
       
+      // Get all metadata in one batch query (performance optimization)
+      final allMetadata = await _sqliteProvider.getBooksMetadataBatch(bookTitles);
+      print('📊 Retrieved metadata for ${allMetadata.length} books');
+      
       for (final title in bookTitles) {
         try {
-          final bookMeta = await _sqliteProvider.getBookMetadata(title);
+          final bookMeta = allMetadata[title];
           if (bookMeta == null) {
             print('⚠️ No metadata for "$title"');
             continue;
@@ -807,6 +921,14 @@ class FileSystemData {
       
       print('📊 Total books added: $totalAdded');
       
+      // Update order by generation for all categories
+      debugPrint('🔄 Updating book order by generation for all categories...');
+      for (final category in categoryMap.values) {
+        if (category.books.isNotEmpty) {
+          await _updateBooksOrderByGeneration(category.books);
+        }
+      }
+      
       // Sort everything
       for (final category in categoryMap.values) {
         category.books.sort((a, b) => a.order.compareTo(b.order));
@@ -821,6 +943,67 @@ class FileSystemData {
       debugPrint('❌ Error building category hierarchy: $e');
       rethrow;
     }
+  }
+
+  /// Update books order based on their generation from CSV
+  Future<void> _updateBooksOrderByGeneration(List<Book> books) async {
+    if (books.isEmpty) return;
+    
+    debugPrint('📚 Updating order for ${books.length} books by generation...');
+    
+    // Generation order mapping
+    const generationOrder = {
+      'תורה שבכתב': 100,
+      'חז"ל': 200,
+      'ראשונים': 300,
+      'אחרונים': 400,
+      'מחברי זמננו': 500,
+      'מפרשים נוספים': 600,
+    };
+    
+    int updatedCount = 0;
+    final Map<String, int> generationCounts = {};
+    
+    for (final book in books) {
+      final originalOrder = book.order;
+      
+      // Get generation for this book
+      String generation = 'מפרשים נוספים'; // default
+      
+      for (final gen in generationOrder.keys) {
+        if (await hasTopic(book.title, gen)) {
+          generation = gen;
+          break;
+        }
+      }
+      
+      // Count books per generation
+      generationCounts[generation] = (generationCounts[generation] ?? 0) + 1;
+      
+      // Update order: generation base + original order
+      // This keeps books in same generation together, but preserves relative order within generation
+      final baseOrder = generationOrder[generation] ?? 600;
+      
+      // If original order is 999 (default), use alphabetical position
+      if (originalOrder == 999) {
+        book.order = baseOrder;
+      } else {
+        // Preserve original order within generation (0-99 range)
+        book.order = baseOrder + (originalOrder % 100);
+      }
+      
+      if (book.order != originalOrder) {
+        updatedCount++;
+        if (updatedCount <= 3) {
+          debugPrint('   "${book.title}": $originalOrder → ${book.order} ($generation)');
+        }
+      }
+    }
+    
+    debugPrint('✅ Updated $updatedCount books. Distribution:');
+    generationCounts.forEach((gen, count) {
+      debugPrint('   $gen: $count books');
+    });
   }
 
   /// Checks if a book with the given title exists in the library.

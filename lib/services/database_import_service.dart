@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:path/path.dart' as path;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 
 class DatabaseImportService {
   static bool _isCancelled = false;
+  static const String _importedCategoriesKey = 'key-imported-categories';
 
   /// Cancel the current import operation
   static void cancelImport() {
@@ -13,6 +16,146 @@ class DatabaseImportService {
   /// Reset cancellation flag
   static void resetCancellation() {
     _isCancelled = false;
+  }
+
+  /// Get list of user-imported categories
+  static List<String> getImportedCategories() {
+    final jsonString = Settings.getValue<String>(_importedCategoriesKey);
+    if (jsonString == null || jsonString.isEmpty) {
+      return [];
+    }
+    try {
+      final List<dynamic> decoded = json.decode(jsonString);
+      return decoded.cast<String>();
+    } catch (e) {
+      print('⚠️ Failed to decode imported categories: $e');
+      return [];
+    }
+  }
+
+  /// Add a category to the imported categories list
+  static Future<void> addImportedCategory(String categoryTitle) async {
+    final categories = getImportedCategories();
+    if (!categories.contains(categoryTitle)) {
+      categories.add(categoryTitle);
+      await Settings.setValue(_importedCategoriesKey, json.encode(categories));
+      print('✅ Added "$categoryTitle" to imported categories list');
+    }
+  }
+
+  /// Remove a category from the imported categories list
+  static Future<void> removeImportedCategory(String categoryTitle) async {
+    final categories = getImportedCategories();
+    categories.remove(categoryTitle);
+    await Settings.setValue(_importedCategoriesKey, json.encode(categories));
+    print('✅ Removed "$categoryTitle" from imported categories list');
+  }
+
+  /// Remove a category and all its books from the database
+  static Future<void> removeCategoryFromDatabase(
+    String dbPath,
+    String categoryTitle,
+    void Function(String status)? onProgress,
+  ) async {
+    print('🗑️ Starting category removal...');
+    print('📂 Database: $dbPath');
+    print('📁 Category: $categoryTitle');
+
+    final dbFile = File(dbPath);
+    if (!await dbFile.exists()) {
+      throw Exception('קובץ מאגר הנתונים לא קיים: $dbPath');
+    }
+
+    Database? db;
+    try {
+      onProgress?.call('פותח מאגר נתונים...');
+      db = await databaseFactory.openDatabase(
+        dbPath,
+        options: OpenDatabaseOptions(
+          readOnly: false,
+          singleInstance: false,
+        ),
+      );
+      print('✅ Database opened');
+
+      // Find the category ID
+      onProgress?.call('מחפש קטגוריה...');
+      final categoryResult = await db.rawQuery(
+        'SELECT id FROM category WHERE title = ?',
+        [categoryTitle],
+      );
+
+      if (categoryResult.isEmpty) {
+        throw Exception('הקטגוריה "$categoryTitle" לא נמצאה במאגר');
+      }
+
+      final categoryId = categoryResult.first['id'] as int;
+      print('📁 Found category ID: $categoryId');
+
+      // Count books in this category
+      final bookCountResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM book WHERE categoryId = ?',
+        [categoryId],
+      );
+      final bookCount = bookCountResult.first['count'] as int;
+      print('📚 Found $bookCount books in category');
+
+      onProgress?.call('מוחק $bookCount ספרים...');
+
+      // Use proper transaction API for atomic operations
+      await db.transaction((txn) async {
+        // Get all book IDs in this category
+        final bookIdsResult = await txn.query(
+          'book',
+          columns: ['id'],
+          where: 'categoryId = ?',
+          whereArgs: [categoryId],
+        );
+        final bookIds = bookIdsResult.map((row) => row['id'] as int).toList();
+        print('📚 Book IDs to delete: $bookIds');
+
+        if (bookIds.isNotEmpty) {
+          // Delete lines for these books
+          onProgress?.call('מוחק שורות טקסט...');
+          for (final bookId in bookIds) {
+            await txn.delete('line', where: 'bookId = ?', whereArgs: [bookId]);
+          }
+          print('✅ Lines deleted');
+
+          // Delete TOC entries for these books
+          onProgress?.call('מוחק תוכן עניינים...');
+          for (final bookId in bookIds) {
+            await txn.delete('tocEntry', where: 'bookId = ?', whereArgs: [bookId]);
+          }
+          print('✅ TOC entries deleted');
+
+          // Delete books
+          onProgress?.call('מוחק ספרים...');
+          await txn.delete('book', where: 'categoryId = ?', whereArgs: [categoryId]);
+          print('✅ Books deleted');
+        }
+
+        // Delete the category itself
+        onProgress?.call('מוחק קטגוריה...');
+        await txn.delete('category', where: 'id = ?', whereArgs: [categoryId]);
+        print('✅ Category deleted');
+      });
+      
+      print('✅ Transaction committed successfully');
+
+      // Remove from imported categories list
+      await removeImportedCategory(categoryTitle);
+
+      onProgress?.call('הקטגוריה "$categoryTitle" נמחקה בהצלחה!');
+    } catch (e) {
+      print('❌ Fatal error: $e');
+      rethrow;
+    } finally {
+      if (db != null) {
+        await db.close();
+        print('✅ Database closed');
+      }
+    }
   }
 
   /// Get the CREATE TABLE statement for a table
@@ -51,14 +194,14 @@ class DatabaseImportService {
     );
     print('💾 Creating temp database: $tempDbPath');
 
-    final db = await databaseFactoryFfi.openDatabase(tempDbPath);
+    final db = await databaseFactory.openDatabase(tempDbPath);
     print('✅ Temp database created');
 
     try {
       // If mainDbPath provided, copy ALL tables schema from it
       if (mainDbPath != null && await File(mainDbPath).exists()) {
         print('📋 Copying ALL tables schema from main database: $mainDbPath');
-        final mainDb = await databaseFactoryFfi.openDatabase(mainDbPath);
+        final mainDb = await databaseFactory.openDatabase(mainDbPath);
         
         try {
           // Get ALL tables from main database
@@ -204,10 +347,24 @@ class DatabaseImportService {
         }
 
         final file = files[i];
-        final bookTitle = path.basenameWithoutExtension(file.path);
+        final rawTitle = path.basenameWithoutExtension(file.path);
+        
+        // Sanitize and validate book title
+        final bookTitle = _sanitizeTitle(rawTitle);
+        if (bookTitle.isEmpty) {
+          print('   ⚠️ Skipping file with invalid title: $rawTitle');
+          continue;
+        }
 
         print('📖 Processing file ${i + 1}/${files.length}: $bookTitle');
         onProgress?.call(i + 1, files.length, bookTitle);
+
+        // Check for duplicates
+        final existing = await db.query('book', where: 'title = ?', whereArgs: [bookTitle]);
+        if (existing.isNotEmpty) {
+          print('   ⚠️ Book "$bookTitle" already exists, skipping');
+          continue;
+        }
 
         // Insert book with all required fields
         try {
@@ -299,6 +456,19 @@ class DatabaseImportService {
     return columns;
   }
 
+  /// Sanitize book title to prevent SQL injection and invalid characters
+  static String _sanitizeTitle(String title) {
+    // Remove control characters and trim
+    title = title.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '').trim();
+    
+    // Limit length to prevent overflow
+    if (title.length > 255) {
+      title = title.substring(0, 255);
+    }
+    
+    return title;
+  }
+
   /// Merge temporary database with main seforim.db
   static Future<void> mergeDatabases(
     String mainDbPath,
@@ -325,7 +495,7 @@ class DatabaseImportService {
       
       // Try to enable WAL mode for concurrent access
       try {
-        final testDb = await databaseFactoryFfi.openDatabase(mainDbPath);
+        final testDb = await databaseFactory.openDatabase(mainDbPath);
         await testDb.execute('PRAGMA journal_mode=WAL');
         await testDb.close();
         print('✅ WAL mode enabled');
@@ -333,14 +503,14 @@ class DatabaseImportService {
         print('⚠️ Could not enable WAL mode: $e');
       }
       
-      mainDb = await databaseFactoryFfi.openDatabase(
+      mainDb = await databaseFactory.openDatabase(
         mainDbPath,
         options: OpenDatabaseOptions(
           readOnly: false,
-          singleInstance: false,
+          singleInstance: true,  // Prevent concurrent access issues
         ),
       );
-      print('✅ Main database opened successfully');
+      print('✅ Main database opened successfully (single instance mode)');
       
       // Get actual schema from main database
       print('📋 Reading main database schema...');
@@ -580,11 +750,25 @@ class DatabaseImportService {
     void Function(String status, {int? current, int? total})? onProgress, {
     bool createBackup = true,
     String? backupPath,
+    bool deleteSourceFiles = false,
   }) async {
     String? tempDbPath;
+    List<File> importedFiles = [];
 
     try {
       onProgress?.call('ממיר קבצים למאגר נתונים...');
+
+      // Get list of files before conversion
+      final folder = Directory(folderPath);
+      if (await folder.exists()) {
+        importedFiles = await folder
+            .list()
+            .where((entity) =>
+                entity is File &&
+                (entity.path.endsWith('.txt') || entity.path.endsWith('.text')))
+            .cast<File>()
+            .toList();
+      }
 
       // Convert books to temporary database
       tempDbPath = await convertBooksToDatabase(
@@ -609,6 +793,32 @@ class DatabaseImportService {
         createBackup: createBackup,
         backupPath: backupPath,
       );
+
+      // Add category to imported categories list (using folder name)
+      final folderName = path.basename(folderPath);
+      await addImportedCategory(folderName);
+      print('📝 Registered category "$folderName" as user-imported');
+
+      // Delete source text files if requested (for internal folders)
+      if (deleteSourceFiles && importedFiles.isNotEmpty) {
+        onProgress?.call('מוחק קבצי טקסט מקוריים...');
+        print('🗑️ Deleting ${importedFiles.length} source text files...');
+        
+        int deletedCount = 0;
+        for (final file in importedFiles) {
+          try {
+            if (await file.exists()) {
+              await file.delete();
+              deletedCount++;
+              print('   ✅ Deleted: ${path.basename(file.path)}');
+            }
+          } catch (e) {
+            print('   ⚠️ Failed to delete ${path.basename(file.path)}: $e');
+            // Continue with other files even if one fails
+          }
+        }
+        print('✅ Deleted $deletedCount/${ importedFiles.length} text files');
+      }
 
       onProgress?.call('הושלם בהצלחה!');
     } finally {
