@@ -1,5 +1,5 @@
-/// a widget that contains two tabs: history and bookmarks.
-///  The bookmarks tab is BookmarkView and the history is HistoryView.
+// a widget that contains two tabs: history and bookmarks.
+// The bookmarks tab is BookmarkView and the history is HistoryView.
 import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:otzaria/history/history_screen.dart';

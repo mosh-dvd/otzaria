@@ -821,54 +821,6 @@ class CalendarWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTimesCard(BuildContext context, CalendarState state) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(FluentIcons.calendar_clock_24_regular),
-                const SizedBox(width: 8),
-                const Text(
-                  'זמני היום',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                _buildCityDropdownWithSearch(context, state),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildTimesGrid(context, state),
-            const SizedBox(height: 16),
-            _buildDafYomiButtons(context, state),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withAlpha(76),
-                borderRadius: BorderRadius.circular(8),
-                border:
-                    Border.all(color: Theme.of(context).primaryColor, width: 1),
-              ),
-              child: Text(
-                'אין לסמוך על הזמנים!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildTimesGrid(BuildContext context, CalendarState state) {
     final dailyTimes = state.dailyTimes;
     final jewishCalendar =
@@ -1835,67 +1787,6 @@ class CalendarWidget extends StatelessWidget {
       ),
     );
   }
-
-  // Helper function to get events in the displayed range based on calendar view
-  List<CustomEvent> _getEventsInDisplayedRange(BuildContext context, CalendarState state) {
-    final cubit = context.read<CalendarCubit>();
-    final Set<CustomEvent> eventsSet = {};
-    
-    switch (state.calendarView) {
-      case CalendarView.month:
-        // Get all events for the month
-        final DateTime startOfMonth;
-        final DateTime endOfMonth;
-        
-        if (state.calendarType == CalendarType.gregorian) {
-          startOfMonth = DateTime(state.currentGregorianDate.year, state.currentGregorianDate.month, 1);
-          endOfMonth = DateTime(state.currentGregorianDate.year, state.currentGregorianDate.month + 1, 0);
-        } else {
-          // Hebrew calendar - convert first and last day of month
-          final firstDay = JewishDate();
-          firstDay.setJewishDate(
-            state.currentJewishDate.getJewishYear(),
-            state.currentJewishDate.getJewishMonth(),
-            1,
-          );
-          startOfMonth = firstDay.getGregorianCalendar();
-          
-          final lastDayNum = state.currentJewishDate.getDaysInJewishMonth();
-          final lastDay = JewishDate();
-          lastDay.setJewishDate(
-            state.currentJewishDate.getJewishYear(),
-            state.currentJewishDate.getJewishMonth(),
-            lastDayNum,
-          );
-          endOfMonth = lastDay.getGregorianCalendar();
-        }
-        
-        // Collect events for each day in the month
-        for (DateTime date = startOfMonth; date.isBefore(endOfMonth) || date.isAtSameMomentAs(endOfMonth); date = date.add(Duration(days: 1))) {
-          eventsSet.addAll(cubit.eventsForDate(date));
-        }
-        break;
-        
-      case CalendarView.week:
-        // Get all events for the week
-        final selectedDate = state.selectedGregorianDate;
-        final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday % 7));
-        final endOfWeek = startOfWeek.add(Duration(days: 6));
-        
-        for (DateTime date = startOfWeek; date.isBefore(endOfWeek) || date.isAtSameMomentAs(endOfWeek); date = date.add(Duration(days: 1))) {
-          eventsSet.addAll(cubit.eventsForDate(date));
-        }
-        break;
-        
-      case CalendarView.day:
-        // Get events for the selected day only
-        eventsSet.addAll(cubit.eventsForDate(state.selectedGregorianDate));
-        break;
-    }
-    
-    return eventsSet.toList()..sort((a, b) => a.title.compareTo(b.title));
-  }
-
   Widget _buildEventsList(BuildContext context, CalendarState state,
       {bool isSearch = false}) {
     final cubit = context.read<CalendarCubit>();
