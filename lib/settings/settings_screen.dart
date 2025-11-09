@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:path/path.dart' as path;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/data/repository/data_repository.dart';
 import 'package:otzaria/indexing/bloc/indexing_bloc.dart';
@@ -21,6 +22,8 @@ import 'package:otzaria/settings/calendar_settings_dialog.dart';
 import 'package:otzaria/settings/gematria_settings_dialog.dart';
 import 'package:otzaria/settings/backup_service.dart';
 import 'package:otzaria/widgets/shortcut_dropdown_tile.dart';
+import 'package:otzaria/services/database_import_service.dart';
+import 'package:otzaria/services/auto_import_service.dart';
 import 'dart:async';
 
 class MySettingsScreen extends StatefulWidget {
@@ -36,6 +39,146 @@ class _MySettingsScreenState extends State<MySettingsScreen>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
+
+  void _showImportProgressDialog(
+    BuildContext context,
+    String folderPath,
+    String dbPath,
+    String libraryPath, {
+    bool createBackup = true,
+  }) {
+    String statusText = 'מתחיל...';
+    int? currentBook;
+    int? totalBooks;
+    bool isStarted = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            // Start import only once
+            if (!isStarted) {
+              isStarted = true;
+              DatabaseImportService.importBooksFromFolder(
+                folderPath,
+                dbPath,
+                (status, {current, total}) {
+                  if (dialogContext.mounted) {
+                    setDialogState(() {
+                      statusText = status;
+                      currentBook = current;
+                      totalBooks = total;
+                    });
+
+                    // Refresh library when complete
+                    if (status == 'הושלם בהצלחה!') {
+                      if (context.mounted) {
+                        // Force library refresh
+                        context.read<LibraryBloc>().add(LoadLibrary());
+                      }
+                    }
+                  }
+                },
+                createBackup: createBackup,
+              ).catchError((error) {
+                if (dialogContext.mounted) {
+                  setDialogState(() {
+                    statusText = 'שגיאה: $error';
+                  });
+                  Future.delayed(
+                    const Duration(seconds: 3),
+                    () {
+                      if (dialogContext.mounted) {
+                        Navigator.pop(dialogContext);
+                      }
+                    },
+                  );
+                }
+              });
+            }
+
+            final progress = (currentBook != null && totalBooks != null && totalBooks! > 0)
+                ? currentBook! / totalBooks!
+                : 0.0;
+
+            final isComplete = statusText.contains('הושלם בהצלחה');
+            final isError = statusText.contains('שגיאה');
+            
+            return AlertDialog(
+              title: const Text('מייבא ספרים'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (isComplete)
+                      const Icon(Icons.check_circle, color: Colors.green, size: 48)
+                    else if (isError)
+                      const Icon(Icons.error, color: Colors.red, size: 48)
+                    else if (currentBook != null && totalBooks != null) ...[
+                      LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 8,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '$currentBook / $totalBooks',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ] else
+                      const LinearProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(
+                      statusText,
+                      textAlign: TextAlign.center,
+                      maxLines: 10,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                if (statusText.contains('הושלם בהצלחה'))
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                    },
+                    child: const Text('סגור'),
+                  )
+                else if (!statusText.contains('שגיאה'))
+                  TextButton(
+                    onPressed: () {
+                      DatabaseImportService.cancelImport();
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('הפעולה בוטלה'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    },
+                    child: const Text('ביטול'),
+                  )
+                else
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                    },
+                    child: const Text('סגור'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   Widget _buildSettingsCard({
     required BuildContext context,
@@ -895,6 +1038,257 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                           ),
                         ),
                       ]),
+                    if (!(Platform.isAndroid || Platform.isIOS))
+                      _buildColumns(2, [
+                        SwitchSettingsTile(
+                          settingKey: 'key-auto-import-new-folders',
+                          title: 'ייבוא אוטומטי של תיקיות חדשות',
+                          enabledLabel: 'תיקיות חדשות בספרייה יתווספו אוטומטית למאגר',
+                          disabledLabel: 'תיקיות חדשות לא יתווספו אוטומטית',
+                          leading: const Icon(FluentIcons.folder_sync_24_regular),
+                          defaultValue: false,
+                          activeColor: Theme.of(context).cardColor,
+                        ),
+                        SimpleSettingsTile(
+                          title: 'סרוק תיקיות חדשות עכשיו',
+                          subtitle: 'חפש ויבא תיקיות חדשות בספרייה',
+                          leading: const Icon(FluentIcons.scan_24_regular),
+                          onTap: () async {
+                            final libraryPath = Settings.getValue<String>('key-library-path');
+                            if (libraryPath == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('נא להגדיר תחילה את מיקום הספרייה'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (!context.mounted) return;
+                            
+                            // Show scanning dialog
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (dialogContext) {
+                                String statusText = 'סורק תיקיות...';
+                                
+                                return StatefulBuilder(
+                                  builder: (context, setDialogState) {
+                                    AutoImportService.scanAndImportNewFolders(
+                                      onProgress: (status) {
+                                        if (dialogContext.mounted) {
+                                          setDialogState(() {
+                                            statusText = status;
+                                          });
+                                        }
+                                      },
+                                    ).then((_) {
+                                      Future.delayed(const Duration(seconds: 1), () {
+                                        if (dialogContext.mounted) {
+                                          Navigator.pop(dialogContext);
+                                          
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('הסריקה הושלמה. רענן את הספרייה כדי לראות את השינויים.'),
+                                                backgroundColor: Colors.green,
+                                                duration: Duration(seconds: 5),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      });
+                                    }).catchError((error) {
+                                      if (dialogContext.mounted) {
+                                        setDialogState(() {
+                                          statusText = 'שגיאה: $error';
+                                        });
+                                        Future.delayed(const Duration(seconds: 2), () {
+                                          if (dialogContext.mounted) {
+                                            Navigator.pop(dialogContext);
+                                          }
+                                        });
+                                      }
+                                    });
+
+                                    return AlertDialog(
+                                      title: const Text('סורק תיקיות חדשות'),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const CircularProgressIndicator(),
+                                          const SizedBox(height: 16),
+                                          Text(statusText, textAlign: TextAlign.center),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ]),
+                    if (!(Platform.isAndroid || Platform.isIOS))
+                      SimpleSettingsTile(
+                        title: 'הוסף ספרים למאגר',
+                        subtitle: 'ייבא ספרים מתיקייה למאגר הנתונים',
+                        leading: const Icon(FluentIcons.arrow_upload_24_regular),
+                        onTap: () async {
+                          print('🚀 Starting import process...');
+                          
+                          // Select folder
+                          String? folderPath =
+                              await FilePicker.platform.getDirectoryPath();
+                          if (folderPath == null) {
+                            print('❌ User cancelled folder selection');
+                            return;
+                          }
+
+                          print('📁 User selected folder: $folderPath');
+
+                          if (!context.mounted) return;
+
+                          // Get seforim.db path from library settings
+                          final libraryPath = Settings.getValue<String>('key-library-path');
+                          print('📚 Library path from settings: $libraryPath');
+                          
+                          if (libraryPath == null) {
+                            print('❌ Library path not configured');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('נא להגדיר תחילה את מיקום הספרייה בהגדרות'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                            return;
+                          }
+
+                          final dbPath = path.join(libraryPath, 'seforim.db');
+                          final dbFileCheck = File(dbPath);
+                          
+                          print('📂 Selected folder to import: $folderPath');
+                          print('📂 Library path (from settings): $libraryPath');
+                          print('💾 Looking for seforim.db at: $dbPath');
+                          
+                          if (!await dbFileCheck.exists()) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'קובץ מאגר הנתונים לא נמצא!\n\n'
+                                  'מחפש ב: $dbPath\n\n'
+                                  'ודא שמיקום הספרייה מוגדר נכון בהגדרות.',
+                                ),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 5),
+                              ),
+                            );
+                            return;
+                          }
+                          
+                          print('✅ seforim.db found!');
+
+                          // Show warning about database lock
+                          if (!context.mounted) return;
+                          
+                          // Check disk space for backup
+                          final dbFile = File(dbPath);
+                          final dbSize = await dbFile.length();
+                          final dbSizeMB = (dbSize / 1024 / 1024).toStringAsFixed(2);
+                          print('📊 Database size: $dbSizeMB MB');
+                          
+                          final confirmed = await showDialog<Map<String, dynamic>>(
+                            context: context,
+                            builder: (context) {
+                              bool createBackup = true;
+                              return StatefulBuilder(
+                                builder: (context, setState) => AlertDialog(
+                                  title: const Text('📚 ייבוא ספרים'),
+                                  content: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'מייבא ספרים מ:',
+                                        style: TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(folderPath, style: const TextStyle(fontSize: 12)),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'אל מאגר הנתונים:',
+                                        style: TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(dbPath, style: const TextStyle(fontSize: 12)),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'גודל מאגר: $dbSizeMB MB',
+                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      CheckboxListTile(
+                                        title: const Text('צור גיבוי לפני הייבוא'),
+                                        subtitle: Text(
+                                          'דורש $dbSizeMB MB נוספים בדיסק',
+                                          style: const TextStyle(fontSize: 11),
+                                        ),
+                                        value: createBackup,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            createBackup = value ?? true;
+                                          });
+                                        },
+                                        dense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        '⚠️ אם אין מספיק מקום בדיסק, בטל את הגיבוי.',
+                                        style: TextStyle(fontSize: 11, color: Colors.orange),
+                                      ),
+                                    ],
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, null),
+                                      child: const Text('ביטול'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, {
+                                        'confirmed': true,
+                                        'createBackup': createBackup,
+                                      }),
+                                      child: const Text('המשך'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+
+                          if (confirmed == null || confirmed['confirmed'] != true) {
+                            print('❌ User cancelled import');
+                            return;
+                          }
+                          
+                          final createBackup = confirmed['createBackup'] as bool? ?? true;
+                          print('✅ User confirmed import (backup: $createBackup)');
+                          
+                          // Show progress dialog
+                          if (!context.mounted) return;
+                          
+                          // Start import in background
+                          _showImportProgressDialog(
+                            context,
+                            folderPath,
+                            dbPath,
+                            libraryPath,
+                            createBackup: createBackup,
+                          );
+                        },
+                      ),
                     SwitchSettingsTile(
                       settingKey: 'key-dev-channel',
                       title: 'עדכון לגרסאות מפתחים',

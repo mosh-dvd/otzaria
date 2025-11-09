@@ -47,15 +47,31 @@ class FileSystemData {
   /// Singleton instance of [FileSystemData]
   static FileSystemData instance = FileSystemData();
 
-  /// Retrieves the complete library structure from the file system.
+  /// Retrieves the complete library structure from the file system and database.
   ///
   /// Reads the library from the configured path and combines it with metadata
   /// to create a full [Library] object containing all categories and books.
+  /// Also merges books from SQLite database if available.
   Future<Library> getLibrary() async {
     titleToPath = _getTitleToPath();
     metadata = _getMetadata();
-    return _getLibraryFromDirectory(
+    
+    // Get library from file system
+    final fsLibrary = await _getLibraryFromDirectory(
         '$libraryPath${Platform.pathSeparator}אוצריא', await metadata);
+    
+    // Try to merge books from SQLite database
+    print('🚀 Attempting to merge books from SQLite...');
+    try {
+      await _mergeBooksFromDatabase(fsLibrary);
+      print('✅ Merged books from SQLite database into library');
+      debugPrint('✅ Merged books from SQLite database into library');
+    } catch (e) {
+      print('⚠️ Could not merge books from database: $e');
+      debugPrint('⚠️ Could not merge books from database: $e');
+    }
+    
+    return fsLibrary;
   }
 
   /// Recursively builds the library structure from a directory.
@@ -317,25 +333,37 @@ class FileSystemData {
   /// First tries to read from SQLite database, then falls back to file system.
   /// Supports both plain text and DOCX formats.
   Future<String> getBookText(String title) async {
+    final stopwatch = Stopwatch()..start();
+    
     try {
       // Try SQLite first
       final text = await _sqliteProvider.getBookText(title);
-      debugPrint('Loaded book "$title" from SQLite (${text.length} chars)');
+      stopwatch.stop();
+      debugPrint('✅ Loaded "$title" from SQLite in ${stopwatch.elapsedMilliseconds}ms (${text.length} chars)');
       return text;
     } catch (e) {
-      debugPrint('SQLite failed for "$title", trying file system: $e');
+      stopwatch.stop();
+      debugPrint('⚠️ SQLite failed for "$title" after ${stopwatch.elapsedMilliseconds}ms, trying file system: $e');
     }
 
     // Fallback to file system
+    stopwatch.reset();
+    stopwatch.start();
+    
     final path = await _getBookPath(title);
     final file = File(path);
 
+    String text;
     if (path.endsWith('.docx')) {
       final bytes = await file.readAsBytes();
-      return Isolate.run(() => docxToText(bytes, title));
+      text = await Isolate.run(() => docxToText(bytes, title));
     } else {
-      return file.readAsString();
+      text = await file.readAsString();
     }
+    
+    stopwatch.stop();
+    debugPrint('📁 Loaded "$title" from FILE in ${stopwatch.elapsedMilliseconds}ms (${text.length} chars)');
+    return text;
   }
 
   /// Saves text content to a book file.
@@ -596,6 +624,203 @@ class FileSystemData {
   /// Gets the path to the JSON file containing links for a specific book.
   String _getLinksPath(String title) {
     return '${Settings.getValue<String>('key-library-path') ?? '.'}${Platform.pathSeparator}links${Platform.pathSeparator}${title}_links.json';
+  }
+
+  /// Merges books from SQLite databases into the library structure
+  /// Supports both main database (seforim.db) and personal database (my_books.db)
+  Future<void> _mergeBooksFromDatabase(Library library) async {
+    print('🔄 Starting to merge books from databases...');
+    debugPrint('🔄 Starting to merge books from databases...');
+    
+    // Try main database (seforim.db)
+    await _mergeBooksFromSingleDatabase(library, 'seforim.db', 'ספרים ממאגר הנתונים');
+    
+    // Try personal database (my_books.db)
+    await _mergeBooksFromSingleDatabase(library, 'my_books.db', 'הספרים האישיים שלי');
+  }
+  
+  /// Merges books from a single SQLite database
+  Future<void> _mergeBooksFromSingleDatabase(
+    Library library,
+    String dbFileName,
+    String categoryName,
+  ) async {
+    print('📚 Trying to load from $dbFileName...');
+    
+    try {
+      // Create a temporary provider for this specific database
+      final provider = SqliteDataProvider();
+      
+      // Get all book titles from this database
+      final dbBookTitles = await provider.getAllBookTitles();
+      
+      if (dbBookTitles.isEmpty) {
+        print('⚠️ No books found in $dbFileName');
+        debugPrint('⚠️ No books found in $dbFileName');
+        return;
+      }
+      
+      print('🔵 Found ${dbBookTitles.length} books in $dbFileName');
+      debugPrint('🔵 Found ${dbBookTitles.length} books in $dbFileName');
+      
+      // Get existing book titles from file system
+      final existingTitles = library.getAllBooks().map((b) => b.title).toSet();
+      
+      // Find books that are only in DB (not in file system)
+      final dbOnlyBooks = dbBookTitles.where((title) => !existingTitles.contains(title)).toList();
+      
+      print('📊 Total books in DB: ${dbBookTitles.length}');
+      print('📊 Existing books in file system: ${existingTitles.length}');
+      print('📊 DB-only books: ${dbOnlyBooks.length}');
+      if (dbOnlyBooks.length <= 10) {
+        print('📚 DB-only books: ${dbOnlyBooks.join(", ")}');
+      }
+      
+      if (dbOnlyBooks.isEmpty) {
+        debugPrint('✅ All database books already in file system');
+        return;
+      }
+      
+      print('🟢 Building category structure from database...');
+      
+      // Build the full category hierarchy from database
+      await _buildCategoryHierarchyFromDatabase(library, dbOnlyBooks);
+    } catch (e) {
+      debugPrint('❌ Error merging books from database: $e');
+      rethrow;
+    }
+  }
+
+  /// Builds the complete category hierarchy from database
+  Future<void> _buildCategoryHierarchyFromDatabase(Library library, List<String> bookTitles) async {
+    try {
+      // Get all categories and books with their relationships from DB
+      final categoriesData = await _sqliteProvider.getAllCategoriesWithBooks();
+      
+      if (categoriesData.isEmpty) {
+        print('⚠️ No categories found in database');
+        return;
+      }
+      
+      print('📂 Found ${categoriesData.length} categories in database');
+      
+      // Build category map: categoryId -> Category object
+      final Map<int, Category> categoryMap = {};
+      final Map<String, Category> existingCategoriesByTitle = {};
+      
+      // Build map of existing categories by title
+      void mapExistingCategories(Category cat) {
+        existingCategoriesByTitle[cat.title] = cat;
+        for (final sub in cat.subCategories) {
+          mapExistingCategories(sub);
+        }
+      }
+      for (final cat in library.subCategories) {
+        mapExistingCategories(cat);
+      }
+      
+      print('📋 Found ${existingCategoriesByTitle.length} existing categories in library');
+      
+      // First pass: create or reuse categories
+      for (final catData in categoriesData) {
+        final catId = catData['id'] as int;
+        final title = catData['title'] as String;
+        
+        // Try to find existing category
+        if (existingCategoriesByTitle.containsKey(title)) {
+          print('♻️ Reusing existing category: $title');
+          categoryMap[catId] = existingCategoriesByTitle[title]!;
+        } else {
+          // Create new category
+          final category = Category(
+            title: title,
+            description: '',
+            shortDescription: '',
+            order: 999,
+            subCategories: [],
+            books: [],
+            parent: null,
+          );
+          categoryMap[catId] = category;
+        }
+      }
+      
+      // Second pass: build hierarchy
+      for (final catData in categoriesData) {
+        final catId = catData['id'] as int;
+        final parentId = catData['parentId'] as int?;
+        
+        if (parentId != null && categoryMap.containsKey(parentId)) {
+          // Add as subcategory to parent
+          final parent = categoryMap[parentId]!;
+          final child = categoryMap[catId]!;
+          child.parent = parent;
+          parent.subCategories.add(child);
+        } else if (parentId == null) {
+          // Root category - add to library
+          final rootCat = categoryMap[catId]!;
+          rootCat.parent = library;
+          library.subCategories.add(rootCat);
+        }
+      }
+      
+      // Third pass: add books to categories
+      int totalAdded = 0;
+      print('📚 Adding ${bookTitles.length} books to categories...');
+      
+      for (final title in bookTitles) {
+        try {
+          final bookMeta = await _sqliteProvider.getBookMetadata(title);
+          if (bookMeta == null) {
+            print('⚠️ No metadata for "$title"');
+            continue;
+          }
+          
+          final categoryId = bookMeta['categoryId'] as int?;
+          if (categoryId == null || !categoryMap.containsKey(categoryId)) {
+            print('⚠️ Book "$title" has invalid category (id: $categoryId)');
+            continue;
+          }
+          
+          final category = categoryMap[categoryId]!;
+          
+          category.books.add(TextBook(
+            title: title,
+            category: category,
+            author: bookMeta['author'] as String?,
+            heShortDesc: bookMeta['heShortDesc'] as String?,
+            pubDate: bookMeta['pubDate'] as String?,
+            pubPlace: bookMeta['pubPlace'] as String?,
+            order: (bookMeta['orderIndex'] as num?)?.toInt() ?? 999,
+            topics: '',
+          ));
+          
+          totalAdded++;
+          if (totalAdded <= 5) {
+            print('  ✅ Added "$title" to category "${category.title}"');
+          }
+        } catch (e) {
+          print('⚠️ Could not add book "$title": $e');
+          debugPrint('⚠️ Could not add book "$title": $e');
+        }
+      }
+      
+      print('📊 Total books added: $totalAdded');
+      
+      // Sort everything
+      for (final category in categoryMap.values) {
+        category.books.sort((a, b) => a.order.compareTo(b.order));
+        category.subCategories.sort((a, b) => a.title.compareTo(b.title));
+      }
+      
+      library.subCategories.sort((a, b) => a.title.compareTo(b.title));
+      
+      print('✅ Successfully built category hierarchy with $totalAdded books');
+    } catch (e) {
+      print('❌ Error building category hierarchy: $e');
+      debugPrint('❌ Error building category hierarchy: $e');
+      rethrow;
+    }
   }
 
   /// Checks if a book with the given title exists in the library.

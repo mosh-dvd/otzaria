@@ -2,8 +2,8 @@ import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/models/links.dart';
 
@@ -37,17 +37,19 @@ class SqliteDataProvider {
         throw Exception('Database file seforim.db not found');
       }
 
-      _dbPath = dbFile.path;
-      debugPrint('Opening database at: $_dbPath');
+      _dbPath = dbFile.absolute.path;
+      print('🔵 SQLite: Opening database at: $_dbPath');
+      debugPrint('🔵 SQLite: Opening database at: $_dbPath');
 
       // Open the database in read-only mode
       final db = await openDatabase(
         _dbPath!,
         readOnly: true,
-        singleInstance: true,
+        singleInstance: false,
       );
 
-      debugPrint('Database opened successfully');
+      print('🟢 SQLite: Database opened successfully!');
+      debugPrint('🟢 SQLite: Database opened successfully!');
       return db;
     } catch (e) {
       debugPrint('Error initializing database: $e');
@@ -55,31 +57,48 @@ class SqliteDataProvider {
     }
   }
 
-  /// Find the database file in various possible locations
+  /// Find the database file in the library directory
   static Future<File?> _findDatabaseFile() async {
-    // 1. Check in project root
-    var dbFile = File('seforim.db');
-    if (await dbFile.exists()) return dbFile;
-
-    // 2. Check in application documents directory
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
-      dbFile = File(join(appDir.path, 'seforim.db'));
-      if (await dbFile.exists()) return dbFile;
-    } catch (e) {
-      debugPrint('Could not check app documents directory: $e');
+    debugPrint('🔍 Searching for database file...');
+    
+    // Get library path from settings
+    final libraryPath = await _getLibraryPath();
+    
+    // Check for seforim.db in library directory
+    final dbPath = join(libraryPath, 'seforim.db');
+    final dbFile = File(dbPath);
+    
+    debugPrint('🔍 Checking: $dbPath');
+    
+    if (await dbFile.exists()) {
+      final size = await dbFile.length();
+      debugPrint('✅ Found database at: ${dbFile.path} (${(size / 1024 / 1024).toStringAsFixed(2)} MB)');
+      return dbFile;
     }
-
-    // 3. Check in application support directory
-    try {
-      final appDir = await getApplicationSupportDirectory();
-      dbFile = File(join(appDir.path, 'seforim.db'));
-      if (await dbFile.exists()) return dbFile;
-    } catch (e) {
-      debugPrint('Could not check app support directory: $e');
-    }
-
+    
+    debugPrint('❌ Database not found at: $dbPath');
     return null;
+  }
+
+  /// Get the library path from settings
+  static Future<String> _getLibraryPath() async {
+    try {
+      // Try to get from Settings if initialized
+      if (Settings.isInitialized) {
+        final path = Settings.getValue<String>('key-library-path');
+        if (path != null && path.isNotEmpty) {
+          debugPrint('📂 Using library path from settings: $path');
+          return path;
+        }
+      }
+      
+      // Fallback: try current directory
+      debugPrint('📂 Using default library path: .');
+      return '.';
+    } catch (e) {
+      debugPrint('⚠️ Could not get library path from settings: $e');
+      return '.';
+    }
   }
 
   /// Close the database connection
@@ -113,6 +132,8 @@ class SqliteDataProvider {
   /// Get all lines of a book as a list of strings
   Future<List<String>> getBookLines(String title) async {
     try {
+      final stopwatch = Stopwatch()..start();
+      
       final bookId = await getBookId(title);
       if (bookId == null) {
         throw Exception('Book not found: $title');
@@ -127,9 +148,14 @@ class SqliteDataProvider {
         orderBy: 'lineIndex ASC',
       );
 
-      return result.map((row) => row['content'] as String).toList();
+      final lines = result.map((row) => row['content'] as String).toList();
+      stopwatch.stop();
+      
+      debugPrint('⚡ SQLite: Loaded ${lines.length} lines from "$title" in ${stopwatch.elapsedMilliseconds}ms');
+      
+      return lines;
     } catch (e) {
-      debugPrint('Error getting book lines for "$title": $e');
+      debugPrint('❌ SQLite: Error getting book lines for "$title": $e');
       rethrow;
     }
   }
@@ -276,6 +302,22 @@ class SqliteDataProvider {
       return result.map((row) => row['title'] as String).toList();
     } catch (e) {
       debugPrint('Error getting all book titles: $e');
+      return [];
+    }
+  }
+
+  /// Get all categories with their hierarchy
+  Future<List<Map<String, dynamic>>> getAllCategoriesWithBooks() async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        'category',
+        orderBy: 'level ASC, title ASC',
+      );
+
+      return result;
+    } catch (e) {
+      debugPrint('Error getting categories: $e');
       return [];
     }
   }

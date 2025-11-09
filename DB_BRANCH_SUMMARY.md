@@ -36,8 +36,9 @@
 
 ### אופציה 1: עם DB (מהיר!)
 ```bash
-# 1. העתק את seforim.db לשורש הפרויקט
-cp /path/to/seforim.db .
+# 1. העתק את seforim.db לתיקיית הספרייה
+# אם library-path = C:\Books\otzaria
+# אז: cp seforim.db C:\Books\otzaria\
 
 # 2. בדוק שהכל תקין
 dart run test_sqlite_integration.dart
@@ -50,6 +51,13 @@ flutter run
 ```bash
 # פשוט הרץ - הכל יעבוד כמו קודם
 flutter run
+```
+
+### ✨ הוספת ספרים חדשים:
+```bash
+# פשוט הוסף קובץ TXT/DOCX לתיקיית הספרייה
+# התוכנה תזהה אותו אוטומטית ותקרא אותו מהקובץ!
+# אין צורך לעדכן את ה-DB
 ```
 
 ## 🔍 איך לבדוק שזה עובד?

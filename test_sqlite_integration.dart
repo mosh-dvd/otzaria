@@ -30,11 +30,15 @@ void main() async {
   print('Step 2: Opening database...');
   Database? db;
   try {
+    // Use absolute path for FFI
+    final absolutePath = dbFile.absolute.path;
     db = await openDatabase(
-      dbFile.path,
+      absolutePath,
       readOnly: true,
+      singleInstance: false,
     );
-    print('✅ Database opened successfully\n');
+    print('✅ Database opened successfully');
+    print('   Path: $absolutePath\n');
   } catch (e) {
     print('❌ ERROR: Failed to open database: $e');
     exit(1);
