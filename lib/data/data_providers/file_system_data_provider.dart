@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:csv/csv.dart';
 import 'package:flutter/services.dart';
 import 'package:otzaria/data/data_providers/hive_data_provider.dart';
+import 'package:otzaria/data/data_providers/sqlite_data_provider.dart';
 import 'package:otzaria/utils/docx_to_otzaria.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/utils/text_manipulation.dart';
@@ -21,6 +22,8 @@ import 'package:otzaria/utils/toc_parser.dart';
 /// - Handling external book data from CSV files
 /// - Managing book links and metadata
 /// - Providing table of contents functionality
+/// 
+/// Now supports reading from SQLite database with fallback to file system.
 class FileSystemData {
   /// Future that resolves to a mapping of book titles to their file system paths
   late Future<Map<String, String>> titleToPath;
@@ -29,6 +32,9 @@ class FileSystemData {
 
   /// Future that resolves to metadata for all books and categories
   late Future<Map<String, Map<String, dynamic>>> metadata;
+
+  /// SQLite data provider for database access
+  final SqliteDataProvider _sqliteProvider = SqliteDataProvider();
 
   /// Creates a new instance of [FileSystemData] and initializes the title to path mapping
   /// and metadata
@@ -281,8 +287,20 @@ class FileSystemData {
 
   /// Retrieves all links associated with a specific book.
   ///
-  /// Links are stored in JSON files named '[book_title]_links.json' in the links directory.
+  /// First tries to read from SQLite database, then falls back to JSON files.
   Future<List<Link>> getAllLinksForBook(String title) async {
+    try {
+      // Try SQLite first
+      final links = await _sqliteProvider.getBookLinks(title);
+      if (links.isNotEmpty) {
+        debugPrint('Loaded ${links.length} links from SQLite for "$title"');
+        return links;
+      }
+    } catch (e) {
+      debugPrint('SQLite links failed for "$title", trying JSON: $e');
+    }
+
+    // Fallback to JSON file
     try {
       File file = File(_getLinksPath(title));
       final jsonString = await file.readAsString();
@@ -296,9 +314,19 @@ class FileSystemData {
 
   /// Retrieves the text content of a book.
   ///
-  /// Supports both plain text and DOCX formats. DOCX files are processed
-  /// using a special converter to extract their content.
+  /// First tries to read from SQLite database, then falls back to file system.
+  /// Supports both plain text and DOCX formats.
   Future<String> getBookText(String title) async {
+    try {
+      // Try SQLite first
+      final text = await _sqliteProvider.getBookText(title);
+      debugPrint('Loaded book "$title" from SQLite (${text.length} chars)');
+      return text;
+    } catch (e) {
+      debugPrint('SQLite failed for "$title", trying file system: $e');
+    }
+
+    // Fallback to file system
     final path = await _getBookPath(title);
     final file = File(path);
 
@@ -460,9 +488,20 @@ class FileSystemData {
 
   /// Retrieves the table of contents for a book.
   ///
-  /// Parses the book content to extract headings and create a hierarchical
-  /// table of contents structure.
+  /// First tries to read from SQLite database, then falls back to parsing the text.
   Future<List<TocEntry>> getBookToc(String title) async {
+    try {
+      // Try SQLite first
+      final toc = await _sqliteProvider.getBookToc(title);
+      if (toc.isNotEmpty) {
+        debugPrint('Loaded ${toc.length} TOC entries from SQLite for "$title"');
+        return toc;
+      }
+    } catch (e) {
+      debugPrint('SQLite TOC failed for "$title", parsing text: $e');
+    }
+
+    // Fallback to parsing text
     return _parseToc(getBookText(title));
   }
 
@@ -560,7 +599,18 @@ class FileSystemData {
   }
 
   /// Checks if a book with the given title exists in the library.
+  /// 
+  /// First checks SQLite database, then falls back to file system.
   Future<bool> bookExists(String title) async {
+    try {
+      // Try SQLite first
+      final exists = await _sqliteProvider.bookExists(title);
+      if (exists) return true;
+    } catch (e) {
+      debugPrint('SQLite bookExists failed for "$title": $e');
+    }
+
+    // Fallback to file system
     final titleToPath = await this.titleToPath;
     return titleToPath.keys.contains(title);
   }
