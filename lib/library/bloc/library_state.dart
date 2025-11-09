@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/library/models/library.dart';
+import 'package:search_engine/search_engine.dart';
 
 class LibraryState extends Equatable {
   final Library? library;
@@ -11,6 +12,7 @@ class LibraryState extends Equatable {
   final String? searchQuery;
   final List<String>? selectedTopics;
   final Book? previewBook;
+  final List<ReferenceSearchResult>? referenceResults;
 
   const LibraryState({
     this.library,
@@ -21,6 +23,7 @@ class LibraryState extends Equatable {
     this.searchQuery,
     this.selectedTopics,
     this.previewBook,
+    this.referenceResults,
   });
 
   factory LibraryState.initial() {
@@ -67,6 +70,7 @@ class LibraryState extends Equatable {
     String? searchQuery,
     List<String>? selectedTopics,
     Book? previewBook,
+    List<ReferenceSearchResult>? referenceResults,
   }) {
     return LibraryState(
       library: library ?? this.library,
@@ -77,6 +81,7 @@ class LibraryState extends Equatable {
       searchQuery: searchQuery ?? this.searchQuery,
       selectedTopics: selectedTopics ?? this.selectedTopics,
       previewBook: previewBook ?? this.previewBook,
+      referenceResults: referenceResults,
     );
   }
 
@@ -90,5 +95,6 @@ class LibraryState extends Equatable {
         searchQuery,
         selectedTopics,
         previewBook,
+        referenceResults,
       ];
 }

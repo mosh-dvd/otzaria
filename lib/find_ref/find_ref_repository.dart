@@ -2,13 +2,14 @@ import 'package:otzaria/data/data_providers/tantivy_data_provider.dart';
 import 'package:otzaria/data/repository/data_repository.dart';
 import 'package:otzaria/utils/text_manipulation.dart';
 import 'package:search_engine/search_engine.dart';
+import 'package:otzaria/models/books.dart';
 
 class FindRefRepository {
   final DataRepository dataRepository;
 
   FindRefRepository({required this.dataRepository});
 
-  Future<List<ReferenceSearchResult>> findRefs(String ref) async {
+  Future<List<ReferenceSearchResult>> findRefs(String ref, {List<String>? topics}) async {
     // שלב 1: שלוף יותר תוצאות מהרגיל כדי לפצות על אלו שיסוננו
     final rawResults = await TantivyDataProvider.instance
         .searchRefs(replaceParaphrases(removeSectionNames(ref)), 300, false);
@@ -16,10 +17,58 @@ class FindRefRepository {
     // שלב 2: בצע סינון כפילויות (דה-דופליקציה) חכם
     final unique = _dedupeRefs(rawResults);
 
-    // שלב 3: החזר עד 100 תוצאות ייחודיות
-    return unique.length > 100
-        ? unique.take(100).toList(growable: false)
-        : unique;
+    // שלב 3: סנן לפי נושאים אם נבחרו
+    final filtered = await _filterByTopics(unique, topics);
+
+    // שלב 4: החזר עד 100 תוצאות ייחודיות
+    return filtered.length > 100
+        ? filtered.take(100).toList(growable: false)
+        : filtered;
+  }
+
+  /// מסנן תוצאות לפי נושאים נבחרים
+  Future<List<ReferenceSearchResult>> _filterByTopics(
+    List<ReferenceSearchResult> results,
+    List<String>? selectedTopics,
+  ) async {
+    // אם לא נבחרו נושאים, החזר את כל התוצאות
+    if (selectedTopics == null || selectedTopics.isEmpty) {
+      return results;
+    }
+
+    // קבל את כל הספרים מהספרייה
+    final library = await dataRepository.library;
+    final allBooks = library.getAllBooks();
+    
+    // צור מפה מכותרת ספר לספר עצמו לחיפוש מהיר
+    final booksByTitle = <String, Book>{};
+    for (final book in allBooks) {
+      booksByTitle[book.title] = book;
+    }
+
+    // סנן תוצאות לפי נושאים
+    final filtered = <ReferenceSearchResult>[];
+    for (final result in results) {
+      final book = booksByTitle[result.title];
+      
+      // אם הספר לא נמצא בספרייה, כלול אותו בתוצאות (לא נסנן ספרים חיצוניים)
+      if (book == null) {
+        filtered.add(result);
+        continue;
+      }
+
+      // בדוק אם אחד מהנושאים הנבחרים מופיע בנושאי הספר
+      final bookTopics = book.topics.split(', ');
+      final matchesTopics = selectedTopics.any((selectedTopic) => 
+        bookTopics.contains(selectedTopic)
+      );
+
+      if (matchesTopics) {
+        filtered.add(result);
+      }
+    }
+
+    return filtered;
   }
 
   /// מסננת רשימת תוצאות ומשאירה רק את הייחודיות על בסיס מפתח מורכב.

@@ -8,6 +8,7 @@ import 'package:otzaria/data/data_providers/tantivy_data_provider.dart';
 import 'package:otzaria/data/repository/data_repository.dart';
 import 'package:otzaria/library/models/library.dart';
 import 'package:otzaria/models/books.dart';
+import 'package:otzaria/find_ref/find_ref_repository.dart';
 
 class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
   final DataRepository _repository = DataRepository.instance;
@@ -241,12 +242,14 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     if (state.searchQuery == null || state.searchQuery!.length < 3) {
       emit(state.copyWith(
         searchResults: null,
+        referenceResults: null,
       ));
       return;
     }
 
     try {
-      final results = await _repository.findBooks(
+      // חיפוש ספרים
+      final bookResults = await _repository.findBooks(
         state.searchQuery!,
         state.currentCategory,
         topics: state.selectedTopics,
@@ -254,13 +257,22 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
         includeHebrewBooks: event.showHebrewBooks ?? false,
       );
 
+      // חיפוש הפניות (איתור) - עם סינון לפי נושאים
+      final findRefRepo = FindRefRepository(dataRepository: _repository);
+      final refResults = await findRefRepo.findRefs(
+        state.searchQuery!,
+        topics: state.selectedTopics,
+      );
+
       emit(state.copyWith(
-        searchResults: results,
+        searchResults: bookResults,
+        referenceResults: refResults.isNotEmpty ? refResults : null,
       ));
     } catch (e) {
       emit(state.copyWith(
         error: e.toString(),
         searchResults: null,
+        referenceResults: null,
       ));
     }
   }

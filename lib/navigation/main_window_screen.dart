@@ -12,7 +12,6 @@ import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/empty_library/empty_library_screen.dart';
-import 'package:otzaria/find_ref/find_ref_dialog.dart';
 import 'package:otzaria/search/view/search_dialog.dart';
 import 'package:otzaria/library/view/library_browser.dart';
 import 'package:otzaria/tabs/reading_screen.dart';
@@ -110,8 +109,6 @@ class MainWindowScreenState extends State<MainWindowScreen>
     final libraryShortcut =
         Settings.getValue<String>('key-shortcut-open-library-browser') ??
             'ctrl+l';
-    final findShortcut =
-        Settings.getValue<String>('key-shortcut-open-find-ref') ?? 'ctrl+o';
     final browseShortcut =
         Settings.getValue<String>('key-shortcut-open-reading-screen') ??
             'ctrl+r';
@@ -127,15 +124,6 @@ class MainWindowScreenState extends State<MainWindowScreen>
           child: const Icon(FluentIcons.library_24_regular),
         ),
         label: 'ספרייה',
-      ),
-      NavigationDestination(
-        tooltip: '',
-        icon: Tooltip(
-          preferBelow: false,
-          message: formatShortcut(findShortcut),
-          child: const Icon(FluentIcons.book_search_24_regular),
-        ),
-        label: 'איתור',
       ),
       NavigationDestination(
         tooltip: '',
@@ -286,7 +274,7 @@ class MainWindowScreenState extends State<MainWindowScreen>
                                   builder: (context, constraints) {
                                     // חישוב גובה משוער לכל הכפתורים
                                     const buttonHeight = 60.0; // גובה משוער לכפתור + padding
-                                    final totalButtonsHeight = 7 * buttonHeight;
+                                    final totalButtonsHeight = 6 * buttonHeight;
                                     final minSpacerHeight = 20.0;
                                     final needsScroll = totalButtonsHeight + minSpacerHeight > constraints.maxHeight;
 
@@ -295,7 +283,7 @@ class MainWindowScreenState extends State<MainWindowScreen>
                                       return SingleChildScrollView(
                                         child: Column(
                                           children: [
-                                            for (int i = 0; i < 7; i++)
+                                            for (int i = 0; i < 6; i++)
                                               _buildNavButton(
                                                 context,
                                                 _buildNavigationDestinations()[i],
@@ -310,7 +298,7 @@ class MainWindowScreenState extends State<MainWindowScreen>
                                       return Column(
                                         children: [
                                           // כפתורים עליונים
-                                          for (int i = 0; i < 5; i++)
+                                          for (int i = 0; i < 4; i++)
                                             _buildNavButton(
                                               context,
                                               _buildNavigationDestinations()[i],
@@ -320,7 +308,7 @@ class MainWindowScreenState extends State<MainWindowScreen>
                                           // רווח גמיש
                                           const Spacer(),
                                           // כפתורים תחתונים
-                                          for (int i = 5; i < 7; i++)
+                                          for (int i = 4; i < 6; i++)
                                             _buildNavButton(
                                               context,
                                               _buildNavigationDestinations()[i],
@@ -350,8 +338,6 @@ class MainWindowScreenState extends State<MainWindowScreen>
                               onDestinationSelected: (index) {
                                 if (index == Screen.search.index) {
                                   _handleSearchTabOpen(context);
-                                } else if (index == Screen.find.index) {
-                                  _handleFindRefOpen(context);
                                 } else if (index == Screen.about.index) {
                                   showDialog(
                                     context: context,
@@ -398,7 +384,6 @@ class MainWindowScreenState extends State<MainWindowScreen>
         return 2;
       case Screen.settings:
         return 3;
-      case Screen.find:
       case Screen.about:
         return null;
     }
@@ -446,27 +431,20 @@ class MainWindowScreenState extends State<MainWindowScreen>
     navigationBloc.add(const NavigateToScreen(Screen.search));
   }
 
-  void _handleFindRefOpen(BuildContext context) {
-    showDialog(context: context, builder: (context) => FindRefDialog());
-  }
-
   int _getSelectedIndex(Screen currentScreen) {
-    // מיפוי מחדש של האינדקסים כיון שהסרנו את דף האיתור
     switch (currentScreen) {
       case Screen.library:
         return 0;
-      case Screen.find:
-        return -1; // לא נבחר
       case Screen.reading:
-        return 2;
+        return 1;
       case Screen.search:
-        return 3;
+        return 2;
       case Screen.more:
-        return 4;
+        return 3;
       case Screen.settings:
-        return 5;
+        return 4;
       case Screen.about:
-        return 6;
+        return 5;
     }
   }
 
@@ -489,8 +467,6 @@ class MainWindowScreenState extends State<MainWindowScreen>
             onPressed: () {
               if (index == Screen.search.index) {
                 _handleSearchTabOpen(context);
-              } else if (index == Screen.find.index) {
-                _handleFindRefOpen(context);
               } else if (index == Screen.about.index) {
                 showDialog(
                   context: context,

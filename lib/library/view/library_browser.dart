@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/focus/focus_repository.dart';
@@ -35,6 +36,11 @@ import 'package:otzaria/settings/library_settings_dialog.dart';
 import 'package:otzaria/navigation/bloc/navigation_bloc.dart';
 import 'package:otzaria/navigation/bloc/navigation_event.dart';
 import 'package:otzaria/navigation/bloc/navigation_state.dart';
+import 'package:search_engine/search_engine.dart';
+import 'package:otzaria/tabs/bloc/tabs_bloc.dart';
+import 'package:otzaria/tabs/bloc/tabs_event.dart';
+import 'package:otzaria/tabs/models/pdf_tab.dart';
+import 'package:otzaria/tabs/models/text_tab.dart';
 
 class LibraryBrowser extends StatefulWidget {
   const LibraryBrowser({super.key});
@@ -54,6 +60,8 @@ class _LibraryBrowserState extends State<LibraryBrowser>
   bool _showPreview = true; // האם להציג את התצוגה המקדימה
   ViewMode _viewMode = ViewMode.grid; // מצב תצוגה: רשת או רשימה
   final Set<String> _expandedCategories = {}; // קטגוריות שנפתחו בתצוגת רשימה
+  int _selectedReferenceIndex = 0; // אינדקס הפניה נבחרת בתוצאות חיפוש
+  final Map<int, GlobalKey> _referenceItemKeys = {}; // מפתחות לפריטים בתוצאות
 
   @override
   void initState() {
@@ -69,6 +77,28 @@ class _LibraryBrowserState extends State<LibraryBrowser>
       _viewMode = settingsState.libraryViewMode == 'list'
           ? ViewMode.list
           : ViewMode.grid;
+    });
+  }
+
+  GlobalKey _getKeyForIndex(int index) {
+    if (!_referenceItemKeys.containsKey(index)) {
+      _referenceItemKeys[index] = GlobalKey();
+    }
+    return _referenceItemKeys[index]!;
+  }
+
+  void _scrollToSelected() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final key = _getKeyForIndex(_selectedReferenceIndex);
+      final context = key.currentContext;
+      if (context != null) {
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          alignment: 0.5,
+        );
+      }
     });
   }
 
@@ -92,7 +122,8 @@ class _LibraryBrowserState extends State<LibraryBrowser>
                 previous.currentCategory != current.currentCategory ||
                 previous.searchResults != current.searchResults ||
                 previous.searchQuery != current.searchQuery ||
-                previous.selectedTopics != current.selectedTopics;
+                previous.selectedTopics != current.selectedTopics ||
+                previous.referenceResults != current.referenceResults;
           },
           builder: (context, state) {
             if (state.error != null) {
@@ -287,36 +318,71 @@ class _LibraryBrowserState extends State<LibraryBrowser>
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, settingsState) {
           final focusRepository = context.read<FocusRepository>();
+          final refs = state.referenceResults ?? [];
+          
           return Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: focusRepository.librarySearchController,
-                  focusNode:
-                      context.read<FocusRepository>().librarySearchFocusNode,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    prefixIcon: const Icon(FluentIcons.search_24_regular),
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        focusRepository.librarySearchController.clear();
-                        _update(context, state, settingsState);
-                        _refocusSearchBar();
-                      },
-                      icon: const Icon(FluentIcons.dismiss_24_regular),
-                    ),
-                    border: const OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(8.0)),
-                    ),
-                    hintText:
-                        'איתור ספר ב${state.currentCategory?.title ?? ""}',
-                  ),
-                  onChanged: (value) {
-                    context.read<LibraryBloc>().add(UpdateSearchQuery(value));
-                    context.read<LibraryBloc>().add(const SelectTopics([]));
-                    _update(context, state, settingsState);
+                child: Focus(
+                  onKeyEvent: (node, event) {
+                    if (event is! KeyDownEvent) {
+                      return KeyEventResult.ignored;
+                    }
+
+                    // טיפול בחיצים רק אם יש תוצאות הפניות
+                    if (refs.isNotEmpty) {
+                      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                        setState(() {
+                          _selectedReferenceIndex =
+                              (_selectedReferenceIndex + 1).clamp(0, refs.length - 1);
+                        });
+                        _scrollToSelected();
+                        return KeyEventResult.handled;
+                      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                        setState(() {
+                          _selectedReferenceIndex =
+                              (_selectedReferenceIndex - 1).clamp(0, refs.length - 1);
+                        });
+                        _scrollToSelected();
+                        return KeyEventResult.handled;
+                      }
+                    }
+                    return KeyEventResult.ignored;
                   },
+                  child: TextField(
+                    controller: focusRepository.librarySearchController,
+                    focusNode:
+                        context.read<FocusRepository>().librarySearchFocusNode,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      prefixIcon: const Icon(FluentIcons.search_24_regular),
+                      suffixIcon: IconButton(
+                        onPressed: () {
+                          focusRepository.librarySearchController.clear();
+                          _update(context, state, settingsState);
+                          _refocusSearchBar();
+                        },
+                        icon: const Icon(FluentIcons.dismiss_24_regular),
+                      ),
+                      border: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(8.0)),
+                      ),
+                      hintText:
+                          'איתור ספר או מקור ב${state.currentCategory?.title ?? ""}',
+                    ),
+                    onChanged: (value) {
+                      context.read<LibraryBloc>().add(UpdateSearchQuery(value));
+                      context.read<LibraryBloc>().add(const SelectTopics([]));
+                      _update(context, state, settingsState);
+                    },
+                    onSubmitted: (value) {
+                      // פתיחת ההפניה הנבחרת בלחיצה על אנטר
+                      if (refs.isNotEmpty) {
+                        _openReference(refs[_selectedReferenceIndex]);
+                      }
+                    },
+                  ),
                 ),
               ),
               // כפתור מעבר בין תצוגת רשת לרשימה
@@ -480,9 +546,11 @@ class _LibraryBrowserState extends State<LibraryBrowser>
     
     // במצב תצוגת רשת - תמיד רשת
     if (_viewMode == ViewMode.grid) {
-      final items = state.searchResults != null
-          ? _buildSearchResults(state.searchResults!)
-          : _buildCategoryContent(state.currentCategory!);
+      final items = state.referenceResults != null
+          ? _buildReferenceSearchResults(state.referenceResults!)
+          : state.searchResults != null
+              ? _buildSearchResults(state.searchResults!)
+              : _buildCategoryContent(state.currentCategory!);
 
       return FutureBuilder<List<Widget>>(
         future: items,
@@ -517,7 +585,10 @@ class _LibraryBrowserState extends State<LibraryBrowser>
     }
 
     // תצוגת רשימה - גם בחיפוש וגם בלי
-    if (state.searchResults != null) {
+    if (state.referenceResults != null) {
+      // במצב חיפוש הפניות ברשימה - הצג את ההפניות
+      return _buildReferenceSearchListView(state.referenceResults!);
+    } else if (state.searchResults != null) {
       // במצב חיפוש ברשימה - הצג רק את הספרים
       return _buildSearchListView(state.searchResults!);
     }
@@ -541,6 +612,147 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         ],
       ),
     ];
+  }
+
+  Future<List<Widget>> _buildReferenceSearchResults(
+      List<ReferenceSearchResult> refs) async {
+    return [
+      const Padding(
+        padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+        child: Text(
+          'תוצאות איתור',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+      ),
+      ...refs.map((ref) => _buildUnifiedListItem(ref)),
+      const SizedBox(height: 16.0),
+    ];
+  }
+
+  Widget _buildUnifiedListItem(ReferenceSearchResult ref) {
+    // Check if title equals reference to determine if it's a book or reference
+    bool isBook = ref.title == ref.reference;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+      child: ListTile(
+        leading: Icon(
+          isBook
+              ? (ref.isPdf ? FluentIcons.document_pdf_24_regular : FluentIcons.document_text_24_regular)
+              : FluentIcons.document_text_24_regular,
+          color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.6),
+        ),
+        title: Text(ref.reference),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isBook) // For references, show the book title
+              Text(
+                ref.title,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+        ),
+        onTap: () => _openReference(ref),
+      ),
+    );
+  }
+
+  void _openReference(ReferenceSearchResult ref) {
+    final tabsBloc = context.read<TabsBloc>();
+    final navigationBloc = context.read<NavigationBloc>();
+
+    if (ref.isPdf) {
+      tabsBloc.add(AddTab(PdfBookTab(
+          book: PdfBook(title: ref.title, path: ref.filePath),
+          pageNumber: ref.segment.toInt())));
+    } else {
+      tabsBloc.add(AddTab(TextBookTab(
+          book: TextBook(
+            title: ref.title,
+          ),
+          index: ref.segment.toInt())));
+    }
+    navigationBloc.add(const NavigateToScreen(Screen.reading));
+  }
+
+  Widget _buildReferenceSearchListView(List<ReferenceSearchResult> refs) {
+    return ListView.builder(
+      itemCount: refs.length,
+      itemBuilder: (context, index) {
+        final isSelected = index == _selectedReferenceIndex;
+        final ref = refs[index];
+        bool isBook = ref.title == ref.reference;
+
+        return Container(
+          key: _getKeyForIndex(index),
+          margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.8)
+                : null,
+            border: isSelected
+                ? Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2.0,
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(8.0),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                      blurRadius: 4.0,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Card(
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            color: Colors.transparent,
+            child: ListTile(
+              leading: Icon(
+                isBook
+                    ? (ref.isPdf ? FluentIcons.document_pdf_24_regular : FluentIcons.document_text_24_regular)
+                    : FluentIcons.document_text_24_regular,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.secondary.withValues(alpha: 0.6),
+              ),
+              title: Text(
+                ref.reference,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                  color: isSelected ? Theme.of(context).colorScheme.onPrimaryContainer : null,
+                ),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!isBook)
+                    Text(
+                      ref.title,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.8)
+                            : Colors.grey,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+              onTap: () => _openReference(ref),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<List<Widget>> _buildCategoryContent(Category category) async {

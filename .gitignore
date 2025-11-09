@@ -63,3 +63,9 @@ installer/otzaria-0.9.69-windows.exe
 installer/otzaria-0.9.69-windows-full.exe
 pubspec.lock
 flutter/
+linux/flutter/generated_plugin_registrant.cc
+linux/flutter/generated_plugin_registrant.h
+windows/flutter/generated_plugin_registrant.h
+windows/flutter/generated_plugin_registrant.cc
+linux/flutter/generated_plugins.cmake
+linux/flutter/generated_plugin_registrant.h
