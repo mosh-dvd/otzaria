@@ -38,6 +38,7 @@ import 'package:otzaria/personal_notes/personal_notes_system.dart';
 import 'package:otzaria/models/phone_report_data.dart';
 import 'package:otzaria/services/data_collection_service.dart';
 import 'package:otzaria/services/phone_report_service.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'package:otzaria/widgets/phone_report_tab.dart';
 import 'package:otzaria/widgets/responsive_action_bar.dart';
@@ -2793,20 +2794,216 @@ void _handleFullFileEditorPress(BuildContext context, TextBookLoaded state) {
 bool _handleGlobalKeyEvent(
     KeyEvent event, BuildContext context, TextBookLoaded state) {
   if (event is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
+    // קריאת קיצורים מההגדרות
+    final editSectionShortcut =
+        Settings.getValue<String>('key-shortcut-edit-section') ?? 'ctrl+e';
+    final searchInBookShortcut =
+        Settings.getValue<String>('key-shortcut-search-in-book') ?? 'ctrl+f';
+    final printShortcut =
+        Settings.getValue<String>('key-shortcut-print') ?? 'ctrl+p';
+    final addBookmarkShortcut =
+        Settings.getValue<String>('key-shortcut-add-bookmark') ?? 'ctrl+b';
+    final addNoteShortcut =
+        Settings.getValue<String>('key-shortcut-add-note') ?? 'ctrl+n';
+
     switch (event.logicalKey) {
+      // עריכת קטע (Ctrl+E כברירת מחדל)
       case LogicalKeyboardKey.keyE:
-        if (!state.isEditorOpen) {
-          if (HardwareKeyboard.instance.isShiftPressed) {
-            _handleFullFileEditorPress(context, state);
-          } else {
-            _handleTextEditorPress(context, state);
+        if (editSectionShortcut.contains('ctrl+e')) {
+          if (!state.isEditorOpen) {
+            if (HardwareKeyboard.instance.isShiftPressed) {
+              _handleFullFileEditorPress(context, state);
+            } else {
+              _handleTextEditorPress(context, state);
+            }
+            return true;
+          }
+        }
+        break;
+
+      // חיפוש בספר (Ctrl+F כברירת מחדל)
+      case LogicalKeyboardKey.keyF:
+        if (searchInBookShortcut.contains('ctrl+f')) {
+          context.read<TextBookBloc>().add(const ToggleLeftPane(true));
+          final tabController = context
+              .findAncestorStateOfType<_TextBookViewerBlocState>()
+              ?.tabController;
+          if (tabController != null) {
+            tabController.index = 1;
           }
           return true;
         }
         break;
+
+      // הדפסה (Ctrl+P כברירת מחדל)
+      case LogicalKeyboardKey.keyP:
+        if (printShortcut.contains('ctrl+p')) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => PrintingScreen(
+                data: Future.value(state.content.join('\n')),
+                startLine: state.visibleIndices.first,
+                removeNikud: state.removeNikud,
+              ),
+            ),
+          );
+          return true;
+        }
+        break;
+
+      // הוספת סימניה (Ctrl+B כברירת מחדל)
+      case LogicalKeyboardKey.keyB:
+        if (addBookmarkShortcut.contains('ctrl+b')) {
+          _addBookmarkFromKeyboard(context, state);
+          return true;
+        }
+        break;
+
+      // הוספת הערה (Ctrl+N כברירת מחדל)
+      case LogicalKeyboardKey.keyN:
+        if (addNoteShortcut.contains('ctrl+n')) {
+          _addNoteFromKeyboard(context, state);
+          return true;
+        }
+        break;
+
+      // הגדלת טקסט (Ctrl++ או Ctrl+=)
+      case LogicalKeyboardKey.equal:
+      case LogicalKeyboardKey.add:
+        context.read<TextBookBloc>().add(
+              UpdateFontSize(min(50.0, state.fontSize + 3)),
+            );
+        return true;
+
+      // הקטנת טקסט (Ctrl+-)
+      case LogicalKeyboardKey.minus:
+        context.read<TextBookBloc>().add(
+              UpdateFontSize(max(15.0, state.fontSize - 3)),
+            );
+        return true;
+
+      // איפוס גודל טקסט (Ctrl+0)
+      case LogicalKeyboardKey.digit0:
+        context.read<TextBookBloc>().add(const UpdateFontSize(25.0));
+        return true;
     }
   }
+
+  // ניווט עם Ctrl+Home ו-Ctrl+End
+  if (event is KeyDownEvent && HardwareKeyboard.instance.isControlPressed) {
+    switch (event.logicalKey) {
+      // Ctrl+Home - תחילת הספר
+      case LogicalKeyboardKey.home:
+        state.scrollController.scrollTo(
+          index: 0,
+          duration: const Duration(milliseconds: 300),
+        );
+        return true;
+
+      // Ctrl+End - סוף הספר
+      case LogicalKeyboardKey.end:
+        state.scrollController.scrollTo(
+          index: state.content.length - 1,
+          duration: const Duration(milliseconds: 300),
+        );
+        return true;
+    }
+  }
+
+  // מקשי פונקציה ללא Ctrl
+  if (event is KeyDownEvent && !HardwareKeyboard.instance.isControlPressed) {
+    switch (event.logicalKey) {
+      // F11 - מסך מלא
+      case LogicalKeyboardKey.f11:
+        if (!Platform.isAndroid && !Platform.isIOS) {
+          final settingsBloc = context.read<SettingsBloc>();
+          final newFullscreenState = !settingsBloc.state.isFullscreen;
+          settingsBloc.add(UpdateIsFullscreen(newFullscreenState));
+          windowManager.setFullScreen(newFullscreenState);
+          return true;
+        }
+        break;
+
+      // ESC - יציאה ממסך מלא
+      case LogicalKeyboardKey.escape:
+        if (!Platform.isAndroid && !Platform.isIOS) {
+          final settingsBloc = context.read<SettingsBloc>();
+          if (settingsBloc.state.isFullscreen) {
+            settingsBloc.add(const UpdateIsFullscreen(false));
+            windowManager.setFullScreen(false);
+            return true;
+          }
+        }
+        break;
+    }
+  }
+
   return false;
+}
+
+/// Helper function to add bookmark from keyboard shortcut
+void _addBookmarkFromKeyboard(
+    BuildContext context, TextBookLoaded state) async {
+  final index = state.positionsListener.itemPositions.value.first.index;
+  final toc = state.book.tableOfContents;
+  final bookmarkBloc = context.read<BookmarkBloc>();
+  final ref = await refFromIndex(index, toc);
+
+  if (!context.mounted) return;
+
+  final bookmarkAdded = bookmarkBloc.addBookmark(
+    ref: ref,
+    book: state.book,
+    index: index,
+    commentatorsToShow: state.activeCommentators,
+  );
+
+  UiSnack.showQuick(
+      bookmarkAdded ? 'הסימניה נוספה בהצלחה' : 'הסימניה כבר קיימת');
+}
+
+/// Helper function to add note from keyboard shortcut
+Future<void> _addNoteFromKeyboard(
+    BuildContext context, TextBookLoaded state) async {
+  final positions = state.positionsListener.itemPositions.value;
+  final currentIndex = positions.isNotEmpty ? positions.first.index : 0;
+  final controller = TextEditingController(
+    text: state.selectedTextForNote?.trim() ?? '',
+  );
+  final notesBloc = context.read<PersonalNotesBloc>();
+  final textBookBloc = context.read<TextBookBloc>();
+
+  final noteContent = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) => PersonalNoteEditorDialog(
+      title: 'הוסף הערה לקטע זה',
+      controller: controller,
+    ),
+  );
+
+  if (noteContent == null) {
+    return;
+  }
+
+  final trimmed = noteContent.trim();
+  if (trimmed.isEmpty) {
+    UiSnack.show('ההערה ריקה, לא נשמרה');
+    return;
+  }
+
+  if (!context.mounted) return;
+
+  try {
+    notesBloc.add(AddPersonalNote(
+      bookId: state.book.title,
+      lineNumber: currentIndex + 1,
+      content: trimmed,
+    ));
+    textBookBloc.add(const ToggleSplitView(true));
+    UiSnack.show('ההערה נשמרה בהצלחה');
+  } catch (e) {
+    UiSnack.showError('שמירת ההערה נכשלה: $e');
+  }
 }
 
 void _openEditorDialog(BuildContext context, TextBookLoaded state) async {

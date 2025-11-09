@@ -67,6 +67,9 @@ void main() {
             paddingSize: mockSettings['paddingSize'] as double,
             fontSize: mockSettings['fontSize'] as double,
             fontFamily: mockSettings['fontFamily'] as String,
+            commentatorsFontFamily:
+                mockSettings['commentatorsFontFamily'] as String? ??
+                    'NotoRashiHebrew',
             showOtzarHachochma: mockSettings['showOtzarHachochma'] as bool,
             showHebrewBooks: mockSettings['showHebrewBooks'] as bool,
             showExternalBooks: mockSettings['showExternalBooks'] as bool,

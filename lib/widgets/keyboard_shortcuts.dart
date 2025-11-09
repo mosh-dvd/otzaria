@@ -12,14 +12,21 @@ import 'package:otzaria/history/bloc/history_event.dart';
 import 'package:otzaria/tabs/models/searching_tab.dart';
 import 'package:otzaria/find_ref/find_ref_dialog.dart';
 import 'package:otzaria/search/view/search_dialog.dart';
+import 'package:otzaria/bookmarks/bookmarks_dialog.dart';
+import 'package:otzaria/history/history_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 
-class KeyboardShortcuts extends StatelessWidget {
+class KeyboardShortcuts extends StatefulWidget {
   final Widget child;
 
-  KeyboardShortcuts({super.key, required this.child});
+  const KeyboardShortcuts({super.key, required this.child});
 
+  @override
+  State<KeyboardShortcuts> createState() => _KeyboardShortcutsState();
+}
+
+class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
   final Map<String, LogicalKeySet> shortcuts = {
     'ctrl+a': LogicalKeySet(
       LogicalKeyboardKey.control,
@@ -174,82 +181,134 @@ class KeyboardShortcuts extends StatelessWidget {
       LogicalKeyboardKey.tab,
       LogicalKeyboardKey.shift,
     ),
+    'ctrl+comma': LogicalKeySet(
+      LogicalKeyboardKey.control,
+      LogicalKeyboardKey.comma,
+    ),
+    'ctrl+shift+b': LogicalKeySet(
+      LogicalKeyboardKey.control,
+      LogicalKeyboardKey.shift,
+      LogicalKeyboardKey.keyB,
+    ),
   };
+
+  Map<ShortcutActivator, VoidCallback> _buildShortcutBindings(
+      BuildContext context) {
+    // קריאת ערכי הקיצורים מההגדרות בכל פעם שהפונקציה נקראת
+    // ניווט כללי
+    final libraryShortcut =
+        Settings.getValue<String>('key-shortcut-open-library-browser') ??
+            'ctrl+l';
+    final findRefShortcut =
+        Settings.getValue<String>('key-shortcut-open-find-ref') ?? 'ctrl+o';
+    final closeTabShortcut =
+        Settings.getValue<String>('key-shortcut-close-tab') ?? 'ctrl+w';
+    final closeAllTabsShortcut =
+        Settings.getValue<String>('key-shortcut-close-all-tabs') ?? 'ctrl+x';
+    final readingScreenShortcut =
+        Settings.getValue<String>('key-shortcut-open-reading-screen') ??
+            'ctrl+r';
+    final newSearchShortcut =
+        Settings.getValue<String>('key-shortcut-open-new-search') ?? 'ctrl+q';
+    final settingsShortcut =
+        Settings.getValue<String>('key-shortcut-open-settings') ?? 'ctrl+comma';
+    final moreShortcut =
+        Settings.getValue<String>('key-shortcut-open-more') ?? 'ctrl+m';
+    final bookmarksShortcut =
+        Settings.getValue<String>('key-shortcut-open-bookmarks') ??
+            'ctrl+shift+b';
+    final historyShortcut =
+        Settings.getValue<String>('key-shortcut-open-history') ?? 'ctrl+h';
+
+    return <ShortcutActivator, VoidCallback>{
+      shortcuts[libraryShortcut]!: () {
+        context.read<NavigationBloc>().add(
+              const NavigateToScreen(Screen.library),
+            );
+        //set focus
+        context.read<FocusRepository>().requestLibrarySearchFocus(
+              selectAll: true,
+            );
+      },
+      shortcuts[findRefShortcut]!: () {
+        showDialog(context: context, builder: (context) => FindRefDialog());
+      },
+      shortcuts[closeTabShortcut]!: () {
+        final tabsBloc = context.read<TabsBloc>();
+        final historyBloc = context.read<HistoryBloc>();
+        if (tabsBloc.state.tabs.isNotEmpty) {
+          final currentTab =
+              tabsBloc.state.tabs[tabsBloc.state.currentTabIndex];
+          historyBloc.add(AddHistory(currentTab));
+        }
+        tabsBloc.add(const CloseCurrentTab());
+      },
+      shortcuts[closeAllTabsShortcut]!: () {
+        final tabsBloc = context.read<TabsBloc>();
+        final historyBloc = context.read<HistoryBloc>();
+        for (final tab in tabsBloc.state.tabs) {
+          if (tab is! SearchingTab) {
+            historyBloc.add(AddHistory(tab));
+          }
+        }
+        tabsBloc.add(CloseAllTabs());
+      },
+      shortcuts[readingScreenShortcut]!: () {
+        context.read<NavigationBloc>().add(
+              const NavigateToScreen(Screen.reading),
+            );
+      },
+      shortcuts[newSearchShortcut]!: () {
+        final useFastSearch = context.read<SettingsBloc>().state.useFastSearch;
+        if (!useFastSearch) {
+          _openLegacySearchTab(context);
+          return;
+        }
+
+        showDialog(
+          context: context,
+          builder: (context) => const SearchDialog(existingTab: null),
+        );
+      },
+      shortcuts['ctrl+shift+tab']!: () {
+        context.read<TabsBloc>().add(NavigateToPreviousTab());
+      },
+      shortcuts['ctrl+tab']!: () {
+        context.read<TabsBloc>().add(NavigateToNextTab());
+      },
+      shortcuts[settingsShortcut]!: () {
+        context.read<NavigationBloc>().add(
+              const NavigateToScreen(Screen.settings),
+            );
+      },
+      shortcuts[moreShortcut]!: () {
+        context.read<NavigationBloc>().add(
+              const NavigateToScreen(Screen.more),
+            );
+      },
+      shortcuts[bookmarksShortcut]!: () {
+        // Open bookmarks dialog using the same dialog as the button
+        showDialog(
+          context: context,
+          builder: (context) => const BookmarksDialog(),
+        );
+      },
+      shortcuts[historyShortcut]!: () {
+        // Open history dialog using the same dialog as the button
+        showDialog(
+          context: context,
+          builder: (context) => const HistoryDialog(),
+        );
+      },
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
+    // בניית הקיצורים מחדש בכל build כדי לקבל את הערכים המעודכנים
     return CallbackShortcuts(
-      bindings: <ShortcutActivator, VoidCallback>{
-        shortcuts[Settings.getValue<String>(
-              'key-shortcut-open-library-browser',
-            ) ??
-            'ctrl+l']!: () {
-          context.read<NavigationBloc>().add(
-            const NavigateToScreen(Screen.library),
-          );
-          //set focus
-          context.read<FocusRepository>().requestLibrarySearchFocus(
-            selectAll: true,
-          );
-        },
-        shortcuts[Settings.getValue<String>('key-shortcut-open-find-ref') ??
-            'ctrl+o']!: () {
-          showDialog(context: context, builder: (context) => FindRefDialog());
-        },
-        shortcuts[Settings.getValue<String>('key-shortcut-close-tab') ??
-            'ctrl+w']!: () {
-          final tabsBloc = context.read<TabsBloc>();
-          final historyBloc = context.read<HistoryBloc>();
-          if (tabsBloc.state.tabs.isNotEmpty) {
-            final currentTab =
-                tabsBloc.state.tabs[tabsBloc.state.currentTabIndex];
-            historyBloc.add(AddHistory(currentTab));
-          }
-          tabsBloc.add(const CloseCurrentTab());
-        },
-        shortcuts[Settings.getValue<String>('key-shortcut-close-all-tabs') ??
-            'ctrl+x']!: () {
-          final tabsBloc = context.read<TabsBloc>();
-          final historyBloc = context.read<HistoryBloc>();
-          for (final tab in tabsBloc.state.tabs) {
-            if (tab is! SearchingTab) {
-              historyBloc.add(AddHistory(tab));
-            }
-          }
-          tabsBloc.add(CloseAllTabs());
-        },
-        shortcuts[Settings.getValue<String>(
-              'key-shortcut-open-reading-screen',
-            ) ??
-            'ctrl+r']!: () {
-          context.read<NavigationBloc>().add(
-            const NavigateToScreen(Screen.reading),
-          );
-        },
-        shortcuts[Settings.getValue<String>('key-shortcut-open-new-search') ??
-            'ctrl+q']!: () {
-          final useFastSearch = context
-              .read<SettingsBloc>()
-              .state
-              .useFastSearch;
-          if (!useFastSearch) {
-            _openLegacySearchTab(context);
-            return;
-          }
-
-          showDialog(
-            context: context,
-            builder: (context) => const SearchDialog(existingTab: null),
-          );
-        },
-        shortcuts['ctrl+shift+tab']!: () {
-          context.read<TabsBloc>().add(NavigateToPreviousTab());
-        },
-        shortcuts['ctrl+tab']!: () {
-          context.read<TabsBloc>().add(NavigateToNextTab());
-        },
-      },
-      child: child,
+      bindings: _buildShortcutBindings(context),
+      child: widget.child,
     );
   }
 
@@ -266,8 +325,7 @@ class KeyboardShortcuts extends StatelessWidget {
       tabsBloc.add(AddTab(SearchingTab("חיפוש", "")));
     } else {
       final currentScreen = navigationBloc.state.currentScreen;
-      final isAlreadySearchTab =
-          currentScreen == Screen.search &&
+      final isAlreadySearchTab = currentScreen == Screen.search &&
           tabsState.tabs[tabsState.currentTabIndex].runtimeType == SearchingTab;
       if (!isAlreadySearchTab) {
         final searchTabIndex = tabsState.tabs.indexWhere(

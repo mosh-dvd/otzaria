@@ -20,6 +20,7 @@ import 'package:otzaria/settings/library_settings_dialog.dart';
 import 'package:otzaria/settings/calendar_settings_dialog.dart';
 import 'package:otzaria/settings/gematria_settings_dialog.dart';
 import 'package:otzaria/settings/backup_service.dart';
+import 'package:otzaria/widgets/shortcut_dropdown_tile.dart';
 import 'dart:async';
 
 class MySettingsScreen extends StatefulWidget {
@@ -174,6 +175,8 @@ class _MySettingsScreenState extends State<MySettingsScreen>
       'ctrl+7': "CTRL + 7",
       'ctrl+8': "CTRL + 8",
       'ctrl+9': "CTRL + 9",
+      'ctrl+comma': "CTRL + ,",
+      'ctrl+shift+b': "CTRL + SHIFT + B",
     };
 
     return Scaffold(
@@ -257,53 +260,147 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                         title: "קיצורי מקשים",
                         titleTextStyle: const TextStyle(fontSize: 25),
                         children: [
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 8.0, right: 8.0),
+                            child: Text(
+                              'ניווט כללי',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.right,
+                            ),
+                          ),
                           _buildColumns(3, [
-                            DropDownSettingsTile<String>(
+                            ShortcutDropDownTile(
                               selected: 'ctrl+l',
                               settingKey: 'key-shortcut-open-library-browser',
                               title: 'ספרייה',
-                              values: shortcuctsList,
+                              allShortcuts: shortcuctsList,
                               leading:
                                   const Icon(FluentIcons.library_24_regular),
                             ),
-                            DropDownSettingsTile<String>(
+                            ShortcutDropDownTile(
                               selected: 'ctrl+o',
                               settingKey: 'key-shortcut-open-find-ref',
                               title: 'איתור',
-                              values: shortcuctsList,
+                              allShortcuts: shortcuctsList,
                               leading:
                                   const Icon(FluentIcons.book_open_24_regular),
                             ),
-                            DropDownSettingsTile<String>(
+                            ShortcutDropDownTile(
                               selected: 'ctrl+r',
                               settingKey: 'key-shortcut-open-reading-screen',
                               title: 'עיון',
                               leading: const Icon(FluentIcons.book_24_regular),
-                              values: shortcuctsList,
+                              allShortcuts: shortcuctsList,
                             ),
-                            DropDownSettingsTile<String>(
+                            ShortcutDropDownTile(
                               selected: 'ctrl+q',
                               settingKey: 'key-shortcut-open-new-search',
                               title: 'חלון חיפוש חדש',
                               leading:
                                   const Icon(FluentIcons.search_24_regular),
-                              values: shortcuctsList,
+                              allShortcuts: shortcuctsList,
                             ),
-                            DropDownSettingsTile<String>(
+                            ShortcutDropDownTile(
+                              settingKey: 'key-shortcut-open-settings',
+                              title: 'הגדרות',
+                              allShortcuts: shortcuctsList,
+                              selected: 'ctrl+comma',
+                              leading:
+                                  const Icon(FluentIcons.settings_24_regular),
+                            ),
+                            ShortcutDropDownTile(
+                              settingKey: 'key-shortcut-open-more',
+                              title: 'כלים',
+                              allShortcuts: shortcuctsList,
+                              selected: 'ctrl+m',
+                              leading: const Icon(FluentIcons.apps_24_regular),
+                            ),
+                            ShortcutDropDownTile(
+                              settingKey: 'key-shortcut-open-bookmarks',
+                              title: 'סימניות',
+                              allShortcuts: shortcuctsList,
+                              selected: 'ctrl+shift+b',
+                              leading:
+                                  const Icon(FluentIcons.bookmark_24_regular),
+                            ),
+                            ShortcutDropDownTile(
+                              settingKey: 'key-shortcut-open-history',
+                              title: 'היסטוריה',
+                              allShortcuts: shortcuctsList,
+                              selected: 'ctrl+h',
+                              leading:
+                                  const Icon(FluentIcons.history_24_regular),
+                            ),
+                          ]),
+                          const SizedBox(height: 16),
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 8.0, right: 8.0),
+                            child: Text(
+                              'תצוגת ספר',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.right,
+                            ),
+                          ),
+                          _buildColumns(3, [
+                            ShortcutDropDownTile(
+                              settingKey: 'key-shortcut-search-in-book',
+                              title: 'חיפוש בספר',
+                              allShortcuts: shortcuctsList,
+                              selected: 'ctrl+f',
+                              leading:
+                                  const Icon(FluentIcons.search_24_regular),
+                            ),
+                            ShortcutDropDownTile(
+                              settingKey: 'key-shortcut-edit-section',
+                              title: 'עריכת קטע',
+                              allShortcuts: shortcuctsList,
+                              selected: 'ctrl+e',
+                              leading: const Icon(
+                                  FluentIcons.document_edit_24_regular),
+                            ),
+                            ShortcutDropDownTile(
+                              settingKey: 'key-shortcut-print',
+                              title: 'הדפסה',
+                              allShortcuts: shortcuctsList,
+                              selected: 'ctrl+p',
+                              leading: const Icon(FluentIcons.print_24_regular),
+                            ),
+                            ShortcutDropDownTile(
+                              settingKey: 'key-shortcut-add-bookmark',
+                              title: 'הוספת סימניה',
+                              allShortcuts: shortcuctsList,
+                              selected: 'ctrl+b',
+                              leading:
+                                  const Icon(FluentIcons.bookmark_24_regular),
+                            ),
+                            ShortcutDropDownTile(
+                              settingKey: 'key-shortcut-add-note',
+                              title: 'הוספת הערה',
+                              allShortcuts: shortcuctsList,
+                              selected: 'ctrl+n',
+                              leading: const Icon(FluentIcons.note_24_regular),
+                            ),
+                            ShortcutDropDownTile(
                               selected: 'ctrl+w',
                               settingKey: 'key-shortcut-close-tab',
                               title: 'סגור ספר נוכחי',
+                              allShortcuts: shortcuctsList,
                               leading: const Icon(
                                   FluentIcons.dismiss_circle_24_regular),
-                              values: shortcuctsList,
                             ),
-                            DropDownSettingsTile<String>(
+                            ShortcutDropDownTile(
                               selected: 'ctrl+x',
                               settingKey: 'key-shortcut-close-all-tabs',
                               title: 'סגור כל הספרים',
+                              allShortcuts: shortcuctsList,
                               leading:
                                   const Icon(FluentIcons.dismiss_24_regular),
-                              values: shortcuctsList,
                             ),
                           ]),
                         ],

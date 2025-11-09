@@ -55,6 +55,7 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
   bool _hasUnsavedChanges = false;
   String _previewContent = '';
   final FocusNode _editorFocusNode = FocusNode();
+  String? _lastSearchText; // לשמירת טקסט החיפוש האחרון עבור F3
 
   // Undo functionality
   final List<String> _undoStack = [];
@@ -313,13 +314,24 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
             _saveAndClose();
             return true;
           case LogicalKeyboardKey.keyB:
-            _wrapSelection('**', '**');
+            _wrapSelection('<b>', '</b>');
             return true;
           case LogicalKeyboardKey.keyI:
-            _wrapSelection('*', '*');
+            _wrapSelection('<i>', '</i>');
             return true;
           case LogicalKeyboardKey.keyK:
             _showLinkDialog();
+            return true;
+          case LogicalKeyboardKey.keyA:
+            // Select all text
+            _textController.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: _textController.text.length,
+            );
+            return true;
+          case LogicalKeyboardKey.keyF:
+            // Open search dialog
+            _showSearchDialog();
             return true;
         }
       } else if (event.logicalKey == LogicalKeyboardKey.escape) {
@@ -330,6 +342,12 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
         // Prevent Enter in books with links
         UiSnack.show(
             'בספר זה אסור לשנות מבנה שורות כדי לשמור על קישורי פרשנות');
+        return true;
+      } else if (event.logicalKey == LogicalKeyboardKey.f3) {
+        // F3 - Find next
+        if (_lastSearchText != null && _lastSearchText!.isNotEmpty) {
+          _performSearch(_lastSearchText!);
+        }
         return true;
       }
     }
@@ -411,6 +429,9 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
 
   void _performSearch(String searchText) {
     if (searchText.isEmpty) return;
+
+    // שמירת טקסט החיפוש עבור F3
+    _lastSearchText = searchText;
 
     final currentText = _textController.text;
     final currentSelection = _textController.selection;
