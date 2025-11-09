@@ -29,9 +29,10 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     LoadLibrary event,
     Emitter<LibraryState> emit,
   ) async {
-    Library library = await _repository.library;
     emit(state.copyWith(isLoading: true));
     try {
+      Library library = await _repository.library;
+      
       // בחירת הספר הראשון לתצוגה מקדימה
       final firstBook = _getFirstTextBook(library);
       

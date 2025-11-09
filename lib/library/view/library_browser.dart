@@ -95,27 +95,21 @@ class _LibraryBrowserState extends State<LibraryBrowser>
                 previous.selectedTopics != current.selectedTopics;
           },
           builder: (context, state) {
-            if (state.isLoading) {
-              return const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    Text('טוען ספרייה...'),
-                  ],
-                ),
-              );
-            }
-
             if (state.error != null) {
               return Center(child: Text('Error: ${state.error}'));
             }
 
-            if (state.library == null) {
+            // אם אין ספרייה ולא בטעינה - הצג שגיאה
+            if (state.library == null && !state.isLoading) {
               return const Center(child: Text('No library data available'));
             }
 
-            return Scaffold(
+            // גם אם אין ספרייה אבל בטעינה - הצג את המסך עם שכבת טעינה
+            return Stack(
+              children: [
+                // תוכן הספרייה - תמיד מוצג (גם אם הספרייה null)
+                Scaffold(
+              backgroundColor: Theme.of(context).colorScheme.surface,
               appBar: AppBar(
                 title: Stack(
                   alignment: Alignment.center,
@@ -190,7 +184,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
                                 screenWidth), // מפתח שמשתנה עם רוחב המסך
                             initialWidth: previewWidth,
                             minWidth: 300,
-                            maxWidth: screenWidth * 0.6, // מקסימום 60% מהמסך
+                            maxWidth: screenWidth - 350, // השאר לפחות 350px לרשימה
                             child: Container(
                               decoration: BoxDecoration(
                                 color: Theme.of(context).colorScheme.surface,
@@ -248,6 +242,38 @@ class _LibraryBrowserState extends State<LibraryBrowser>
                   );
                 },
               ),
+            ),
+                // שכבת חסימה בזמן טעינה
+                if (state.isLoading)
+                  Positioned.fill(
+                    child: Container(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surface
+                          .withValues(alpha: 0.3),
+                      child: Center(
+                        child: Container(
+                          width: 200,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: _LoadingDotsText(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             );
           },
         );
@@ -447,6 +473,11 @@ class _LibraryBrowserState extends State<LibraryBrowser>
   }
 
   Widget _buildContent(LibraryState state) {
+    // אם אין ספרייה - הצג מסך ריק (שכבת הטעינה תכסה אותו)
+    if (state.library == null || state.currentCategory == null) {
+      return const Center(child: SizedBox.shrink());
+    }
+    
     // במצב תצוגת רשת - תמיד רשת
     if (_viewMode == ViewMode.grid) {
       final items = state.searchResults != null
@@ -649,12 +680,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
     category.books.sort((a, b) => a.order.compareTo(b.order));
     category.subCategories.sort((a, b) => a.order.compareTo(b.order));
 
-    // הוספת ספרים בקטגוריה הנוכחית
-    for (final book in category.books) {
-      widgets.add(_buildListBookItem(book, level));
-    }
-
-    // הוספת תת-קטגוריות
+    // הוספת תת-קטגוריות לפני הספרים
     for (final subCategory in category.subCategories) {
       final isExpanded = _expandedCategories.contains(subCategory.path);
 
@@ -664,6 +690,11 @@ class _LibraryBrowserState extends State<LibraryBrowser>
       if (isExpanded) {
         widgets.addAll(_buildCategoryTree(subCategory, level + 1));
       }
+    }
+
+    // הוספת ספרים בקטגוריה הנוכחית אחרי התיקיות
+    for (final book in category.books) {
+      widgets.add(_buildListBookItem(book, level));
     }
 
     return widgets;
@@ -700,7 +731,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
           children: [
             Icon(
               isExpanded
-                  ? FluentIcons.folder_open_24_regular
+                  ? FluentIcons.folder_open_24_filled
                   : FluentIcons.folder_24_regular,
               color: Theme.of(context).colorScheme.primary,
               size: 20,
@@ -759,7 +790,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
           },
           child: Container(
             padding: EdgeInsets.only(
-              right: 16.0 + (level * 24.0) + 32.0, // הזחה נוספת לספרים
+              right: 16.0 + (level * 24.0), // אותה הזחה כמו תיקיות
               left: 16.0,
               top: 10.0,
               bottom: 10.0,
@@ -1002,8 +1033,17 @@ class _LibraryBrowserState extends State<LibraryBrowser>
           icon: const Icon(FluentIcons.arrow_up_24_regular),
           tooltip: 'חזרה לתיקיה הקודמת',
           onPressed: () {
-            if (state.currentCategory?.parent != null) {
-              setState(() => _depth = _depth > 0 ? _depth - 1 : 0);
+            // בתצוגת רשימה - סגור את הקטגוריה האחרונה שנפתחה
+            if (_viewMode == ViewMode.list && _expandedCategories.isNotEmpty) {
+              setState(() {
+                _expandedCategories.remove(_expandedCategories.last);
+              });
+            }
+            // בתצוגת רשת - חזור לקטגוריה הקודמת
+            else if (state.currentCategory?.parent != null) {
+              setState(() {
+                _depth = _depth > 0 ? _depth - 1 : 0;
+              });
               context.read<LibraryBloc>().add(NavigateUp());
               context.read<LibraryBloc>().add(const SearchBooks());
               _refocusSearchBar(selectAll: true);
@@ -1013,8 +1053,17 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         icon: FluentIcons.arrow_up_24_regular,
         tooltip: 'חזרה לתיקיה הקודמת',
         onPressed: () {
-          if (state.currentCategory?.parent != null) {
-            setState(() => _depth = _depth > 0 ? _depth - 1 : 0);
+          // בתצוגת רשימה - סגור את הקטגוריה האחרונה שנפתחה
+          if (_viewMode == ViewMode.list && _expandedCategories.isNotEmpty) {
+            setState(() {
+              _expandedCategories.remove(_expandedCategories.last);
+            });
+          }
+          // בתצוגת רשת - חזור לקטגוריה הקודמת
+          else if (state.currentCategory?.parent != null) {
+            setState(() {
+              _depth = _depth > 0 ? _depth - 1 : 0;
+            });
             context.read<LibraryBloc>().add(NavigateUp());
             context.read<LibraryBloc>().add(const SearchBooks());
             _refocusSearchBar(selectAll: true);
@@ -1028,7 +1077,10 @@ class _LibraryBrowserState extends State<LibraryBrowser>
           icon: const Icon(FluentIcons.home_24_regular),
           tooltip: 'חזרה לתיקיה הראשית',
           onPressed: () {
-            setState(() => _depth = 0);
+            setState(() {
+              _depth = 0;
+              _expandedCategories.clear(); // נקה את העץ הפתוח
+            });
             context.read<LibraryBloc>().add(LoadLibrary());
             context.read<FocusRepository>().librarySearchController.clear();
             _update(context, state, settingsState);
@@ -1038,7 +1090,10 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         icon: FluentIcons.home_24_regular,
         tooltip: 'חזרה לתיקיה הראשית',
         onPressed: () {
-          setState(() => _depth = 0);
+          setState(() {
+            _depth = 0;
+            _expandedCategories.clear(); // נקה את העץ הפתוח
+          });
           context.read<LibraryBloc>().add(LoadLibrary());
           context.read<FocusRepository>().librarySearchController.clear();
           _update(context, state, settingsState);
@@ -1142,8 +1197,17 @@ class _LibraryBrowserState extends State<LibraryBrowser>
           icon: const Icon(FluentIcons.arrow_up_24_regular),
           tooltip: 'חזרה לתיקיה הקודמת',
           onPressed: () {
-            if (state.currentCategory?.parent != null) {
-              setState(() => _depth = _depth > 0 ? _depth - 1 : 0);
+            // בתצוגת רשימה - סגור את הקטגוריה האחרונה שנפתחה
+            if (_viewMode == ViewMode.list && _expandedCategories.isNotEmpty) {
+              setState(() {
+                _expandedCategories.remove(_expandedCategories.last);
+              });
+            }
+            // בתצוגת רשת - חזור לקטגוריה הקודמת
+            else if (state.currentCategory?.parent != null) {
+              setState(() {
+                _depth = _depth > 0 ? _depth - 1 : 0;
+              });
               context.read<LibraryBloc>().add(NavigateUp());
               context.read<LibraryBloc>().add(const SearchBooks());
               _refocusSearchBar(selectAll: true);
@@ -1153,8 +1217,17 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         icon: FluentIcons.arrow_up_24_regular,
         tooltip: 'חזרה לתיקיה הקודמת',
         onPressed: () {
-          if (state.currentCategory?.parent != null) {
-            setState(() => _depth = _depth > 0 ? _depth - 1 : 0);
+          // בתצוגת רשימה - סגור את הקטגוריה האחרונה שנפתחה
+          if (_viewMode == ViewMode.list && _expandedCategories.isNotEmpty) {
+            setState(() {
+              _expandedCategories.remove(_expandedCategories.last);
+            });
+          }
+          // בתצוגת רשת - חזור לקטגוריה הקודמת
+          else if (state.currentCategory?.parent != null) {
+            setState(() {
+              _depth = _depth > 0 ? _depth - 1 : 0;
+            });
             context.read<LibraryBloc>().add(NavigateUp());
             context.read<LibraryBloc>().add(const SearchBooks());
             _refocusSearchBar(selectAll: true);
@@ -1167,7 +1240,10 @@ class _LibraryBrowserState extends State<LibraryBrowser>
           icon: const Icon(FluentIcons.home_24_regular),
           tooltip: 'חזרה לתיקיה הראשית',
           onPressed: () {
-            setState(() => _depth = 0);
+            setState(() {
+              _depth = 0;
+              _expandedCategories.clear(); // נקה את העץ הפתוח
+            });
             context.read<LibraryBloc>().add(LoadLibrary());
             context.read<FocusRepository>().librarySearchController.clear();
             _update(context, state, settingsState);
@@ -1177,7 +1253,10 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         icon: FluentIcons.home_24_regular,
         tooltip: 'חזרה לתיקיה הראשית',
         onPressed: () {
-          setState(() => _depth = 0);
+          setState(() {
+            _depth = 0;
+            _expandedCategories.clear(); // נקה את העץ הפתוח
+          });
           context.read<LibraryBloc>().add(LoadLibrary());
           context.read<FocusRepository>().librarySearchController.clear();
           _update(context, state, settingsState);
@@ -1265,5 +1344,65 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         },
       ),
     ];
+  }
+}
+
+/// Widget שמציג טקסט "טוען ספרייה" עם שלוש נקודות מתחלפות
+class _LoadingDotsText extends StatefulWidget {
+  const _LoadingDotsText();
+
+  @override
+  State<_LoadingDotsText> createState() => _LoadingDotsTextState();
+}
+
+class _LoadingDotsTextState extends State<_LoadingDotsText>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        // חישוב כמה נקודות להציג (0-3)
+        final progress = _controller.value;
+        int dots;
+        if (progress < 0.25) {
+          dots = 0;
+        } else if (progress < 0.5) {
+          dots = 1;
+        } else if (progress < 0.75) {
+          dots = 2;
+        } else {
+          dots = 3;
+        }
+        
+        // יצירת מחרוזת עם 3 תווים: נקודות + רווחים
+        final dotsString = '.' * dots + ' ' * (3 - dots);
+        
+        return Text(
+          'טוען ספרייה$dotsString',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        );
+      },
+    );
   }
 }

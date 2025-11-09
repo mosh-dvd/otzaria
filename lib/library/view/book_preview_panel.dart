@@ -309,11 +309,11 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
                         loadCommentators: false, // אל תטען מפרשים בתצוגה מקדימה
                       ),
                     );
-                    return const Center(child: CircularProgressIndicator());
+                    return _buildSkeletonLoading();
                   }
 
                   if (state is TextBookLoading) {
-                    return const Center(child: CircularProgressIndicator());
+                    return _buildSkeletonLoading();
                   }
 
                   if (state is TextBookError) {
@@ -366,7 +366,7 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
                 // כפתור הגדלת טקסט
                 IconButton(
                   icon:
-                      const Icon(FluentIcons.text_font_size_24_regular, size: 20),
+                      const Icon(FluentIcons.zoom_in_24_regular, size: 20),
                   tooltip: 'הגדל טקסט',
                   onPressed: () {
                     setState(() {
@@ -385,7 +385,7 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
                 ),
                 // כפתור הקטנת טקסט
                 IconButton(
-                  icon: const Icon(FluentIcons.font_decrease_24_regular,
+                  icon: const Icon(FluentIcons.zoom_out_24_regular,
                       size: 20),
                   tooltip: 'הקטן טקסט',
                   onPressed: () {
@@ -447,6 +447,98 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
           ),
         ),
       ],
+    );
+  }
+
+  /// בניית skeleton loading - שורות אפורות סטטיות
+  Widget _buildSkeletonLoading() {
+    final baseColor = Theme.of(context).colorScheme.surfaceContainerHighest;
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // כותרת רמה 1 (כמו "פרק א")
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: _SkeletonLine(width: 0.25, height: 36, color: baseColor),
+            ),
+          ),
+          // כותרת רמה 2 (כמו "משנה א")
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 20.0),
+              child: _SkeletonLine(width: 0.2, height: 28, color: baseColor),
+            ),
+          ),
+          // פסקה ראשונה
+          ..._buildParagraph([0.95, 0.92, 0.88, 0.94, 0.85], baseColor),
+          const SizedBox(height: 24),
+          // כותרת רמה 2
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 20.0),
+              child: _SkeletonLine(width: 0.18, height: 28, color: baseColor),
+            ),
+          ),
+          // פסקה שנייה
+          ..._buildParagraph([0.93, 0.89, 0.96, 0.87, 0.91, 0.82], baseColor),
+          const SizedBox(height: 24),
+          // כותרת רמה 2
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 20.0),
+              child: _SkeletonLine(width: 0.22, height: 28, color: baseColor),
+            ),
+          ),
+          // פסקה שלישית
+          ..._buildParagraph([0.94, 0.88, 0.92, 0.86], baseColor),
+        ],
+      ),
+    );
+  }
+
+  /// בניית פסקה עם שורות באורכים משתנים
+  List<Widget> _buildParagraph(List<double> widths, Color color) {
+    return widths
+        .map((width) => Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10.0),
+                child: _SkeletonLine(width: width, height: 18, color: color),
+              ),
+            ))
+        .toList();
+  }
+}
+
+/// Widget של שורה סטטית (ללא אנימציה)
+class _SkeletonLine extends StatelessWidget {
+  final double width;
+  final double height;
+  final Color color;
+
+  const _SkeletonLine({
+    required this.width,
+    required this.color,
+    this.height = 16,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: MediaQuery.of(context).size.width * width,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
     );
   }
 }
