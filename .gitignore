@@ -63,3 +63,10 @@ installer/otzaria-0.9.69-windows.exe
 installer/otzaria-0.9.69-windows-full.exe
 pubspec.lock
 flutter/
+
+# SQLite Database files (too large for git)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+seforim.db
