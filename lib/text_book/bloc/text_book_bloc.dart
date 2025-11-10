@@ -138,24 +138,21 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       );
 
       // Set up position listener with debouncing to prevent excessive updates
-      // רק אם loadCommentators=true (כלומר, לא בתצוגה מקדימה)
-      if (event.loadCommentators) {
-        Timer? debounceTimer;
-        positionsListener.itemPositions.addListener(() {
-          // Cancel previous timer if exists
-          debounceTimer?.cancel();
+      Timer? debounceTimer;
+      positionsListener.itemPositions.addListener(() {
+        // Cancel previous timer if exists
+        debounceTimer?.cancel();
 
-          // Set new timer with 100ms delay
-          debounceTimer = Timer(const Duration(milliseconds: 100), () {
-            final visibleIndicesNow = positionsListener.itemPositions.value
-                .map((e) => e.index)
-                .toList();
-            if (visibleIndicesNow.isNotEmpty) {
-              add(UpdateVisibleIndecies(visibleIndicesNow));
-            }
-          });
+        // Set new timer with 100ms delay
+        debounceTimer = Timer(const Duration(milliseconds: 100), () {
+          final visibleIndicesNow = positionsListener.itemPositions.value
+              .map((e) => e.index)
+              .toList();
+          if (visibleIndicesNow.isNotEmpty) {
+            add(UpdateVisibleIndecies(visibleIndicesNow));
+          }
         });
-      }
+      });
 
       emit(TextBookLoaded(
         book: book,

@@ -56,6 +56,10 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
 
   void _onRemoveTab(RemoveTab event, Emitter<TabsState> emit) async {
     final removedTabIndex = state.tabs.indexOf(event.tab);
+    
+    // ניקוי משאבים של הטאב שנסגר
+    event.tab.dispose();
+    
     final newTabs = List<OpenedTab>.from(state.tabs)..remove(event.tab);
     
     // אם אין טאבים נותרים, נשאיר את האינדקס ב-0
@@ -97,6 +101,11 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
   }
 
   void _onCloseAllTabs(CloseAllTabs event, Emitter<TabsState> emit) {
+    // ניקוי משאבים של כל הטאבים
+    for (final tab in state.tabs) {
+      tab.dispose();
+    }
+    
     _repository.saveTabs([], 0);
     emit(state.copyWith(
       tabs: [],
@@ -105,6 +114,13 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
   }
 
   void _onCloseOtherTabs(CloseOtherTabs event, Emitter<TabsState> emit) {
+    // ניקוי משאבים של כל הטאבים מלבד זה שנשאר
+    for (final tab in state.tabs) {
+      if (tab != event.keepTab) {
+        tab.dispose();
+      }
+    }
+    
     final newTabs = [event.keepTab];
     _repository.saveTabs(newTabs, 0);
     emit(state.copyWith(
