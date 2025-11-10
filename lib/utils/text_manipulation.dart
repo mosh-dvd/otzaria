@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 import 'package:otzaria/search/utils/regex_patterns.dart';
@@ -103,11 +104,16 @@ Future<void> _loadCsvCache() async {
         '$libraryPath${Platform.pathSeparator}אוצריא${Platform.pathSeparator}אודות התוכנה${Platform.pathSeparator}סדר הדורות.csv';
     final csvFile = File(csvPath);
 
+    debugPrint('📂 Loading CSV from: $csvPath');
+
     if (await csvFile.exists()) {
+      debugPrint('✅ CSV file exists, loading...');
       final csvString = await csvFile.readAsString();
       final lines = csvString.split('\n');
+      debugPrint('📊 CSV has ${lines.length} lines');
 
       // Skip header and parse all lines
+      int loadedCount = 0;
       for (int i = 1; i < lines.length; i++) {
         final line = lines[i].trim();
         if (line.isEmpty) continue;
@@ -118,10 +124,15 @@ Future<void> _loadCsvCache() async {
           final bookTitle = parts[0].trim();
           final generation = parts[1].trim();
           _csvCache![bookTitle] = generation;
+          loadedCount++;
         }
       }
+      debugPrint('✅ Loaded $loadedCount commentators from CSV');
+    } else {
+      debugPrint('❌ CSV file not found at: $csvPath');
     }
   } catch (e) {
+    debugPrint('❌ Error loading CSV: $e');
     // If CSV fails, keep empty cache
     _csvCache = {};
   }

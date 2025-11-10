@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/models/links.dart';
+import 'package:synchronized/synchronized.dart';
 
 /// SQLite data provider for reading books from the seforim.db database
 /// 
@@ -14,12 +15,19 @@ import 'package:otzaria/models/links.dart';
 class SqliteDataProvider {
   static Database? _database;
   static String? _dbPath;
+  static final _lock = Lock();
 
-  /// Get the singleton database instance
+  /// Get the singleton database instance with thread-safe initialization
   static Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
+    
+    // Use lock to prevent race condition
+    return await _lock.synchronized(() async {
+      // Double-check inside lock
+      if (_database != null) return _database!;
+      _database = await _initDatabase();
+      return _database!;
+    });
   }
 
   /// Initialize the database connection
@@ -263,25 +271,124 @@ class SqliteDataProvider {
         ORDER BY sl.lineIndex ASC
       ''', [bookId]);
 
-      return result.map((row) {
+      // Get TOC for reference formatting
+      final tocEntries = await _getTocEntriesForBook(bookId);
+
+      final links = result.map((row) {
         final connectionType = row['connectionType'] as String;
         final sourceLineIndex = row['sourceLineIndex'] as int;
         final targetLineIndex = row['targetLineIndex'] as int;
         final targetTitle = row['targetTitle'] as String;
+        final sourceTitle = row['sourceTitle'] as String;
+
+        // Build heRef using TOC to get chapter:verse format
+        final reference = _buildReferenceFromToc(sourceLineIndex, tocEntries, sourceTitle);
+        final heRef = '$targetTitle $reference';
 
         return Link(
-          heRef: '', // Empty for now, can be populated if needed
+          heRef: heRef,
           index1: sourceLineIndex + 1, // Convert to 1-based index
           index2: targetLineIndex + 1,
           connectionType: connectionType.toLowerCase(),
           path2: targetTitle, // Use title as path
         );
       }).toList();
+
+      // Sort links by source line index to ensure correct order
+      // This is important because the sorting in links.dart uses string comparison on heRef
+      // which doesn't work well with Hebrew letters
+      links.sort((a, b) => a.index1.compareTo(b.index1));
+
+      return links;
     } catch (e) {
       debugPrint('Error getting links for "$title": $e');
       return [];
     }
   }
+
+  /// Get TOC entries for a book (simplified version for reference building)
+  Future<List<Map<String, dynamic>>> _getTocEntriesForBook(int bookId) async {
+    try {
+      final db = await database;
+      final result = await db.rawQuery('''
+        SELECT 
+          te.level,
+          te.lineId,
+          tt.text,
+          l.lineIndex
+        FROM tocEntry te
+        JOIN tocText tt ON te.textId = tt.id
+        LEFT JOIN line l ON te.lineId = l.id
+        WHERE te.bookId = ?
+        ORDER BY l.lineIndex ASC
+      ''', [bookId]);
+      return result;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Build a reference string from TOC entries
+  /// For example: "על בראשית א, א" or "על תהילים כג, א"
+  /// The format is designed to sort correctly (using padded numbers internally)
+  String _buildReferenceFromToc(int lineIndex, List<Map<String, dynamic>> tocEntries, String bookTitle) {
+    if (tocEntries.isEmpty) {
+      // Fallback: use line index with padding for correct sorting
+      return 'על $bookTitle ${(lineIndex + 1).toString().padLeft(6, '0')}';
+    }
+
+    // Find the closest TOC entry before or at this line
+    Map<String, dynamic>? currentChapter;
+    Map<String, dynamic>? currentVerse;
+
+    for (final entry in tocEntries) {
+      final entryLineIndex = entry['lineIndex'] as int?;
+      if (entryLineIndex == null || entryLineIndex > lineIndex) {
+        break;
+      }
+
+      final level = entry['level'] as int;
+
+      // Level 2 is usually chapter (פרק)
+      if (level == 2) {
+        currentChapter = entry;
+        currentVerse = null; // Reset verse when entering new chapter
+      }
+      // Level 3 is usually verse (פסוק)
+      else if (level == 3) {
+        currentVerse = entry;
+      }
+    }
+
+    // Build reference string with sortable format
+    // Format: "על בראשית 001,001" (padded numbers for sorting)
+    // But display as: "על בראשית א, א" (Hebrew letters)
+    
+    if (currentChapter != null) {
+      final chapterText = (currentChapter['text'] as String)
+          .replaceAll('פרק ', '')
+          .replaceAll('פרק', '')
+          .trim();
+      
+      final verseText = currentVerse != null
+          ? (currentVerse['text'] as String)
+              .replaceAll('פסוק ', '')
+              .replaceAll('פסוק', '')
+              .trim()
+          : '';
+
+      if (verseText.isNotEmpty) {
+        return 'על $bookTitle $chapterText, $verseText';
+      } else {
+        return 'על $bookTitle $chapterText';
+      }
+    }
+
+    // Fallback
+    return 'על $bookTitle ${(lineIndex + 1).toString().padLeft(6, '0')}';
+  }
+
+
 
   /// Check if a book exists in the database
   Future<bool> bookExists(String title) async {
@@ -343,6 +450,76 @@ class SqliteDataProvider {
     } catch (e) {
       debugPrint('Error getting metadata for "$title": $e');
       return null;
+    }
+  }
+
+  /// Update book text in the database
+  Future<void> updateBookText(String title, String content) async {
+    try {
+      final bookId = await getBookId(title);
+      if (bookId == null) {
+        throw Exception('Book not found: $title');
+      }
+
+      final db = await database;
+      
+      // Split content into lines
+      final lines = content.split('\n');
+      
+      // Use transaction for atomic update
+      await db.transaction((txn) async {
+        // Delete old lines
+        await txn.delete('line', where: 'bookId = ?', whereArgs: [bookId]);
+        
+        // Insert new lines
+        for (int i = 0; i < lines.length; i++) {
+          await txn.insert('line', {
+            'bookId': bookId,
+            'lineIndex': i,
+            'content': lines[i],
+          });
+        }
+        
+        // Update totalLines in book table
+        await txn.update(
+          'book',
+          {'totalLines': lines.length},
+          where: 'id = ?',
+          whereArgs: [bookId],
+        );
+      });
+      
+      debugPrint('✅ Updated "$title" in SQLite (${lines.length} lines)');
+    } catch (e) {
+      debugPrint('❌ Error updating book text for "$title": $e');
+      rethrow;
+    }
+  }
+
+  /// Get books metadata in batch (optimized for multiple books)
+  Future<Map<String, Map<String, dynamic>>> getBooksMetadataBatch(List<String> titles) async {
+    try {
+      if (titles.isEmpty) return {};
+      
+      final db = await database;
+      final placeholders = List.filled(titles.length, '?').join(',');
+      final result = await db.rawQuery('''
+        SELECT 
+          b.*,
+          c.title as categoryTitle,
+          s.name as sourceName
+        FROM book b
+        LEFT JOIN category c ON b.categoryId = c.id
+        LEFT JOIN source s ON b.sourceId = s.id
+        WHERE b.title IN ($placeholders)
+      ''', titles);
+      
+      return Map.fromEntries(
+        result.map((row) => MapEntry(row['title'] as String, row))
+      );
+    } catch (e) {
+      debugPrint('Error getting batch metadata: $e');
+      return {};
     }
   }
 }

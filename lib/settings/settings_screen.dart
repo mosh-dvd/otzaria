@@ -24,6 +24,7 @@ import 'package:otzaria/settings/backup_service.dart';
 import 'package:otzaria/widgets/shortcut_dropdown_tile.dart';
 import 'package:otzaria/services/database_import_service.dart';
 import 'package:otzaria/services/auto_import_service.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:async';
 
 class MySettingsScreen extends StatefulWidget {
@@ -1077,6 +1078,7 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                                 return StatefulBuilder(
                                   builder: (context, setDialogState) {
                                     AutoImportService.scanAndImportNewFolders(
+                                      forceRun: true, // Manual scan - bypass auto-import setting
                                       onProgress: (status) {
                                         if (dialogContext.mounted) {
                                           setDialogState(() {
@@ -1286,6 +1288,326 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                             dbPath,
                             libraryPath,
                             createBackup: createBackup,
+                          );
+                        },
+                      ),
+                    if (!(Platform.isAndroid || Platform.isIOS))
+                      SimpleSettingsTile(
+                        title: 'הסר תיקיות מהמאגר',
+                        subtitle: 'מחק תיקיות וכל הספרים שלהן מהמאגר',
+                        leading: const Icon(FluentIcons.delete_24_regular),
+                        onTap: () async {
+                          final libraryPath = Settings.getValue<String>('key-library-path');
+                          if (libraryPath == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('נא להגדיר תחילה את מיקום הספרייה בהגדרות'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                            return;
+                          }
+
+                          final dbPath = path.join(libraryPath, 'seforim.db');
+                          final dbFile = File(dbPath);
+                          
+                          if (!await dbFile.exists()) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('קובץ מאגר הנתונים לא נמצא'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (!context.mounted) return;
+
+                          // Get list of user-imported categories
+                          final importedCategoryNames = DatabaseImportService.getImportedCategories();
+
+                          // Get top-level categories (level 0 or parentId IS NULL) from database
+                          final db = await databaseFactory.openDatabase(dbPath);
+                          
+                          // Build SQL query based on whether we have imported categories
+                          final String sqlQuery;
+                          final List<Object?> sqlParams;
+                          
+                          if (importedCategoryNames.isNotEmpty) {
+                            sqlQuery = '''
+                              SELECT c.title, COUNT(b.id) as book_count,
+                                     CASE WHEN c.title IN (${importedCategoryNames.map((_) => '?').join(',')}) THEN 1 ELSE 0 END as is_imported
+                              FROM category c
+                              LEFT JOIN book b ON c.id = b.categoryId
+                              WHERE c.parentId IS NULL OR c.parentId = 0
+                              GROUP BY c.id, c.title
+                              ORDER BY is_imported DESC, c.title
+                            ''';
+                            sqlParams = importedCategoryNames;
+                          } else {
+                            sqlQuery = '''
+                              SELECT c.title, COUNT(b.id) as book_count, 0 as is_imported
+                              FROM category c
+                              LEFT JOIN book b ON c.id = b.categoryId
+                              WHERE c.parentId IS NULL OR c.parentId = 0
+                              GROUP BY c.id, c.title
+                              ORDER BY c.title
+                            ''';
+                            sqlParams = [];
+                          }
+                          
+                          final categoriesResult = await db.rawQuery(sqlQuery, sqlParams);
+                          await db.close();
+
+                          final categories = categoriesResult
+                              .map((row) => {
+                                'title': row['title'] as String,
+                                'bookCount': row['book_count'] as int,
+                                'isImported': (row['is_imported'] as int) == 1,
+                              })
+                              .toList();
+
+                          if (categories.isEmpty) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('אין תיקיות ראשיות במאגר'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (!context.mounted) return;
+
+                          // Show category selection dialog with multi-select
+                          final selectedCategories = await showDialog<List<String>>(
+                            context: context,
+                            builder: (dialogContext) {
+                              final Set<String> selected = {};
+                              
+                              return StatefulBuilder(
+                                builder: (context, setState) {
+                                  return AlertDialog(
+                                  title: const Text('בחר תיקיות למחיקה'),
+                                  content: SizedBox(
+                                    width: double.maxFinite,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Text(
+                                            'תיקיות ראשיות בלבד\n✓ = יובאה על ידך',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                        const Divider(),
+                                        Flexible(
+                                          child: ListView.builder(
+                                            shrinkWrap: true,
+                                            itemCount: categories.length,
+                                            itemBuilder: (context, index) {
+                                              final category = categories[index];
+                                              final title = category['title'] as String;
+                                              final bookCount = category['bookCount'] as int;
+                                              final isImported = category['isImported'] as bool;
+                                              final isSelected = selected.contains(title);
+                                              
+                                              return CheckboxListTile(
+                                                value: isSelected,
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    if (value == true) {
+                                                      selected.add(title);
+                                                    } else {
+                                                      selected.remove(title);
+                                                    }
+                                                  });
+                                                },
+                                                secondary: Icon(
+                                                  isImported ? Icons.folder_special : Icons.folder_outlined,
+                                                  color: isImported ? Colors.green : null,
+                                                ),
+                                                title: Text(title),
+                                                subtitle: isImported && bookCount > 0
+                                                    ? Text('$bookCount ספרים')
+                                                    : null,
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(dialogContext),
+                                      child: const Text('ביטול'),
+                                    ),
+                                    TextButton(
+                                      onPressed: selected.isEmpty
+                                          ? null
+                                          : () => Navigator.pop(dialogContext, selected.toList()),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.delete, size: 18),
+                                          const SizedBox(width: 4),
+                                          Text('מחק (${selected.length})'),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                                },
+                              );
+                            },
+                          );
+
+                          if (selectedCategories == null || selectedCategories.isEmpty) return;
+                          if (!context.mounted) return;
+
+                          // Confirm deletion
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('⚠️ אישור מחיקה'),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'האם אתה בטוח שברצונך למחוק ${selectedCategories.length} תיקיות '
+                                    'ואת כל הספרים שבהן?\n',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ...selectedCategories.map((cat) => Padding(
+                                    padding: const EdgeInsets.only(right: 8.0, bottom: 4.0),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.folder, size: 16),
+                                        const SizedBox(width: 4),
+                                        Expanded(child: Text(cat)),
+                                      ],
+                                    ),
+                                  )),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'פעולה זו אינה הפיכה!',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('ביטול'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                  ),
+                                  child: const Text('מחק הכל'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirmed != true) return;
+                          if (!context.mounted) return;
+
+                          // Show progress dialog
+                          String statusText = 'מתחיל...';
+                          int currentIndex = 0;
+                          bool isStarted = false;
+                          
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (dialogContext) {
+                              return StatefulBuilder(
+                                builder: (context, setDialogState) {
+                                  // Start deletion only once
+                                  if (!isStarted) {
+                                    isStarted = true;
+                                    
+                                    // Delete categories one by one
+                                    Future<void> deleteNext() async {
+                                      if (currentIndex >= selectedCategories.length) {
+                                        // All done
+                                        if (dialogContext.mounted) {
+                                          Navigator.pop(dialogContext);
+                                        }
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('${selectedCategories.length} תיקיות נמחקו בהצלחה'),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                          // Refresh library
+                                          context.read<LibraryBloc>().add(LoadLibrary());
+                                        }
+                                        return;
+                                      }
+                                      
+                                      final categoryToDelete = selectedCategories[currentIndex];
+                                      
+                                      try {
+                                        await DatabaseImportService.removeCategoryFromDatabase(
+                                          dbPath,
+                                          categoryToDelete,
+                                          (status) {
+                                            if (dialogContext.mounted) {
+                                              setDialogState(() {
+                                                statusText = '${currentIndex + 1}/${selectedCategories.length}: $categoryToDelete\n$status';
+                                              });
+                                            }
+                                          },
+                                        );
+                                        
+                                        currentIndex++;
+                                        await deleteNext();
+                                      } catch (error) {
+                                        if (dialogContext.mounted) {
+                                          Navigator.pop(dialogContext);
+                                        }
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('שגיאה במחיקת "$categoryToDelete": $error'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    }
+                                    
+                                    deleteNext();
+                                  }
+
+                                  return AlertDialog(
+                                    title: const Text('מוחק תיקיות'),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const CircularProgressIndicator(),
+                                        const SizedBox(height: 16),
+                                        Text(statusText, textAlign: TextAlign.center),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
                           );
                         },
                       ),

@@ -546,8 +546,13 @@ class _LibraryBrowserState extends State<LibraryBrowser>
   Future<List<Widget>> _buildCategoryContent(Category category) async {
     List<Widget> items = [];
 
+    // Sort and log for debugging
     category.books.sort((a, b) => a.order.compareTo(b.order));
     category.subCategories.sort((a, b) => a.order.compareTo(b.order));
+    
+    if (category.books.isNotEmpty && category.books.length <= 10) {
+      debugPrint('🎨 Displaying "${category.title}": ${category.books.map((b) => "${b.title}(${b.order})").join(", ")}');
+    }
 
     if (_depth != 0) {
       // Add books
@@ -676,9 +681,20 @@ class _LibraryBrowserState extends State<LibraryBrowser>
   List<Widget> _buildCategoryTree(Category category, int level) {
     List<Widget> widgets = [];
 
-    // מיון
-    category.books.sort((a, b) => a.order.compareTo(b.order));
+    // מיון תיקיות לפני קבצים
     category.subCategories.sort((a, b) => a.order.compareTo(b.order));
+    
+    // מיון ספרים לפי order (שכבר מעודכן לפי דורות)
+    category.books.sort((a, b) {
+      final orderCompare = a.order.compareTo(b.order);
+      if (orderCompare != 0) return orderCompare;
+      return a.title.compareTo(b.title);
+    });
+    
+    // Debug logging for first few books
+    if (category.books.isNotEmpty && category.books.length <= 10 && level == 0) {
+      debugPrint('🎨 Tree view "${category.title}": ${category.books.map((b) => "${b.title}(${b.order})").join(", ")}');
+    }
 
     // הוספת תת-קטגוריות לפני הספרים
     for (final subCategory in category.subCategories) {
