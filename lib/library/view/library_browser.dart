@@ -1162,7 +1162,8 @@ class _LibraryBrowserState extends State<LibraryBrowser>
           onPressed: () => _showHistoryDialog(context),
         ),
         icon: FluentIcons.history_24_regular,
-        tooltip: 'הצג היסטוריה',
+        tooltip:
+            'הצג היסטוריה (${(Settings.getValue<String>('key-shortcut-open-history') ?? 'ctrl+h').toUpperCase()})',
         onPressed: () => _showHistoryDialog(context),
       ),
 
@@ -1175,7 +1176,8 @@ class _LibraryBrowserState extends State<LibraryBrowser>
           onPressed: () => _showBookmarksDialog(context),
         ),
         icon: FluentIcons.bookmark_24_regular,
-        tooltip: 'הצג סימניות',
+        tooltip:
+            'הצג סימניות (${(Settings.getValue<String>('key-shortcut-open-bookmarks') ?? 'ctrl+shift+b').toUpperCase()})',
         onPressed: () => _showBookmarksDialog(context),
       ),
 
@@ -1283,7 +1285,8 @@ class _LibraryBrowserState extends State<LibraryBrowser>
           onPressed: () => _showHistoryDialog(context),
         ),
         icon: FluentIcons.history_24_regular,
-        tooltip: 'הצג היסטוריה',
+        tooltip:
+            'הצג היסטוריה (${(Settings.getValue<String>('key-shortcut-open-history') ?? 'ctrl+h').toUpperCase()})',
         onPressed: () => _showHistoryDialog(context),
       ),
 
@@ -1295,7 +1298,8 @@ class _LibraryBrowserState extends State<LibraryBrowser>
           onPressed: () => _showBookmarksDialog(context),
         ),
         icon: FluentIcons.bookmark_24_regular,
-        tooltip: 'הצג סימניות',
+        tooltip:
+            'הצג סימניות (${(Settings.getValue<String>('key-shortcut-open-bookmarks') ?? 'ctrl+shift+b').toUpperCase()})',
         onPressed: () => _showBookmarksDialog(context),
       ),
 

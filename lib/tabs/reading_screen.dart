@@ -198,13 +198,13 @@ class _ReadingScreenState extends State<ReadingScreen>
                       IconButton(
                         icon: const Icon(FluentIcons.history_24_regular),
                         tooltip:
-                            'הצג היסטוריה ($historyShortcut.toUpperCase())',
+                            'הצג היסטוריה (${historyShortcut.toUpperCase()})',
                         onPressed: () => _showHistoryDialog(context),
                       ),
                       IconButton(
                         icon: const Icon(FluentIcons.bookmark_24_regular),
                         tooltip:
-                            'הצג סימניות ($bookmarksShortcut.toUpperCase())',
+                            'הצג סימניות (${bookmarksShortcut.toUpperCase()})',
                         onPressed: () => _showBookmarksDialog(context),
                       ),
                       // קו מפריד
@@ -218,7 +218,7 @@ class _ReadingScreenState extends State<ReadingScreen>
                       IconButton(
                         icon: const Icon(FluentIcons.add_square_24_regular),
                         tooltip:
-                            'החלף שולחן עבודה ($workspaceShortcut.toUpperCase())',
+                            'החלף שולחן עבודה (${workspaceShortcut.toUpperCase()})',
                         onPressed: () => _showSaveWorkspaceDialog(context),
                       ),
                     ],
