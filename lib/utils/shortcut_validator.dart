@@ -27,7 +27,7 @@ class ShortcutValidator {
     'key-shortcut-open-library-browser': 'ctrl+l',
     'key-shortcut-open-find-ref': 'ctrl+o',
     'key-shortcut-close-tab': 'ctrl+w',
-    'key-shortcut-close-all-tabs': 'ctrl+x',
+    'key-shortcut-close-all-tabs': 'ctrl+shift+w',
     'key-shortcut-open-reading-screen': 'ctrl+r',
     'key-shortcut-open-new-search': 'ctrl+q',
     'key-shortcut-open-settings': 'ctrl+comma',

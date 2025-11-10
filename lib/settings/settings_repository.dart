@@ -9,7 +9,8 @@ class SettingsRepository {
   static const String keyPaddingSize = 'key-padding-size';
   static const String keyFontSize = 'key-font-size';
   static const String keyFontFamily = 'key-font-family';
-  static const String keyCommentatorsFontFamily = 'key-commentators-font-family';
+  static const String keyCommentatorsFontFamily =
+      'key-commentators-font-family';
   static const String keyShowOtzarHachochma = 'key-show-otzar-hachochma';
   static const String keyShowHebrewBooks = 'key-show-hebrew-books';
   static const String keyShowExternalBooks = 'key-show-external-books';
@@ -251,7 +252,8 @@ class SettingsRepository {
 
   Future<Map<String, String>> getShortcuts() async {
     // Start with the default shortcuts
-    final shortcuts = Map<String, String>.from(ShortcutValidator.defaultShortcuts);
+    final shortcuts =
+        Map<String, String>.from(ShortcutValidator.defaultShortcuts);
 
     // Load the central 'shortcuts' map which contains overrides
     final Map<String, dynamic> savedShortcutsMap =
@@ -276,8 +278,7 @@ class SettingsRepository {
       await _settings.remove(key);
     }
     // Set the main shortcuts map back to the default values
-    await _settings.setValue(
-        'shortcuts', ShortcutValidator.defaultShortcuts);
+    await _settings.setValue('shortcuts', ShortcutValidator.defaultShortcuts);
   }
 
   Future<void> updateShortcut(String key, String value) async {

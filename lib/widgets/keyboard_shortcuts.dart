@@ -191,6 +191,11 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
       LogicalKeyboardKey.shift,
       LogicalKeyboardKey.keyB,
     ),
+    'ctrl+shift+w': LogicalKeySet(
+      LogicalKeyboardKey.control,
+      LogicalKeyboardKey.shift,
+      LogicalKeyboardKey.keyW,
+    ),
   };
 
   LogicalKeySet? _parseShortcut(String shortcut) {
@@ -373,7 +378,7 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
     final closeTabShortcut =
         shortcutSettings['key-shortcut-close-tab'] ?? 'ctrl+w';
     final closeAllTabsShortcut =
-        shortcutSettings['key-shortcut-close-all-tabs'] ?? 'ctrl+x';
+        shortcutSettings['key-shortcut-close-all-tabs'] ?? 'ctrl+shift+w';
     final readingScreenShortcut =
         shortcutSettings['key-shortcut-open-reading-screen'] ?? 'ctrl+r';
     final newSearchShortcut =

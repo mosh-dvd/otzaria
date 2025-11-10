@@ -180,6 +180,7 @@ class _MySettingsScreenState extends State<MySettingsScreen>
       'ctrl+9': "CTRL + 9",
       'ctrl+comma': "CTRL + ,",
       'ctrl+shift+b': "CTRL + SHIFT + B",
+      'ctrl+shift+w': "CTRL + SHIFT + W",
     };
 
     return Scaffold(
@@ -447,7 +448,7 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                                     FluentIcons.dismiss_circle_24_regular),
                               ),
                               ShortcutDropDownTile(
-                                selected: 'ctrl+x',
+                                selected: 'ctrl+shift+w',
                                 settingKey: 'key-shortcut-close-all-tabs',
                                 title: 'סגור כל הספרים',
                                 allShortcuts: shortcuctsList,
