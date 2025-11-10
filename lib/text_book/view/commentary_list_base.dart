@@ -37,10 +37,12 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
   String _searchQuery = '';
   final ScrollOffsetController scrollController = ScrollOffsetController();
   final ItemScrollController _itemScrollController = ItemScrollController();
+  final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
   int _itemCount = 0;
   int _currentSearchIndex = 0;
   int _totalSearchResults = 0;
   final Map<int, int> _searchResultsPerItem = {};
+  int _lastScrollIndex = 0; // שומר את מיקום הגלילה האחרון
 
   int _getItemSearchIndex(int itemIndex) {
     int cumulativeIndex = 0;
@@ -58,7 +60,23 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // האזנה לשינויים במיקום הגלילה כדי לשמור את המיקום האחרון
+    _itemPositionsListener.itemPositions.addListener(_updateLastScrollIndex);
+  }
+
+  void _updateLastScrollIndex() {
+    final positions = _itemPositionsListener.itemPositions.value;
+    if (positions.isNotEmpty) {
+      // שומר את האינדקס של הפריט הראשון הנראה
+      _lastScrollIndex = positions.first.index;
+    }
+  }
+
+  @override
   void dispose() {
+    _itemPositionsListener.itemPositions.removeListener(_updateLastScrollIndex);
     _searchController.dispose();
     super.dispose();
   }
@@ -249,15 +267,11 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
                   commentatorsToShow: state.activeCommentators),
               builder: (context, thisLinksSnapshot) {
                 if (!thisLinksSnapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                  return _buildSkeletonLoading();
                 }
                 if (thisLinksSnapshot.data!.isEmpty) {
-                  // בדיקה אם אין מפרשים פעילים כלל
-                  if (state.activeCommentators.isEmpty) {
-                    return const Center(child: Text("לא נבחרו מפרשים להצגה"));
-                  } else {
-                    return const Center(child: Text("לא נמצאו מפרשים להצגה"));
-                  }
+                  // אם אין מפרשים, פשוט נציג מסך ריק
+                  return const SizedBox.shrink();
                 }
                 final data = thisLinksSnapshot.data!;
                 _itemCount = data.length;
@@ -276,6 +290,8 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
                   accelerationFactor: 5,
                   child: ScrollablePositionedList.builder(
                     itemScrollController: _itemScrollController,
+                    itemPositionsListener: _itemPositionsListener,
+                    initialScrollIndex: _lastScrollIndex.clamp(0, data.length - 1),
                     key: PageStorageKey(
                         'commentary_${indexesKey}_${state.activeCommentators.hashCode}'),
                     physics: const ClampingScrollPhysics(),
@@ -317,5 +333,79 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
         ],
       );
     });
+  }
+
+  /// בניית skeleton loading לפרשנות - מספר פרשנויות עם כותרת ושלוש שורות
+  Widget _buildSkeletonLoading() {
+    final baseColor = Theme.of(context).colorScheme.surfaceContainerHighest;
+    
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 4, // מציג 4 שלדים של פרשנויות
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // כותרת הפרשן
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: _SkeletonLine(width: 0.3, height: 20, color: baseColor),
+              ),
+            ),
+            // שלוש שורות תוכן
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _SkeletonLine(width: 0.95, height: 16, color: baseColor),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _SkeletonLine(width: 0.92, height: 16, color: baseColor),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _SkeletonLine(width: 0.88, height: 16, color: baseColor),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Widget של שורה סטטית לשלד טעינה
+class _SkeletonLine extends StatelessWidget {
+  final double width;
+  final double height;
+  final Color color;
+
+  const _SkeletonLine({
+    required this.width,
+    required this.color,
+    this.height = 16,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: MediaQuery.of(context).size.width * width,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
   }
 }

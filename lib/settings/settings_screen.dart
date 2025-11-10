@@ -84,6 +84,8 @@ class _MySettingsScreenState extends State<MySettingsScreen>
     );
   }
 
+
+
   Widget _buildColumns(int maxColumns, List<Widget> children) {
     const double rowSpacing = 16.0;
     const double columnSpacing = 16.0;
@@ -973,6 +975,9 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                             ),
                           ),
                         ]),
+                      if (!(Platform.isAndroid || Platform.isIOS))
+
+
                       SwitchSettingsTile(
                         settingKey: 'key-dev-channel',
                         title: 'עדכון לגרסאות מפתחים',
