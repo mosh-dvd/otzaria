@@ -9,13 +9,6 @@ class NavigationRepository {
       return true;
     }
 
-    final libraryDir = Directory('$libraryPath${Platform.pathSeparator}אוצריא');
-    
-    // Check if directory exists
-    if (!libraryDir.existsSync()) {
-      return true;
-    }
-    
     // Check if seforim.db exists - this is the new SQLite-based library
     final dbFile = File('$libraryPath${Platform.pathSeparator}seforim.db');
     if (dbFile.existsSync()) {
@@ -24,11 +17,14 @@ class NavigationRepository {
     }
     
     // Fallback: check if there are any files in אוצריא directory (old text-based library)
-    if (libraryDir.listSync().isEmpty) {
-      return true;
+    final libraryDir = Directory('$libraryPath${Platform.pathSeparator}אוצריא');
+    if (libraryDir.existsSync() && libraryDir.listSync().isNotEmpty) {
+      debugPrint('✅ Found אוצריא directory with files - library is not empty');
+      return false;
     }
 
-    return false;
+    debugPrint('⚠️ No library found - neither seforim.db nor אוצריא directory');
+    return true;
   }
 
   Future<void> refreshLibrary() async {
