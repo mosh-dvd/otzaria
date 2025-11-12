@@ -32,11 +32,8 @@ class SqliteDataProvider {
   /// Initialize the database connection
   static Future<Database> _initDatabase() async {
     try {
-      // Initialize FFI for desktop platforms
-      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-        sqfliteFfiInit();
-        databaseFactory = databaseFactoryFfi;
-      }
+      // Note: sqfliteFfiInit() and databaseFactory are already initialized in main.dart
+      // No need to initialize again here to avoid the warning
 
       // Try to find the database file
       final dbFile = await _findDatabaseFile();
@@ -46,7 +43,6 @@ class SqliteDataProvider {
 
       _dbPath = dbFile.absolute.path;
       debugPrint('🔵 SQLite: Opening database at: $_dbPath');
-      debugPrint('🔵 SQLite: Opening database at: $_dbPath');
 
       // Open the database in read-only mode
       final db = await openDatabase(
@@ -55,7 +51,6 @@ class SqliteDataProvider {
         singleInstance: false,
       );
 
-      debugPrint('🟢 SQLite: Database opened successfully!');
       debugPrint('🟢 SQLite: Database opened successfully!');
       return db;
     } catch (e) {
@@ -524,4 +519,3 @@ class SqliteDataProvider {
     }
   }
 }
-
