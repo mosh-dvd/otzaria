@@ -15,7 +15,7 @@ import 'dart:convert';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart' as path;
 
-void debugPrint(String message) => print(message);
+void debugPrint(String message) => debugPrint(message);
 
 void main(List<String> args) async {
   debugPrint('📚 Book to SQLite Converter');
