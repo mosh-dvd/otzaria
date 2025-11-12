@@ -174,19 +174,12 @@ class FileSystemData {
 
       // Update book order based on generation (from CSV) before sorting
       if (category.books.isNotEmpty) {
-        debugPrint(
-            '📂 Processing category: ${category.title} (${category.books.length} books)');
         await _updateBooksOrderByGeneration(category.books);
       }
 
       // Sort categories and books by their order
       category.subCategories.sort((a, b) => a.order.compareTo(b.order));
       category.books.sort((a, b) => a.order.compareTo(b.order));
-
-      if (category.books.isNotEmpty && category.books.length <= 5) {
-        debugPrint(
-            '   After sort: ${category.books.map((b) => "${b.title} (${b.order})").join(", ")}');
-      }
 
       return category;
     }
@@ -818,19 +811,12 @@ class FileSystemData {
           .where((title) => !existingTitles.contains(title))
           .toList();
 
-      debugPrint('📊 Total books in DB: ${dbBookTitles.length}');
-      debugPrint('📊 Existing books in file system: ${existingTitles.length}');
-      debugPrint('📊 DB-only books: ${dbOnlyBooks.length}');
-      if (dbOnlyBooks.length <= 10) {
-        debugPrint('📚 DB-only books: ${dbOnlyBooks.join(", ")}');
-      }
-
       if (dbOnlyBooks.isEmpty) {
         debugPrint('✅ All database books already in file system');
         return;
       }
 
-      debugPrint('🟢 Building category structure from database...');
+      debugPrint('📚 Loading ${dbOnlyBooks.length} books from database...');
 
       // Build the full category hierarchy from database
       await _buildCategoryHierarchyFromDatabase(library, dbOnlyBooks);
@@ -852,8 +838,6 @@ class FileSystemData {
         return;
       }
 
-      debugPrint('📂 Found ${categoriesData.length} categories in database');
-
       // Build category map: categoryId -> Category object
       final Map<int, Category> categoryMap = {};
       final Map<String, Category> existingCategoriesByTitle = {};
@@ -870,9 +854,6 @@ class FileSystemData {
         mapExistingCategories(cat);
       }
 
-      debugPrint(
-          '📋 Found ${existingCategoriesByTitle.length} existing categories in library');
-
       // First pass: create or reuse categories
       for (final catData in categoriesData) {
         final catId = catData['id'] as int;
@@ -880,7 +861,6 @@ class FileSystemData {
 
         // Try to find existing category
         if (existingCategoriesByTitle.containsKey(title)) {
-          debugPrint('♻️ Reusing existing category: $title');
           categoryMap[catId] = existingCategoriesByTitle[title]!;
         } else {
           // Create new category
@@ -918,12 +898,10 @@ class FileSystemData {
 
       // Third pass: add books to categories (optimized with batch query)
       int totalAdded = 0;
-      debugPrint('📚 Adding ${bookTitles.length} books to categories...');
 
       // Get all metadata in one batch query (performance optimization)
       final allMetadata =
           await _sqliteProvider.getBooksMetadataBatch(bookTitles);
-      debugPrint('📊 Retrieved metadata for ${allMetadata.length} books');
 
       for (final title in bookTitles) {
         try {
@@ -954,19 +932,14 @@ class FileSystemData {
           ));
 
           totalAdded++;
-          if (totalAdded <= 5) {
-            debugPrint('  ✅ Added "$title" to category "${category.title}"');
-          }
         } catch (e) {
-          debugPrint('⚠️ Could not add book "$title": $e');
           debugPrint('⚠️ Could not add book "$title": $e');
         }
       }
 
-      debugPrint('📊 Total books added: $totalAdded');
+      debugPrint('✅ Added $totalAdded books from database');
 
-      // Update order by generation for all categories
-      debugPrint('🔄 Updating book order by generation for all categories...');
+      // Update order by generation for all categories (silent operation)
       for (final category in categoryMap.values) {
         if (category.books.isNotEmpty) {
           await _updateBooksOrderByGeneration(category.books);
@@ -980,11 +953,7 @@ class FileSystemData {
       }
 
       library.subCategories.sort((a, b) => a.title.compareTo(b.title));
-
-      debugPrint(
-          '✅ Successfully built category hierarchy with $totalAdded books');
     } catch (e) {
-      debugPrint('❌ Error building category hierarchy: $e');
       debugPrint('❌ Error building category hierarchy: $e');
       rethrow;
     }
@@ -994,7 +963,8 @@ class FileSystemData {
   Future<void> _updateBooksOrderByGeneration(List<Book> books) async {
     if (books.isEmpty) return;
 
-    debugPrint('📚 Updating order for ${books.length} books by generation...');
+    // Only log for large categories (more than 20 books)
+    final bool shouldLog = books.length > 20;
 
     // Generation order mapping
     const generationOrder = {
@@ -1039,17 +1009,13 @@ class FileSystemData {
 
       if (book.order != originalOrder) {
         updatedCount++;
-        if (updatedCount <= 3) {
-          debugPrint(
-              '   "${book.title}": $originalOrder → ${book.order} ($generation)');
-        }
       }
     }
 
-    debugPrint('✅ Updated $updatedCount books. Distribution:');
-    generationCounts.forEach((gen, count) {
-      debugPrint('   $gen: $count books');
-    });
+    // Only log summary for large categories
+    if (shouldLog && updatedCount > 0) {
+      debugPrint('✅ Updated $updatedCount/${books.length} books by generation');
+    }
   }
 
   /// Checks if a book with the given title exists in the library.
