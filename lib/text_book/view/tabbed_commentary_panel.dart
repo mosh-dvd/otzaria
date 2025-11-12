@@ -16,6 +16,7 @@ class TabbedCommentaryPanel extends StatefulWidget {
   final bool showSearch;
   final VoidCallback? onClosePane;
   final int? initialTabIndex; // אינדקס הכרטיסייה הראשונית
+  final Function(int)? onTabChanged; // callback כשהטאב משתנה
 
   const TabbedCommentaryPanel({
     super.key,
@@ -24,6 +25,7 @@ class TabbedCommentaryPanel extends StatefulWidget {
     required this.showSearch,
     this.onClosePane,
     this.initialTabIndex,
+    this.onTabChanged,
   });
 
   @override
@@ -49,6 +51,13 @@ class _TabbedCommentaryPanelState extends State<TabbedCommentaryPanel>
       vsync: this,
       initialIndex: widget.initialTabIndex ?? 0, // כרטיסייה ראשונית
     );
+    
+    // מאזין לשינויים בטאב ושומר אותם
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging || _tabController.index != _tabController.previousIndex) {
+        widget.onTabChanged?.call(_tabController.index);
+      }
+    });
   }
 
   @override

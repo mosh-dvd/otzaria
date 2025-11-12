@@ -916,12 +916,10 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       // 2) Split View Button
       ActionButtonData(
         widget: _buildSplitViewButton(context, state),
-        icon: !state.showSplitView
-            ? FluentIcons.panel_left_24_regular
-            : FluentIcons.panel_left_24_regular,
-        tooltip: !state.showSplitView
-            ? 'הצגת מפרשים בצד הטקסט'
-            : 'הצגת מפרשים מתחת הטקסט',
+        icon: FluentIcons.panel_left_24_regular,
+        tooltip: state.showSplitView
+            ? 'הצגת מפרשים מתחת הטקסט'
+            : 'הצגת מפרשים בצד הטקסט',
         onPressed: () => context.read<TextBookBloc>().add(
               ToggleSplitView(!state.showSplitView),
             ),
@@ -1153,14 +1151,13 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       onPressed: () => context.read<TextBookBloc>().add(
             ToggleSplitView(!state.showSplitView),
           ),
-      icon: Icon(
-        !state.showSplitView
-            ? FluentIcons.panel_left_24_regular
-            : FluentIcons.panel_left_24_regular,
+      icon: RotatedBox(
+        quarterTurns: state.showSplitView ? 0 : 3,  // מסובב 270 מעלות (90 נגד כיוון השעון) כשמתחת
+        child: const Icon(FluentIcons.panel_left_24_regular),
       ),
-      tooltip: !state.showSplitView
-          ? ' הצגת מפרשים בצד הטקסט'
-          : 'הצגת מפרשים מתחת הטקסט',
+      tooltip: state.showSplitView
+          ? 'הצגת מפרשים מתחת הטקסט'
+          : 'הצגת מפרשים בצד הטקסט',
     );
   }
 

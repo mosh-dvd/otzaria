@@ -257,20 +257,21 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // כפתור סגירה/פתיחה גלובלית של כל המפרשים
-                  IconButton(
-                    icon: Icon(
-                      _allExpanded
-                          ? FluentIcons.arrow_collapse_all_24_regular
-                          : FluentIcons.arrow_expand_all_24_regular,
+                  // כפתור סגירה/פתיחה גלובלית של כל המפרשים - מוצג רק אם יש מפרשים פעילים
+                  if (state.activeCommentators.isNotEmpty)
+                    IconButton(
+                      icon: Icon(
+                        _allExpanded
+                            ? FluentIcons.arrow_collapse_all_24_regular
+                            : FluentIcons.arrow_expand_all_24_regular,
+                      ),
+                      tooltip: _allExpanded ? 'סגור את כל המפרשים' : 'פתח את כל המפרשים',
+                      onPressed: () {
+                        setState(() {
+                          _allExpanded = !_allExpanded;
+                        });
+                      },
                     ),
-                    tooltip: _allExpanded ? 'סגור את כל המפרשים' : 'פתח את כל המפרשים',
-                    onPressed: () {
-                      setState(() {
-                        _allExpanded = !_allExpanded;
-                      });
-                    },
-                  ),
                   // מציג את לחצן הסגירה רק אם יש callback
                   if (widget.onClosePane != null) ...[
                     const SizedBox(width: 8),
@@ -305,28 +306,29 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
               ),
             ),
           ] else ...[
-            // כפתור סגירה/פתיחה גלובלית כאשר אין תיבת חיפוש
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      _allExpanded
-                          ? FluentIcons.arrow_collapse_all_24_regular
-                          : FluentIcons.arrow_expand_all_24_regular,
+            // כפתור סגירה/פתיחה גלובלית כאשר אין תיבת חיפוש - מוצג רק אם יש מפרשים פעילים
+            if (state.activeCommentators.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        _allExpanded
+                            ? FluentIcons.arrow_collapse_all_24_regular
+                            : FluentIcons.arrow_expand_all_24_regular,
+                      ),
+                      tooltip: _allExpanded ? 'סגור את כל המפרשים' : 'פתח את כל המפרשים',
+                      onPressed: () {
+                        setState(() {
+                          _allExpanded = !_allExpanded;
+                        });
+                      },
                     ),
-                    tooltip: _allExpanded ? 'סגור את כל המפרשים' : 'פתח את כל המפרשים',
-                    onPressed: () {
-                      setState(() {
-                        _allExpanded = !_allExpanded;
-                      });
-                    },
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
           ],
           Flexible(
             fit: FlexFit.loose,
