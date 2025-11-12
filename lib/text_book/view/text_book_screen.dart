@@ -23,7 +23,6 @@ import 'package:otzaria/models/books.dart';
 import 'package:otzaria/tabs/models/tab.dart';
 import 'package:otzaria/printing/printing_screen.dart';
 import 'package:otzaria/text_book/view/commentators_list_screen.dart';
-import 'package:otzaria/text_book/view/links_screen.dart';
 import 'package:otzaria/text_book/view/text_book_scaffold.dart';
 import 'package:otzaria/text_book/view/text_book_search_screen.dart';
 import 'package:otzaria/text_book/view/toc_navigator_screen.dart';
@@ -531,7 +530,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
 
     // יוצרים את בקר הלשוניות עם האינדקס ההתחלתי שקבענו
     tabController = TabController(
-      length: 4, // יש 4 לשוניות
+      length: 3, // יש 3 לשוניות
       vsync: this,
       initialIndex: initialIndex,
     );
@@ -603,7 +602,162 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
             }
 
             if (state is TextBookInitial || state is TextBookLoading) {
-              return const Center(child: CircularProgressIndicator());
+              final screenWidth = MediaQuery.of(context).size.width;
+              return Scaffold(
+                appBar: AppBar(
+                  backgroundColor:
+                      Theme.of(context).colorScheme.surfaceContainer,
+                  shape: Border(
+                    bottom: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      width: 0.3,
+                    ),
+                  ),
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
+                  centerTitle: false,
+                  title: Text(
+                    widget.tab.book.title,
+                    style: const TextStyle(fontSize: 17),
+                    textAlign: TextAlign.end,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  leading: IconButton(
+                    icon: const Icon(FluentIcons.navigation_24_regular),
+                    tooltip: "ניווט וחיפוש",
+                    onPressed: null,
+                  ),
+                  actions: [
+                    ResponsiveActionBar(
+                      key: ValueKey('loading_actions_$screenWidth'),
+                      actions: [
+                        ActionButtonData(
+                          widget: IconButton(
+                            icon:
+                                const Icon(FluentIcons.document_pdf_24_regular),
+                            tooltip: 'פתח ספר במהדורה מודפסת',
+                            onPressed: null,
+                          ),
+                          icon: FluentIcons.document_pdf_24_regular,
+                          tooltip: 'פתח ספר במהדורה מודפסת',
+                          onPressed: null,
+                        ),
+                        ActionButtonData(
+                          widget: IconButton(
+                            icon: const Icon(FluentIcons.panel_left_24_regular),
+                            tooltip: 'הצגת מפרשים',
+                            onPressed: null,
+                          ),
+                          icon: FluentIcons.panel_left_24_regular,
+                          tooltip: 'הצגת מפרשים',
+                          onPressed: null,
+                        ),
+                        ActionButtonData(
+                          widget: IconButton(
+                            icon: const Icon(FluentIcons.text_font_24_regular),
+                            tooltip: 'הצג או הסתר ניקוד',
+                            onPressed: null,
+                          ),
+                          icon: FluentIcons.text_font_24_regular,
+                          tooltip: 'הצג או הסתר ניקוד',
+                          onPressed: null,
+                        ),
+                        ActionButtonData(
+                          widget: IconButton(
+                            icon: const Icon(FluentIcons.search_24_regular),
+                            tooltip: 'חיפוש',
+                            onPressed: null,
+                          ),
+                          icon: FluentIcons.search_24_regular,
+                          tooltip: 'חיפוש',
+                          onPressed: null,
+                        ),
+                        ActionButtonData(
+                          widget: IconButton(
+                            icon: const Icon(FluentIcons.zoom_in_24_regular),
+                            tooltip: 'הגדלת טקסט',
+                            onPressed: null,
+                          ),
+                          icon: FluentIcons.zoom_in_24_regular,
+                          tooltip: 'הגדלת טקסט',
+                          onPressed: null,
+                        ),
+                        ActionButtonData(
+                          widget: IconButton(
+                            icon: const Icon(FluentIcons.zoom_out_24_regular),
+                            tooltip: 'הקטנת טקסט',
+                            onPressed: null,
+                          ),
+                          icon: FluentIcons.zoom_out_24_regular,
+                          tooltip: 'הקטנת טקסט',
+                          onPressed: null,
+                        ),
+                        ActionButtonData(
+                          widget: IconButton(
+                            icon: const Icon(
+                                FluentIcons.arrow_previous_24_filled),
+                            tooltip: 'תחילת הספר',
+                            onPressed: null,
+                          ),
+                          icon: FluentIcons.arrow_previous_24_filled,
+                          tooltip: 'תחילת הספר',
+                          onPressed: null,
+                        ),
+                        ActionButtonData(
+                          widget: IconButton(
+                            icon:
+                                const Icon(FluentIcons.chevron_left_24_regular),
+                            tooltip: 'הקטע הקודם',
+                            onPressed: null,
+                          ),
+                          icon: FluentIcons.chevron_left_24_regular,
+                          tooltip: 'הקטע הקודם',
+                          onPressed: null,
+                        ),
+                        ActionButtonData(
+                          widget: IconButton(
+                            icon: const Icon(
+                                FluentIcons.chevron_right_24_regular),
+                            tooltip: 'הקטע הבא',
+                            onPressed: null,
+                          ),
+                          icon: FluentIcons.chevron_right_24_regular,
+                          tooltip: 'הקטע הבא',
+                          onPressed: null,
+                        ),
+                        ActionButtonData(
+                          widget: IconButton(
+                            icon: const Icon(FluentIcons.arrow_next_24_filled),
+                            tooltip: 'סוף הספר',
+                            onPressed: null,
+                          ),
+                          icon: FluentIcons.arrow_next_24_filled,
+                          tooltip: 'סוף הספר',
+                          onPressed: null,
+                        ),
+                      ],
+                      alwaysInMenu: [],
+                      maxVisibleButtons: screenWidth < 400
+                          ? 2
+                          : screenWidth < 500
+                              ? 4
+                              : screenWidth < 600
+                                  ? 6
+                                  : screenWidth < 700
+                                      ? 8
+                                      : screenWidth < 800
+                                          ? 10
+                                          : screenWidth < 900
+                                              ? 12
+                                              : screenWidth < 1100
+                                                  ? 14
+                                                  : 999,
+                    ),
+                  ],
+                ),
+                body: const Center(child: CircularProgressIndicator()),
+              );
             }
 
             if (state is TextBookError) {
@@ -762,12 +916,10 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       // 2) Split View Button
       ActionButtonData(
         widget: _buildSplitViewButton(context, state),
-        icon: !state.showSplitView
-            ? FluentIcons.panel_left_24_regular
-            : FluentIcons.panel_left_24_regular,
-        tooltip: !state.showSplitView
-            ? 'הצגת מפרשים בצד הטקסט'
-            : 'הצגת מפרשים מתחת הטקסט',
+        icon: FluentIcons.panel_left_24_regular,
+        tooltip: state.showSplitView
+            ? 'הצגת מפרשים מתחת הטקסט'
+            : 'הצגת מפרשים בצד הטקסט',
         onPressed: () => context.read<TextBookBloc>().add(
               ToggleSplitView(!state.showSplitView),
             ),
@@ -999,14 +1151,13 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       onPressed: () => context.read<TextBookBloc>().add(
             ToggleSplitView(!state.showSplitView),
           ),
-      icon: Icon(
-        !state.showSplitView
-            ? FluentIcons.panel_left_24_regular
-            : FluentIcons.panel_left_24_regular,
+      icon: RotatedBox(
+        quarterTurns: state.showSplitView ? 0 : 3,  // מסובב 270 מעלות (90 נגד כיוון השעון) כשמתחת
+        child: const Icon(FluentIcons.panel_left_24_regular),
       ),
-      tooltip: !state.showSplitView
-          ? ' הצגת מפרשים בצד הטקסט'
-          : 'הצגת מפרשים מתחת הטקסט',
+      tooltip: state.showSplitView
+          ? 'הצגת מפרשים מתחת הטקסט'
+          : 'הצגת מפרשים בצד הטקסט',
     );
   }
 
@@ -1020,6 +1171,8 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
   }
 
   Widget _buildBookmarkButton(BuildContext context, TextBookLoaded state) {
+    final shortcut =
+        Settings.getValue<String>('key-shortcut-add-bookmark') ?? 'ctrl+b';
     return IconButton(
       onPressed: () async {
         int index = state.positionsListener.itemPositions.value.first.index;
@@ -1037,7 +1190,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
             bookmarkAdded ? 'הסימניה נוספה בהצלחה' : 'הסימניה כבר קיימת');
       },
       icon: const Icon(FluentIcons.bookmark_add_24_regular),
-      tooltip: 'הוספת סימניה',
+      tooltip: 'הוספת סימניה (${shortcut.toUpperCase()})',
     );
   }
 
@@ -1056,14 +1209,18 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
   }
 
   Widget _buildAddNoteButton(BuildContext context, TextBookLoaded state) {
+    final shortcut =
+        Settings.getValue<String>('key-shortcut-add-note') ?? 'ctrl+n';
     return IconButton(
       onPressed: () => _handleAddNotePress(context, state),
       icon: const Icon(FluentIcons.note_add_24_regular),
-      tooltip: 'הוסף הערה לקטע זה',
+      tooltip: 'הוסף הערה לקטע זה (${shortcut.toUpperCase()})',
     );
   }
 
   Widget _buildSearchButton(BuildContext context, TextBookLoaded state) {
+    final shortcut =
+        Settings.getValue<String>('key-shortcut-search-in-book') ?? 'ctrl+f';
     return IconButton(
       onPressed: () {
         context.read<TextBookBloc>().add(const ToggleLeftPane(true));
@@ -1071,14 +1228,14 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         textSearchFocusNode.requestFocus();
       },
       icon: const Icon(FluentIcons.search_24_regular),
-      tooltip: 'חיפוש',
+      tooltip: 'חיפוש (${shortcut.toUpperCase()})',
     );
   }
 
   Widget _buildZoomInButton(BuildContext context, TextBookLoaded state) {
     return IconButton(
       icon: const Icon(FluentIcons.zoom_in_24_regular),
-      tooltip: 'הגדלת טקסט',
+      tooltip: 'הגדלת טקסט (CTRL + +)',
       onPressed: () => context.read<TextBookBloc>().add(
             UpdateFontSize(min(50.0, state.fontSize + 3)),
           ),
@@ -1088,7 +1245,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
   Widget _buildZoomOutButton(BuildContext context, TextBookLoaded state) {
     return IconButton(
       icon: const Icon(FluentIcons.zoom_out_24_regular),
-      tooltip: 'הקטנת טקסט',
+      tooltip: 'הקטנת טקסט (CTRL + -)',
       onPressed: () => context.read<TextBookBloc>().add(
             UpdateFontSize(max(15.0, state.fontSize - 3)),
           ),
@@ -1098,7 +1255,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
   Widget _buildFirstPageButton(TextBookLoaded state) {
     return IconButton(
       icon: const Icon(FluentIcons.arrow_previous_24_filled),
-      tooltip: 'תחילת הספר',
+      tooltip: 'תחילת הספר (CTRL + HOME)',
       onPressed: () {
         state.scrollController.scrollTo(
           index: 0,
@@ -1143,7 +1300,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
   Widget _buildLastPageButton(TextBookLoaded state) {
     return IconButton(
       icon: const Icon(FluentIcons.arrow_next_24_filled),
-      tooltip: 'סוף הספר',
+      tooltip: 'סוף הספר (CTRL + END)',
       onPressed: () {
         state.scrollController.scrollTo(
           index: state.content.length,
@@ -1154,9 +1311,11 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
   }
 
   Widget _buildPrintButton(BuildContext context, TextBookLoaded state) {
+    final shortcut =
+        Settings.getValue<String>('key-shortcut-print') ?? 'ctrl+p';
     return IconButton(
       icon: const Icon(FluentIcons.print_24_regular),
-      tooltip: 'הדפסה',
+      tooltip: 'הדפסה (${shortcut.toUpperCase()})',
       onPressed: () => Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => PrintingScreen(
@@ -1993,66 +2152,6 @@ $detailsSection
     );
   }
 
-  Widget _buildCustomTab(String text, int index, TextBookLoaded state) {
-    return AnimatedBuilder(
-      animation: tabController,
-      builder: (context, child) {
-        final isSelected = tabController.index == index;
-        return MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: () {
-              tabController.animateTo(index);
-              if (index == 1 && !Platform.isAndroid) {
-                textSearchFocusNode.requestFocus();
-              } else if (index == 0 && !Platform.isAndroid) {
-                navigationSearchFocusNode.requestFocus();
-              }
-            },
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  tabController.animateTo(index);
-                  if (index == 1 && !Platform.isAndroid) {
-                    textSearchFocusNode.requestFocus();
-                  } else if (index == 0 && !Platform.isAndroid) {
-                    navigationSearchFocusNode.requestFocus();
-                  }
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                  decoration: BoxDecoration(
-                    border: isSelected
-                        ? Border(
-                            bottom: BorderSide(
-                                color: Theme.of(context).primaryColor,
-                                width: 2))
-                        : null,
-                  ),
-                  child: Text(
-                    text,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.fade,
-                    softWrap: false,
-                    style: TextStyle(
-                      color: isSelected ? Theme.of(context).primaryColor : null,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildTabBar(TextBookLoaded state) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (state.showLeftPane && !Platform.isAndroid && !_isInitialFocusDone) {
@@ -2074,63 +2173,72 @@ $detailsSection
             padding: const EdgeInsets.fromLTRB(1, 0, 4, 0),
             child: Column(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                  child: _buildCustomTab('ניווט', 0, state)),
-                              Container(
-                                  height: 24,
-                                  width: 1,
-                                  color: Colors.grey.shade400,
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 2)),
-                              Expanded(
-                                  child: _buildCustomTab('חיפוש', 1, state)),
-                              Container(
-                                  height: 24,
-                                  width: 1,
-                                  color: Colors.grey.shade400,
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 2)),
-                              Expanded(
-                                  child: _buildCustomTab('מפרשים', 2, state)),
-                              Container(
-                                  height: 24,
-                                  width: 1,
-                                  color: Colors.grey.shade400,
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 2)),
-                              Expanded(
-                                  child: _buildCustomTab('קישורים', 3, state)),
-                            ],
-                          ),
-                          Container(
-                            height: 1,
-                            color: Theme.of(context).dividerColor,
-                          ),
-                        ],
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                        width: 1,
                       ),
                     ),
-                    if (MediaQuery.of(context).size.width >= 600)
-                      IconButton(
-                        onPressed:
-                            (Settings.getValue<bool>('key-pin-sidebar') ??
-                                    false)
-                                ? null
-                                : () => context.read<TextBookBloc>().add(
-                                      TogglePinLeftPane(!state.pinLeftPane),
-                                    ),
-                        icon: const Icon(FluentIcons.pin_24_regular),
-                        isSelected: state.pinLeftPane ||
-                            (Settings.getValue<bool>('key-pin-sidebar') ??
-                                false),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TabBar(
+                          controller: tabController,
+                          tabs: const [
+                            Tab(text: 'ניווט'),
+                            Tab(text: 'חיפוש'),
+                            Tab(text: 'מפרשים'),
+                          ],
+                          labelColor: Theme.of(context).colorScheme.primary,
+                          unselectedLabelColor: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                          indicatorColor: Theme.of(context).colorScheme.primary,
+                          dividerColor: Colors.transparent,
+                          overlayColor: WidgetStateProperty.all(Colors.transparent),
+                        ),
                       ),
-                  ],
+                      if (MediaQuery.of(context).size.width >= 600)
+                        IconButton(
+                          onPressed:
+                              (Settings.getValue<bool>('key-pin-sidebar') ??
+                                      false)
+                                  ? null
+                                  : () => context.read<TextBookBloc>().add(
+                                        TogglePinLeftPane(!state.pinLeftPane),
+                                      ),
+                          icon: AnimatedRotation(
+                            turns: (state.pinLeftPane ||
+                                    (Settings.getValue<bool>('key-pin-sidebar') ??
+                                        false))
+                                ? -0.125
+                                : 0.0,
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(
+                              (state.pinLeftPane ||
+                                      (Settings.getValue<bool>(
+                                              'key-pin-sidebar') ??
+                                          false))
+                                  ? FluentIcons.pin_24_filled
+                                  : FluentIcons.pin_24_regular,
+                            ),
+                          ),
+                          color: (state.pinLeftPane ||
+                                  (Settings.getValue<bool>('key-pin-sidebar') ??
+                                      false))
+                              ? Theme.of(context).colorScheme.primary
+                              : null,
+                          isSelected: state.pinLeftPane ||
+                              (Settings.getValue<bool>('key-pin-sidebar') ??
+                                  false),
+                        ),
+                    ],
+                  ),
                 ),
                 Expanded(
                   child: TabBarView(
@@ -2153,7 +2261,6 @@ $detailsSection
                         child: _buildSearchView(context, state),
                       ),
                       _buildCommentaryView(),
-                      _buildLinkView(context, state),
                     ],
                   ),
                 ),
@@ -2183,32 +2290,6 @@ $detailsSection
       focusNode: navigationSearchFocusNode,
       closeLeftPaneCallback: () =>
           context.read<TextBookBloc>().add(const ToggleLeftPane(false)),
-    );
-  }
-
-  Widget _buildLinkView(BuildContext context, TextBookLoaded state) {
-    return LinksViewer(
-      openTabcallback: widget.openBookCallback,
-      closeLeftPanelCallback: () =>
-          context.read<TextBookBloc>().add(const ToggleLeftPane(false)),
-      isSplitViewOpen: state.showSplitView &&
-          (state.activeCommentators.isNotEmpty || _sidebarTabIndex != null),
-      links: state.visibleLinks,
-      openInSidebarCallback: () {
-        final isSplitOpen = state.showSplitView &&
-            (state.activeCommentators.isNotEmpty || _sidebarTabIndex != null);
-
-        if (isSplitOpen) {
-          // אם החלונית פתוחה - סוגר אותה
-          context.read<TextBookBloc>().add(const ToggleSplitView(false));
-        } else {
-          // אם החלונית סגורה - פותח אותה עם כרטיסיית הקישורים
-          setState(() {
-            _sidebarTabIndex = 1; // כרטיסיית הקישורים
-          });
-          context.read<TextBookBloc>().add(const ToggleSplitView(true));
-        }
-      },
     );
   }
 
@@ -2772,10 +2853,12 @@ class _RegularReportTabState extends State<_RegularReportTab> {
 }
 
 Widget _buildFullFileEditorButton(BuildContext context, TextBookLoaded state) {
+  final shortcut =
+      Settings.getValue<String>('key-shortcut-edit-section') ?? 'ctrl+e';
   return IconButton(
     onPressed: () => _handleFullFileEditorPress(context, state),
     icon: const Icon(FluentIcons.document_edit_24_regular),
-    tooltip: 'ערוך את הספר (Ctrl+Shift+E)',
+    tooltip: 'ערוך את הספר (${shortcut.toUpperCase()})',
   );
 }
 

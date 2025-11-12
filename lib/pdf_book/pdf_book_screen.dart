@@ -212,6 +212,17 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         bindings: <ShortcutActivator, VoidCallback>{
           LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.keyF):
               _ensureSearchTabIsActive,
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.equal):
+              _zoomIn,
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.add):
+              _zoomIn,
+          LogicalKeySet(
+                  LogicalKeyboardKey.control, LogicalKeyboardKey.numpadAdd):
+              _zoomIn,
+          LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.minus):
+              _zoomOut,
+          LogicalKeySet(LogicalKeyboardKey.control,
+              LogicalKeyboardKey.numpadSubtract): _zoomOut,
           LogicalKeySet(LogicalKeyboardKey.arrowRight): _goNextPage,
           LogicalKeySet(LogicalKeyboardKey.arrowLeft): _goPreviousPage,
           LogicalKeySet(LogicalKeyboardKey.arrowDown): _goNextPage,
@@ -327,8 +338,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                                 .colorScheme
                                 .surface, // צבע רקע המסך, בתצוגת ספרי PDF
                             maxScale: 10,
-                            horizontalCacheExtent: 5,
-                            verticalCacheExtent: 5,
+                            horizontalCacheExtent: 1,
+                            verticalCacheExtent: 1,
                             onInteractionStart: (_) {
                               if (!(widget.tab.pinLeftPane.value ||
                                   (Settings.getValue<bool>('key-pin-sidebar') ??
@@ -411,9 +422,12 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                                   await document.loadOutline();
 
                               // 2. עדכון הכותרת הנוכחית
-                              final currentPage = widget.tab.pdfViewerController.isReady
-                                  ? (widget.tab.pdfViewerController.pageNumber ?? 1)
-                                  : 1;
+                              final currentPage =
+                                  widget.tab.pdfViewerController.isReady
+                                      ? (widget.tab.pdfViewerController
+                                              .pageNumber ??
+                                          1)
+                                      : 1;
                               widget.tab.currentTitle.value =
                                   await refFromPageNumber(
                                       currentPage,
@@ -571,11 +585,19 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     );
   }
 
+  void _zoomIn() {
+    widget.tab.pdfViewerController.zoomUp();
+  }
+
+  void _zoomOut() {
+    widget.tab.pdfViewerController.zoomDown();
+  }
+
   void _goNextPage() {
     if (widget.tab.pdfViewerController.isReady) {
       final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
-      final nextPage = min(currentPage + 1,
-          widget.tab.pdfViewerController.pageCount);
+      final nextPage =
+          min(currentPage + 1, widget.tab.pdfViewerController.pageCount);
       widget.tab.pdfViewerController.goToPage(pageNumber: nextPage);
     }
   }
@@ -789,7 +811,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
           tooltip: 'הקודם',
           onPressed: () {
             if (widget.tab.pdfViewerController.isReady) {
-              final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
+              final currentPage =
+                  widget.tab.pdfViewerController.pageNumber ?? 1;
               widget.tab.pdfViewerController.goToPage(
                 pageNumber: max(currentPage - 1, 1),
               );
@@ -821,10 +844,11 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         widget: IconButton(
           onPressed: () {
             if (widget.tab.pdfViewerController.isReady) {
-              final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
+              final currentPage =
+                  widget.tab.pdfViewerController.pageNumber ?? 1;
               widget.tab.pdfViewerController.goToPage(
-                pageNumber: min(currentPage + 1,
-                    widget.tab.pdfViewerController.pageCount),
+                pageNumber: min(
+                    currentPage + 1, widget.tab.pdfViewerController.pageCount),
               );
             }
           },
@@ -837,8 +861,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
           if (widget.tab.pdfViewerController.isReady) {
             final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
             widget.tab.pdfViewerController.goToPage(
-              pageNumber: min(currentPage + 1,
-                  widget.tab.pdfViewerController.pageCount),
+              pageNumber: min(
+                  currentPage + 1, widget.tab.pdfViewerController.pageCount),
             );
           }
         },
@@ -847,12 +871,12 @@ class _PdfBookScreenState extends State<PdfBookScreen>
       // 9) Last Page Button
       ActionButtonData(
         widget: IconButton(
-          icon: const Icon(FluentIcons.arrow_forward_24_regular),
+          icon: const Icon(FluentIcons.arrow_next_24_filled),
           tooltip: 'סוף הספר',
           onPressed: () => widget.tab.pdfViewerController
               .goToPage(pageNumber: widget.tab.pdfViewerController.pageCount),
         ),
-        icon: FluentIcons.arrow_forward_24_regular,
+        icon: FluentIcons.arrow_next_24_filled,
         tooltip: 'סוף הספר',
         onPressed: () => widget.tab.pdfViewerController
             .goToPage(pageNumber: widget.tab.pdfViewerController.pageCount),

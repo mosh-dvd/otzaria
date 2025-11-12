@@ -30,7 +30,6 @@ class _TocViewerState extends State<TocViewer>
   @override
   bool get wantKeepAlive => true;
 
-  final Map<int, ExpansibleController> _controllers = {};
   final TextEditingController searchController = TextEditingController();
   final ScrollController _tocScrollController = ScrollController();
   final Map<int, GlobalKey> _tocItemKeys = {};
@@ -52,7 +51,6 @@ class _TocViewerState extends State<TocViewer>
     for (final entry in path) {
       if (entry.children.isNotEmpty && _expanded[entry.index] != true) {
         _expanded[entry.index] = true;
-        _controllers[entry.index]?.expand();
       }
     }
   }
@@ -145,31 +143,56 @@ class _TocViewerState extends State<TocViewer>
         shrinkWrap: true,
         itemCount: allEntries.length,
         itemBuilder: (context, index) {
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-                0, 0, 10 * allEntries[index].level.toDouble(), 0),
-            child: allEntries[index].children.isEmpty
-                ? Material(
-                    color: Colors.transparent,
-                    child: ListTile(
-                      title: Text(allEntries[index].fullText),
-                      onTap: () {
-                        setState(() {
-                          _isManuallyScrolling = false;
-                          _lastScrolledTocIndex = null;
-                        });
-                        widget.scrollController.scrollTo(
-                          index: allEntries[index].index,
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.ease,
-                        );
-                        if (Platform.isAndroid) {
-                          widget.closeLeftPaneCallback();
-                        }
-                      },
+          final entry = allEntries[index];
+          return InkWell(
+            onTap: () {
+              setState(() {
+                _isManuallyScrolling = false;
+                _lastScrolledTocIndex = null;
+              });
+              widget.scrollController.scrollTo(
+                index: entry.index,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.ease,
+              );
+              if (Platform.isAndroid) {
+                widget.closeLeftPaneCallback();
+              }
+            },
+            child: Container(
+              padding: EdgeInsets.only(
+                right: 16.0 + (entry.level * 24.0),
+                left: 16.0,
+                top: 10.0,
+                bottom: 10.0,
+              ),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context).dividerColor,
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    FluentIcons.text_bullet_list_24_regular,
+                    color: Theme.of(context).colorScheme.secondary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      entry.fullText,
+                      style: const TextStyle(
+                        fontSize: 14,
+                      ),
                     ),
-                  )
-                : _buildTocItem(allEntries[index], showFullText: true),
+                  ),
+                ],
+              ),
+            ),
           );
         });
   }
@@ -192,129 +215,145 @@ class _TocViewerState extends State<TocViewer>
     }
 
     if (entry.children.isEmpty) {
-      return Padding(
+      return BlocBuilder<TextBookBloc, TextBookState>(
         key: itemKey,
-        padding: EdgeInsets.fromLTRB(0, 0, 10 * entry.level.toDouble(), 0),
-        child: BlocBuilder<TextBookBloc, TextBookState>(
-          builder: (context, state) {
-            final int? autoIndex = state is TextBookLoaded &&
-                    state.selectedIndex == null &&
-                    state.visibleIndices.isNotEmpty
-                ? closestTocEntryIndex(
-                    state.tableOfContents, state.visibleIndices.first)
-                : null;
-            final bool selected = state is TextBookLoaded &&
-                ((state.selectedIndex != null &&
-                        state.selectedIndex == entry.index) ||
-                    autoIndex == entry.index);
-            return Material(
-              color: selected 
-                  ? Theme.of(context).colorScheme.secondaryContainer
-                  : Colors.transparent,
-              child: InkWell(
-                onTap: navigateToEntry,
-                hoverColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    entry.text,
-                    style: TextStyle(
-                      color: selected
-                          ? Theme.of(context).colorScheme.onSecondaryContainer
-                          : null,
-                    ),
+        builder: (context, state) {
+          final int? autoIndex = state is TextBookLoaded &&
+                  state.selectedIndex == null &&
+                  state.visibleIndices.isNotEmpty
+              ? closestTocEntryIndex(
+                  state.tableOfContents, state.visibleIndices.first)
+              : null;
+          final bool selected = state is TextBookLoaded &&
+              ((state.selectedIndex != null &&
+                      state.selectedIndex == entry.index) ||
+                  autoIndex == entry.index);
+          
+          return InkWell(
+            onTap: navigateToEntry,
+            child: Container(
+              padding: EdgeInsets.only(
+                right: 16.0 + (entry.level * 24.0),
+                left: 16.0,
+                top: 10.0,
+                bottom: 10.0,
+              ),
+              decoration: BoxDecoration(
+                color: selected
+                    ? Theme.of(context)
+                        .colorScheme
+                        .primaryContainer
+                        .withValues(alpha: 0.3)
+                    : null,
+                border: Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context).dividerColor,
+                    width: 0.5,
                   ),
                 ),
               ),
-            );
-          },
-        ),
-      );
-    } else {
-      final controller =
-          _controllers.putIfAbsent(entry.index, () => ExpansibleController());
-      final bool isExpanded = _expanded[entry.index] ?? (entry.level == 1);
-
-      if (controller.isExpanded != isExpanded) {
-        if (isExpanded) {
-          controller.expand();
-        } else {
-          controller.collapse();
-        }
-      }
-
-      return Padding(
-        key: itemKey,
-        padding: EdgeInsets.fromLTRB(0, 0, 10 * entry.level.toDouble(), 0),
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            dividerColor: Colors.transparent,
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
-            hoverColor: Colors.transparent,
-          ),
-          child: ExpansionTile(
-            controller: controller,
-            key: ValueKey(entry.index),
-            onExpansionChanged: (val) {
-              setState(() {
-                _expanded[entry.index] = val;
-              });
-            },
-            title: BlocBuilder<TextBookBloc, TextBookState>(
-              builder: (context, state) {
-                final int? autoIndex = state is TextBookLoaded &&
-                        state.selectedIndex == null &&
-                        state.visibleIndices.isNotEmpty
-                    ? closestTocEntryIndex(
-                        state.tableOfContents, state.visibleIndices.first)
-                    : null;
-                final bool selected = state is TextBookLoaded &&
-                    ((state.selectedIndex != null &&
-                            state.selectedIndex == entry.index) ||
-                        autoIndex == entry.index);
-                return Material(
-                  color: selected 
-                      ? Theme.of(context).colorScheme.secondaryContainer
-                      : Colors.transparent,
-                  child: InkWell(
-                    onTap: navigateToEntry,
-                    hoverColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        showFullText ? entry.fullText : entry.text,
-                        style: TextStyle(
-                          color: selected
-                              ? Theme.of(context).colorScheme.onSecondaryContainer
-                              : null,
-                        ),
+              child: Row(
+                children: [
+                  Icon(
+                    FluentIcons.text_bullet_list_24_regular,
+                    color: Theme.of(context).colorScheme.secondary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      entry.text,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
                   ),
-                );
-              },
-            ),
-            leading: const Icon(FluentIcons.chevron_right_24_regular),
-            trailing: const SizedBox.shrink(),
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: EdgeInsets.zero,
-            iconColor: Theme.of(context).colorScheme.primary,
-            collapsedIconColor: Theme.of(context).colorScheme.primary,
-            children: [
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: entry.children.length,
-                itemBuilder: (context, index) {
-                  return _buildTocItem(entry.children[index]);
-                },
+                ],
               ),
-            ],
+            ),
+          );
+        },
+      );
+    } else {
+      final bool isExpanded = _expanded[entry.index] ?? (entry.level == 1);
+
+      return Column(
+        key: itemKey,
+        children: [
+          BlocBuilder<TextBookBloc, TextBookState>(
+            builder: (context, state) {
+              final int? autoIndex = state is TextBookLoaded &&
+                      state.selectedIndex == null &&
+                      state.visibleIndices.isNotEmpty
+                  ? closestTocEntryIndex(
+                      state.tableOfContents, state.visibleIndices.first)
+                  : null;
+              final bool selected = state is TextBookLoaded &&
+                  ((state.selectedIndex != null &&
+                          state.selectedIndex == entry.index) ||
+                      autoIndex == entry.index);
+
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    _expanded[entry.index] = !isExpanded;
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.only(
+                    right: 16.0 + (entry.level * 24.0),
+                    left: 16.0,
+                    top: 12.0,
+                    bottom: 12.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? Theme.of(context)
+                            .colorScheme
+                            .primaryContainer
+                            .withValues(alpha: 0.3)
+                        : null,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        FluentIcons.book_24_regular,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          showFullText ? entry.fullText : entry.text,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        isExpanded
+                            ? FluentIcons.chevron_up_24_regular
+                            : FluentIcons.chevron_down_24_regular,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
-        ),
+          if (isExpanded)
+            ...entry.children.map((child) => _buildTocItem(child)),
+        ],
       );
     }
   }
@@ -349,28 +388,33 @@ class _TocViewerState extends State<TocViewer>
             if (state is! TextBookLoaded) return const Center();
             return Column(
               children: [
-                TextField(
-                  controller: searchController,
-                  onChanged: (value) => setState(() {}),
-                  focusNode: widget.focusNode,
-                  autofocus: true,
-                  onSubmitted: (_) {
-                    widget.focusNode.requestFocus();
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'איתור כותרת...',
-                    suffixIcon: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(FluentIcons.dismiss_24_regular),
-                          onPressed: () {
-                            setState(() {
-                              searchController.clear();
-                            });
-                          },
-                        ),
-                      ],
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: (value) => setState(() {}),
+                    focusNode: widget.focusNode,
+                    autofocus: true,
+                    onSubmitted: (_) {
+                      widget.focusNode.requestFocus();
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'איתור כותרת...',
+                      prefixIcon: const Icon(FluentIcons.search_24_regular),
+                      suffixIcon: searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(FluentIcons.dismiss_24_regular),
+                              onPressed: () {
+                                setState(() {
+                                  searchController.clear();
+                                });
+                              },
+                            )
+                          : null,
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
                     ),
                   ),
                 ),

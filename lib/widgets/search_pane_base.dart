@@ -52,51 +52,46 @@ class _SearchPaneBaseState extends State<SearchPaneBase> {
     return Column(
       children: [
         if (widget.progressWidget != null) widget.progressWidget!,
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            const SizedBox(width: 8),
-            Expanded(
-              child: Stack(
-                alignment: Alignment.centerLeft,
-                children: [
-                  ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: widget.searchController,
-                    builder: (context, value, _) {
-                      return TextField(
-                        autofocus: true,
-                        focusNode: widget.focusNode,
-                        controller: widget.searchController,
-                        textAlign: TextAlign.right,
-                        onChanged: (value) => _debounce(
-                            () => widget.onSearchTextChanged?.call(value)),
-                        onSubmitted: (_) {
-                          widget.focusNode.requestFocus();
-                        },
-                        decoration: InputDecoration(
-                          hintText: widget.hintText,
-                          suffixIcon: IconButton(
-                            tooltip: 'נקה',
-                            onPressed: value.text.isNotEmpty
-                                ? () {
-                                    widget.searchController.clear();
-                                    widget.onSearchTextChanged?.call('');
-                                    widget.resetSearchCallback();
-                                    widget.focusNode.requestFocus();
-                                  }
-                                : null,
-                            icon: const Icon(FluentIcons.dismiss_24_regular),
-                          ),
-                        ),
-                        textInputAction: TextInputAction.search,
-                        textDirection: TextDirection.rtl,
-                      );
-                    },
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: widget.searchController,
+            builder: (context, value, _) {
+              return TextField(
+                autofocus: true,
+                focusNode: widget.focusNode,
+                controller: widget.searchController,
+                textAlign: TextAlign.right,
+                onChanged: (value) =>
+                    _debounce(() => widget.onSearchTextChanged?.call(value)),
+                onSubmitted: (_) {
+                  widget.focusNode.requestFocus();
+                },
+                decoration: InputDecoration(
+                  hintText: widget.hintText,
+                  prefixIcon: const Icon(FluentIcons.search_24_regular),
+                  suffixIcon: value.text.isNotEmpty
+                      ? IconButton(
+                          tooltip: 'נקה',
+                          onPressed: () {
+                            widget.searchController.clear();
+                            widget.onSearchTextChanged?.call('');
+                            widget.resetSearchCallback();
+                            widget.focusNode.requestFocus();
+                          },
+                          icon: const Icon(FluentIcons.dismiss_24_regular),
+                        )
+                      : null,
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
                   ),
-                ],
-              ),
-            ),
-          ],
+                ),
+                textInputAction: TextInputAction.search,
+                textDirection: TextDirection.rtl,
+              );
+            },
+          ),
         ),
         if (widget.resultCountString != null)
           Padding(

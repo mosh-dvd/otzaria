@@ -49,8 +49,8 @@ class CombinedView extends StatefulWidget {
 }
 
 class _CombinedViewState extends State<CombinedView> {
-  final GlobalKey<SelectionAreaState> _selectionKey =
-      GlobalKey<SelectionAreaState>();
+  // שמירת הטקסט הנבחר האחרון
+  String? _savedSelectedText;
 
   // שמירת reference ל-BLoC לשימוש ב-listeners
   late final TextBookBloc _textBookBloc;
@@ -103,17 +103,7 @@ class _CombinedViewState extends State<CombinedView> {
     }
   }
 
-  // מעקב אחר בחירת טקסט בלי setState
-  String? _selectedText;
-  int? _selectionStart;
-  int? _selectionEnd;
-
-  // שמירת הבחירה האחרונה לשימוש בתפריט הקונטקסט
-  String? _lastSelectedText;
-  int? _lastSelectionStart;
-  int? _lastSelectionEnd;
-
-  // מעקב אחר האינדקס הנוכחי שנבחר
+  // מעקב אחר האינדקס הנוכחי שנבחר (לשימוש בהעתקה עם כותרות)
   int? _currentSelectedIndex;
 
   /// helper קטן שמחזיר רשימת MenuEntry מקבוצה אחת, כולל כפתור הצג/הסתר הכל
@@ -162,7 +152,7 @@ class _CombinedViewState extends State<CombinedView> {
 
   // בניית תפריט קונטקסט "מקובע" לאינדקס ספציפי של פסקה
   ctx.ContextMenu _buildContextMenuForIndex(
-      TextBookLoaded state, int paragraphIndex) {
+      TextBookLoaded state, int paragraphIndex, BuildContext menuContext) {
     // אם זה מצב תצוגה מקדימה, החזר תפריט מצומצם
     if (widget.isPreviewMode) {
       return ctx.ContextMenu(
@@ -170,8 +160,8 @@ class _CombinedViewState extends State<CombinedView> {
           ctx.MenuItem(
             label: 'העתק',
             icon: FluentIcons.copy_24_regular,
-            enabled: (_lastSelectedText ?? _selectedText) != null &&
-                (_lastSelectedText ?? _selectedText)!.trim().isNotEmpty,
+            enabled: _savedSelectedText != null &&
+                _savedSelectedText!.trim().isNotEmpty,
             onSelected: _copyFormattedText,
           ),
         ],
@@ -203,6 +193,7 @@ class _CombinedViewState extends State<CombinedView> {
         ctx.MenuItem.submenu(
           label: 'מפרשים',
           icon: FluentIcons.book_24_regular,
+          enabled: state.availableCommentators.isNotEmpty,
           items: [
             ctx.MenuItem(
               label: 'הצג את כל המפרשים',
@@ -316,8 +307,8 @@ class _CombinedViewState extends State<CombinedView> {
         ctx.MenuItem(
           label: 'העתק',
           icon: FluentIcons.copy_24_regular,
-          enabled: (_lastSelectedText ?? _selectedText) != null &&
-              (_lastSelectedText ?? _selectedText)!.trim().isNotEmpty,
+          enabled: _savedSelectedText != null &&
+              _savedSelectedText!.trim().isNotEmpty,
           onSelected: _copyFormattedText,
         ),
         ctx.MenuItem(
@@ -342,37 +333,16 @@ class _CombinedViewState extends State<CombinedView> {
     );
   }
 
-  /// זיהוי האינדקס של הטקסט הנבחר
-  int? _findIndexByText(String selectedText) {
-    final cleanedSelected = selectedText.replaceAll(RegExp(r'\s+'), ' ').trim();
-
-    for (int i = 0; i < widget.data.length; i++) {
-      final originalData = widget.data[i];
-      final cleanedOriginal = originalData
-          .replaceAll(RegExp(r'<[^>]*>'), '') // הסרת תגי HTML
-          .replaceAll(RegExp(r'\s+'), ' ')
-          .trim();
-
-      if (cleanedOriginal.contains(cleanedSelected) ||
-          cleanedSelected.contains(cleanedOriginal)) {
-        return i;
-      }
-    }
-    return null;
-  }
-
   /// יצירת הערה מטקסט נבחר
   void _createNoteFromSelection() {
-    // נשתמש בבחירה האחרונה שנשמרה, או בבחירה הנוכחית
-    final text = _lastSelectedText ?? _selectedText;
+    // נשתמש בבחירה האחרונה שנשמרה
+    final text = _savedSelectedText;
     if (text == null || text.trim().isEmpty) {
       UiSnack.show('אנא בחר טקסט ליצירת הערה אישית');
       return;
     }
 
-    final start = _lastSelectionStart ?? _selectionStart ?? 0;
-    final end = _lastSelectionEnd ?? _selectionEnd ?? text.length;
-    _showNoteEditor(text, start, end);
+    _showNoteEditor(text, 0, text.length);
   }
 
   /// העתקת פסקה לפי אינדקס (משתמש ב־widget.data[index] ומייצר גם HTML)
@@ -488,7 +458,12 @@ $textWithBreaks
 
   /// העתקת טקסט מעוצב (HTML) ללוח
   Future<void> _copyFormattedText() async {
-    final plainText = _lastSelectedText ?? _selectedText;
+    // משתמש בטקסט השמור שנבחר לפני פתיחת התפריט
+    final plainText = _savedSelectedText;
+
+    debugPrint('_copyFormattedText called with: "$plainText"');
+    debugPrint('_currentSelectedIndex: $_currentSelectedIndex');
+
     if (plainText == null || plainText.trim().isEmpty) {
       UiSnack.show('אנא בחר טקסט להעתקה');
       return;
@@ -616,46 +591,25 @@ $textWithBreaks
         if (state is! TextBookLoaded) {
           return const Center(child: CircularProgressIndicator());
         }
-        return ProgressiveScroll(
-          maxSpeed: 10000.0,
-          curve: 10.0,
-          accelerationFactor: 5,
-          scrollController: widget.tab.mainOffsetController,
-          child: SelectionArea(
-            key: _selectionKey,
-            contextMenuBuilder: (_, __) => const SizedBox.shrink(),
-            onSelectionChanged: (selection) {
-              final text = selection?.plainText ?? '';
-              if (text.isEmpty) {
-                _selectedText = null;
-                _selectionStart = null;
-                _selectionEnd = null;
+        return SelectionArea(
+          // SelectionArea אחד לכל הרשימה - מאפשר בחירה רציפה בין פסקאות
+          contextMenuBuilder: (context, selectableRegionState) {
+            return const SizedBox.shrink();
+          },
+          onSelectionChanged: (selection) {
+            if (selection != null && selection.plainText.isNotEmpty) {
+              setState(() {
+                _savedSelectedText = selection.plainText;
+                // לא שומרים אינדקס ספציפי כי הבחירה יכולה להיות על פני מספר פסקאות
                 _currentSelectedIndex = null;
-                // עדכון ה-BLoC שאין טקסט נבחר
-                context
-                    .read<TextBookBloc>()
-                    .add(const UpdateSelectedTextForNote(null, null, null));
-              } else {
-                _selectedText = text;
-                _selectionStart = 0;
-                _selectionEnd = text.length;
-
-                // ניסיון לזהות את האינדקס על בסיס התוכן
-                _currentSelectedIndex = _findIndexByText(text);
-
-                // שמירת הבחירה האחרונה
-                _lastSelectedText = text;
-                _lastSelectionStart = 0;
-                _lastSelectionEnd = text.length;
-
-                // עדכון ה-BLoC עם הטקסט הנבחר
-                context
-                    .read<TextBookBloc>()
-                    .add(UpdateSelectedTextForNote(text, 0, text.length));
-              }
-              // בלי setState – כדי לא לרנדר את כל העץ תוך כדי גרירת הבחירה
-            },
-            // שים לב: אין כאן יותר ContextMenuRegion עוטף את כל הרשימה.
+              });
+            }
+          },
+          child: ProgressiveScroll(
+            maxSpeed: 10000.0,
+            curve: 10.0,
+            accelerationFactor: 5,
+            scrollController: widget.tab.mainOffsetController,
             child: buildOuterList(state),
           ),
         );
@@ -686,14 +640,6 @@ $textWithBreaks
     final isSelected = state.selectedIndex == index;
     final isHighlighted = state.highlightedLine == index;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (isSelected && !controller.isExpanded) {
-        controller.expand();
-      } else if (!isSelected && controller.isExpanded) {
-        controller.collapse();
-      }
-    });
-
     final theme = Theme.of(context);
     final backgroundColor = () {
       if (isHighlighted) {
@@ -705,128 +651,117 @@ $textWithBreaks
       return null;
     }();
 
-    return ctx.ContextMenuRegion(
-      contextMenu: _buildContextMenuForIndex(state, index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        decoration: backgroundColor != null
-            ? BoxDecoration(color: backgroundColor)
-            : null,
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
-            hoverColor: Colors.transparent,
-          ),
-          child: ExpansionTile(
-            shape: const Border(),
-            controller: controller,
-            key: PageStorageKey(widget.data[index]),
-            iconColor: Colors.transparent,
-            tilePadding: const EdgeInsets.all(0.0),
-            collapsedIconColor: Colors.transparent,
-            // הסרת כל הצבעים והאפקטים מה-ExpansionTile - נשתמש רק ב-Container למעלה
-            backgroundColor: Colors.transparent,
-            collapsedBackgroundColor: Colors.transparent,
-            // ביטול אפקטי hover ו-splash
-            visualDensity: VisualDensity.compact,
-            // הסרת onExpansionChanged - נטפל בלחיצות ידנית
-            title: GestureDetector(
-              // רק לחיצה על ה-title תפתח/תסגור את המפרשים
+    return Column(
+      key: PageStorageKey(widget.data[index]),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // הטקסט של הספר - ללא SelectionArea נפרד, כי יש SelectionArea כללי
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          decoration: backgroundColor != null
+              ? BoxDecoration(color: backgroundColor)
+              : null,
+          child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
               onTap: () {
-                if (controller.isExpanded) {
-                  controller.collapse();
+                // מאפס את הטקסט השמור כשלוחצים על הפסקה
+                setState(() {
+                  _savedSelectedText = null;
+                  _currentSelectedIndex = null;
+                });
+                // פשוט מעדכן את selectedIndex - זה יגרום לבנייה מחדש
+                if (isSelected) {
                   _textBookBloc.add(const UpdateSelectedIndex(null));
                 } else {
-                  controller.expand();
                   _textBookBloc.add(UpdateSelectedIndex(index));
                 }
               },
-              child: Padding(
-                // padding קטן לעיצוב
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    BlocBuilder<SettingsBloc, SettingsState>(
-                      builder: (context, settingsState) {
-                        String data = widget.data[index];
-                        
-                        // הוספת קישורים מבוססי תווים לפני כל עיבוד אחר
-                        // כי start/end מתייחסים לטקסט המקורי
-                        String dataWithLinks = data;
-                        try {
-                          final linksForLine = state.links
-                              .where((link) => 
-                                  link.index1 == index + 1 &&
-                                  link.start != null && 
-                                  link.end != null)
-                              .toList();
+              onSecondaryTapDown: (details) {
+                // שומר את האינדקס הנוכחי לשימוש בתפריט ההקשר
+                setState(() {
+                  _currentSelectedIndex = index;
+                });
+              },
+              child: ctx.ContextMenuRegion(
+                contextMenu: _buildContextMenuForIndex(state, index, context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: BlocBuilder<SettingsBloc, SettingsState>(
+                    builder: (context, settingsState) {
+                      String data = widget.data[index];
 
-                          if (linksForLine.isNotEmpty) {
-                            dataWithLinks = addInlineLinksToText(data, linksForLine);
-                          }
-                        } catch (e) {
-                          // אם יש שגיאה, פשוט נשתמש בטקסט המקורי
-                          dataWithLinks = data;
+                      // הוספת קישורים מבוססי תווים
+                      String dataWithLinks = data;
+                      try {
+                        final linksForLine = state.links
+                            .where((link) =>
+                                link.index1 == index + 1 &&
+                                link.start != null &&
+                                link.end != null)
+                            .toList();
+
+                        if (linksForLine.isNotEmpty) {
+                          dataWithLinks =
+                              addInlineLinksToText(data, linksForLine);
                         }
+                      } catch (e) {
+                        dataWithLinks = data;
+                      }
 
-                        // כעת מבצעים את שאר העיבודים
-                        if (!settingsState.showTeamim) {
-                          dataWithLinks = utils.removeTeamim(dataWithLinks);
-                        }
-                        if (settingsState.replaceHolyNames) {
-                          dataWithLinks = utils.replaceHolyNames(dataWithLinks);
-                        }
+                      // עיבודים נוספים
+                      if (!settingsState.showTeamim) {
+                        dataWithLinks = utils.removeTeamim(dataWithLinks);
+                      }
+                      if (settingsState.replaceHolyNames) {
+                        dataWithLinks = utils.replaceHolyNames(dataWithLinks);
+                      }
 
-                        String processedData = state.removeNikud
-                            ? utils.highLight(
-                                utils.removeVolwels('$dataWithLinks\n'),
-                                state.searchText)
-                            : utils.highLight('$dataWithLinks\n', state.searchText);
-                        
-                        // החלת עיצוב הסוגריים העגולים
-                        processedData = utils.formatTextWithParentheses(processedData);
+                      String processedData = state.removeNikud
+                          ? utils.highLight(
+                              utils.removeVolwels('$dataWithLinks\n'),
+                              state.searchText)
+                          : utils.highLight(
+                              '$dataWithLinks\n', state.searchText);
 
-                        return HtmlWidget(
-                          '''
-                        <div style="text-align: justify; direction: rtl;">
-                          $processedData
-                        </div>
-                        ''',
-                          key: ValueKey('html_${widget.tab.book.title}_$index'),
-                          textStyle: TextStyle(
-                            fontSize: widget.textSize,
-                            fontFamily: settingsState.fontFamily,
-                            height: 1.5,
-                          ),
-                          onTapUrl: (url) async {
-                            return await HtmlLinkHandler.handleLink(
-                              context,
-                              url,
-                              (tab) => widget.openBookCallback(tab),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ],
+                      processedData =
+                          utils.formatTextWithParentheses(processedData);
+
+                      return HtmlWidget(
+                        '''
+                    <div style="text-align: justify; direction: rtl;">
+                      $processedData
+                    </div>
+                    ''',
+                        key: ValueKey('html_${widget.tab.book.title}_$index'),
+                        textStyle: TextStyle(
+                          fontSize: widget.textSize,
+                          fontFamily: settingsState.fontFamily,
+                          height: 1.5,
+                        ),
+                        onTapUrl: (url) async {
+                          return await HtmlLinkHandler.handleLink(
+                            context,
+                            url,
+                            (tab) => widget.openBookCallback(tab),
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
-            children: [
-              if (widget.showCommentaryAsExpansionTiles)
-                CommentaryListBase(
-                  indexes: [index],
-                  fontSize: widget.textSize,
-                  openBookCallback: widget.openBookCallback,
-                  showSearch: false,
-                ),
-            ],
           ),
-        ),
-      ),
+        // המפרשים - ללא SelectionArea נפרד, כי יש SelectionArea כללי
+        if (widget.showCommentaryAsExpansionTiles && isSelected)
+          CommentaryListBase(
+            indexes: [index],
+            fontSize: widget.textSize,
+            openBookCallback: widget.openBookCallback,
+            showSearch: false,
+          ),
+      ],
     );
   }
 

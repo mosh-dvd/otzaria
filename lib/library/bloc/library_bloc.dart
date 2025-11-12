@@ -41,6 +41,9 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
         currentCategory: library,
         isLoading: false,
         previewBook: firstBook,
+        searchResults: null,
+        searchQuery: null,
+        selectedTopics: null,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -276,6 +279,9 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     SelectBookForPreview event,
     Emitter<LibraryState> emit,
   ) {
-    emit(state.copyWith(previewBook: event.book));
+    emit(state.copyWith(
+      previewBook: event.book,
+      searchResults: state.searchResults,
+    ));
   }
 }

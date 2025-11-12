@@ -184,18 +184,29 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
             child: Column(
               children: [
                 // --- שדה החיפוש ---
-                TextField(
-                  controller: searchController,
-                  decoration: InputDecoration(
-                    hintText: "סינון",
-                    suffix: IconButton(
-                        onPressed: () {
-                          searchController.clear();
-                          _update(context, state);
-                        },
-                        icon: const Icon(FluentIcons.dismiss_24_regular)),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      hintText: "סינון מפרשים...",
+                      prefixIcon: const Icon(FluentIcons.search_24_regular),
+                      suffixIcon: searchController.text.isNotEmpty
+                          ? IconButton(
+                              onPressed: () {
+                                searchController.clear();
+                                _update(context, state);
+                              },
+                              icon: const Icon(FluentIcons.dismiss_24_regular),
+                            )
+                          : null,
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                    ),
+                    onChanged: (_) => _update(context, state),
                   ),
-                  onChanged: (_) => _update(context, state),
                 ),
 
                 // --- כפתור הכל ---

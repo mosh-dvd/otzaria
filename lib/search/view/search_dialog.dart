@@ -1019,9 +1019,9 @@ class _SearchDialogState extends State<SearchDialog> {
                                                             .colorScheme
                                                             .primary,
                                                     padding:
-                                                        const EdgeInsets.all(8),
+                                                        const EdgeInsets.all(6),
                                                     minimumSize:
-                                                        const Size(36, 36),
+                                                        const Size(32, 32),
                                                     tapTargetSize:
                                                         MaterialTapTargetSize
                                                             .shrinkWrap,

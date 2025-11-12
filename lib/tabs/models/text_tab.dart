@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/text_book_repository.dart';
 import 'package:otzaria/text_book/editing/repository/local_overrides_repository.dart';
@@ -37,6 +38,9 @@ class TextBookTab extends OpenedTab {
   final ScrollOffsetController auxOffsetController = ScrollOffsetController();
 
   List<String>? commentators;
+  
+  // StreamSubscription לניהול ה-listener
+  StreamSubscription<TextBookState>? _stateSubscription;
 
   /// Creates a new instance of [TextBookTab].
   ///
@@ -69,6 +73,22 @@ class TextBookTab extends OpenedTab {
       scrollController: scrollController,
       positionsListener: positionsListener,
     );
+    
+    // הוספת listener לעדכון האינדקס כשה-state משתנה
+    _stateSubscription = bloc.stream.listen((state) {
+      if (state is TextBookLoaded && state.visibleIndices.isNotEmpty) {
+        index = state.visibleIndices.first;
+        debugPrint('DEBUG: עדכון אינדקס ל-$index עבור ספר: ${book.title}');
+      }
+    });
+  }
+  
+  /// Cleanup when the tab is disposed
+  @override
+  void dispose() {
+    _stateSubscription?.cancel();
+    bloc.close();
+    super.dispose();
   }
 
   /// Creates a new instance of [TextBookTab] from a JSON map.
@@ -99,17 +119,28 @@ class TextBookTab extends OpenedTab {
   Map<String, dynamic> toJson() {
     List<String> commentators = [];
     bool splitedView = false;
-    int index = 0;
+    int currentIndex = index; // שמירת האינדקס הנוכחי כברירת מחדל
+    
     if (bloc.state is TextBookLoaded) {
       final loadedState = bloc.state as TextBookLoaded;
       commentators = loadedState.activeCommentators;
       splitedView = loadedState.showSplitView;
-      index = loadedState.visibleIndices.first;
+      // עדכון האינדקס מה-state הנטען - תמיד לוקחים את האינדקס האחרון שנראה
+      if (loadedState.visibleIndices.isNotEmpty) {
+        currentIndex = loadedState.visibleIndices.first;
+        // עדכון גם את ה-index של הטאב עצמו כדי שישמר
+        index = currentIndex;
+        debugPrint('DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (מתוך visibleIndices)');
+      } else {
+        debugPrint('DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (ברירת מחדל)');
+      }
+    } else {
+      debugPrint('DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (state לא loaded)');
     }
 
     return {
       'title': title,
-      'initalIndex': index,
+      'initalIndex': currentIndex,
       'commentators': commentators,
       'splitedView': splitedView,
       'type': 'TextBookTab'

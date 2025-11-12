@@ -12,6 +12,52 @@ import 'package:otzaria/settings/settings_state.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
+/// מייצג קבוצת קטעי פירוש רצופים מאותו ספר
+class CommentaryGroup {
+  final String bookTitle;
+  final List<Link> links;
+
+  CommentaryGroup({required this.bookTitle, required this.links});
+}
+
+/// מקבץ רשימת קישורים לקבוצות לפי שם הספר (רק קטעים רצופים)
+List<CommentaryGroup> _groupConsecutiveLinks(List<Link> links) {
+  if (links.isEmpty) return [];
+
+  final groups = <CommentaryGroup>[];
+  String? currentTitle;
+  List<Link> currentGroup = [];
+
+  for (final link in links) {
+    final title = utils.getTitleFromPath(link.path2);
+
+    if (currentTitle == null || currentTitle != title) {
+      // ספר חדש - שומר את הקבוצה הקודמת ומתחיל קבוצה חדשה
+      if (currentGroup.isNotEmpty) {
+        groups.add(CommentaryGroup(
+          bookTitle: currentTitle!,
+          links: List.from(currentGroup),
+        ));
+      }
+      currentTitle = title;
+      currentGroup = [link];
+    } else {
+      // אותו ספר - מוסיף לקבוצה הנוכחית
+      currentGroup.add(link);
+    }
+  }
+
+  // מוסיף את הקבוצה האחרונה
+  if (currentGroup.isNotEmpty) {
+    groups.add(CommentaryGroup(
+      bookTitle: currentTitle!,
+      links: List.from(currentGroup),
+    ));
+  }
+
+  return groups;
+}
+
 class CommentaryListBase extends StatefulWidget {
   final Function(TextBookTab) openBookCallback;
   final double fontSize;
@@ -37,72 +83,127 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
   String _searchQuery = '';
   final ScrollOffsetController scrollController = ScrollOffsetController();
   final ItemScrollController _itemScrollController = ItemScrollController();
-  int _itemCount = 0;
+  final ItemPositionsListener _itemPositionsListener =
+      ItemPositionsListener.create();
   int _currentSearchIndex = 0;
   int _totalSearchResults = 0;
-  final Map<int, int> _searchResultsPerItem = {};
+  final Map<String, int> _searchResultsPerLink = {}; // שונה למפתח String
+  int _lastScrollIndex = 0; // שומר את מיקום הגלילה האחרון
+  bool _allExpanded = true; // מצב גלובלי של פתיחה/סגירה של כל המפרשים
 
-  int _getItemSearchIndex(int itemIndex) {
-    int cumulativeIndex = 0;
-    for (int i = 0; i < itemIndex; i++) {
-      cumulativeIndex += _searchResultsPerItem[i] ?? 0;
+
+  String _getLinkKey(Link link) => '${link.path2}_${link.index2}';
+
+  int _getItemSearchIndex(Link link) {
+    // פשוט מחזיר 0 - החיפוש יעבוד בתוך CommentaryContent
+    return 0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // האזנה לשינויים במיקום הגלילה כדי לשמור את המיקום האחרון
+    _itemPositionsListener.itemPositions.addListener(_updateLastScrollIndex);
+  }
+
+  void _updateLastScrollIndex() {
+    final positions = _itemPositionsListener.itemPositions.value;
+    if (positions.isNotEmpty) {
+      // שומר את האינדקס של הפריט הראשון הנראה
+      _lastScrollIndex = positions.first.index;
     }
-
-    final itemResults = _searchResultsPerItem[itemIndex] ?? 0;
-    if (itemResults == 0) return -1;
-
-    final relativeIndex = _currentSearchIndex - cumulativeIndex;
-    return (relativeIndex >= 0 && relativeIndex < itemResults)
-        ? relativeIndex
-        : -1;
   }
 
   @override
   void dispose() {
+    _itemPositionsListener.itemPositions.removeListener(_updateLastScrollIndex);
     _searchController.dispose();
     super.dispose();
   }
 
-  void _scrollToSearchResult() {
-    if (_totalSearchResults == 0 ||
-        _itemCount == 0 ||
-        !_itemScrollController.isAttached) {
-      return;
-    }
-
-    int cumulativeIndex = 0;
-    int targetItemIndex = 0;
-
-    for (int i = 0; i < _itemCount; i++) {
-      final itemResults = _searchResultsPerItem[i] ?? 0;
-      if (_currentSearchIndex < cumulativeIndex + itemResults) {
-        targetItemIndex = i;
-        break;
-      }
-      cumulativeIndex += itemResults;
-    }
-
-    targetItemIndex = targetItemIndex.clamp(0, _itemCount - 1);
-
-    _itemScrollController.scrollTo(
-      index: targetItemIndex,
-      duration: const Duration(milliseconds: 300),
-      alignment: 0.1,
-    );
-  }
-
-  void _updateSearchResultsCount(int itemIndex, int count) {
+  void _updateSearchResultsCount(Link link, int count) {
     if (mounted) {
       setState(() {
-        _searchResultsPerItem[itemIndex] = count;
+        _searchResultsPerLink[_getLinkKey(link)] = count;
         _totalSearchResults =
-            _searchResultsPerItem.values.fold(0, (sum, count) => sum + count);
+            _searchResultsPerLink.values.fold(0, (sum, count) => sum + count);
         if (_currentSearchIndex >= _totalSearchResults &&
             _totalSearchResults > 0) {
           _currentSearchIndex = _totalSearchResults - 1;
         }
       });
     }
+  }
+
+  Widget _buildCommentaryGroupTile({
+    required CommentaryGroup group,
+    required TextBookLoaded state,
+    required String indexesKey,
+  }) {
+    final groupKey = '${group.bookTitle}_${indexesKey}_$_allExpanded';
+
+    return ExpansionTile(
+      key: PageStorageKey(groupKey),
+      maintainState: true,
+      initiallyExpanded: _allExpanded, // נשלט על ידי המצב הגלובלי
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      collapsedBackgroundColor: Theme.of(context).colorScheme.surface,
+      title: BlocBuilder<SettingsBloc, SettingsState>(
+        builder: (context, settingsState) {
+          String displayTitle = group.bookTitle;
+          if (settingsState.replaceHolyNames) {
+            displayTitle = utils.replaceHolyNames(displayTitle);
+          }
+          return Text(
+            displayTitle,
+            style: TextStyle(
+              fontSize: widget.fontSize * 0.85,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'FrankRuhlCLM',
+            ),
+          );
+        },
+      ),
+      children: group.links.map((link) {
+        return ListTile(
+          contentPadding: const EdgeInsets.only(right: 32.0, left: 16.0),
+          title: BlocBuilder<SettingsBloc, SettingsState>(
+            builder: (context, settingsState) {
+              String displayTitle = link.heRef;
+              if (settingsState.replaceHolyNames) {
+                displayTitle = utils.replaceHolyNames(displayTitle);
+              }
+
+              return Text(
+                displayTitle,
+                style: TextStyle(
+                  fontSize: widget.fontSize * 0.75,
+                  fontWeight: FontWeight.normal,
+                  fontFamily: 'FrankRuhlCLM',
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.5),
+                ),
+              );
+            },
+          ),
+          subtitle: CommentaryContent(
+            key: ValueKey('${link.path2}_${link.index2}_$indexesKey'),
+            link: link,
+            fontSize: widget.fontSize,
+            openBookCallback: widget.openBookCallback,
+            removeNikud: state.removeNikud,
+            searchQuery: widget.showSearch ? _searchQuery : '',
+            currentSearchIndex:
+                widget.showSearch ? _getItemSearchIndex(link) : 0,
+            onSearchResultsCountChanged: widget.showSearch
+                ? (count) => _updateSearchResultsCount(link, count)
+                : null,
+          ),
+        );
+      }).toList(),
+    );
   }
 
   @override
@@ -124,66 +225,18 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
                         hintText: 'חפש בתוך המפרשים המוצגים...',
                         prefixIcon: const Icon(FluentIcons.search_24_regular),
                         suffixIcon: _searchQuery.isNotEmpty
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (_totalSearchResults > 1) ...[
-                                    Text(
-                                      '${_currentSearchIndex + 1}/$_totalSearchResults',
-                                      style:
-                                          Theme.of(context).textTheme.bodySmall,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    IconButton(
-                                      icon: const Icon(FluentIcons.chevron_up_24_regular),
-                                      iconSize: 20,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(
-                                        minWidth: 24,
-                                        minHeight: 24,
-                                      ),
-                                      onPressed: _currentSearchIndex > 0
-                                          ? () {
-                                              setState(() {
-                                                _currentSearchIndex--;
-                                              });
-                                              _scrollToSearchResult();
-                                            }
-                                          : null,
-                                    ),
-                                    IconButton(
-                                      icon:
-                                          const Icon(FluentIcons.chevron_down_24_regular),
-                                      iconSize: 20,
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(
-                                        minWidth: 24,
-                                        minHeight: 24,
-                                      ),
-                                      onPressed: _currentSearchIndex <
-                                              _totalSearchResults - 1
-                                          ? () {
-                                              setState(() {
-                                                _currentSearchIndex++;
-                                              });
-                                              _scrollToSearchResult();
-                                            }
-                                          : null,
-                                    ),
-                                  ],
-                                  IconButton(
-                                    icon: const Icon(FluentIcons.dismiss_24_regular),
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      setState(() {
-                                        _searchQuery = '';
-                                        _currentSearchIndex = 0;
-                                        _totalSearchResults = 0;
-                                        _searchResultsPerItem.clear();
-                                      });
-                                    },
-                                  ),
-                                ],
+                            ? IconButton(
+                                icon:
+                                    const Icon(FluentIcons.dismiss_24_regular),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchQuery = '';
+                                    _currentSearchIndex = 0;
+                                    _totalSearchResults = 0;
+                                    _searchResultsPerLink.clear();
+                                  });
+                                },
                               )
                             : null,
                         isDense: true,
@@ -197,12 +250,28 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
                           _currentSearchIndex = 0;
                           if (value.isEmpty) {
                             _totalSearchResults = 0;
-                            _searchResultsPerItem.clear();
+                            _searchResultsPerLink.clear();
                           }
                         });
                       },
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  // כפתור סגירה/פתיחה גלובלית של כל המפרשים - מוצג רק אם יש מפרשים פעילים
+                  if (state.activeCommentators.isNotEmpty)
+                    IconButton(
+                      icon: Icon(
+                        _allExpanded
+                            ? FluentIcons.arrow_collapse_all_24_regular
+                            : FluentIcons.arrow_expand_all_24_regular,
+                      ),
+                      tooltip: _allExpanded ? 'סגור את כל המפרשים' : 'פתח את כל המפרשים',
+                      onPressed: () {
+                        setState(() {
+                          _allExpanded = !_allExpanded;
+                        });
+                      },
+                    ),
                   // מציג את לחצן הסגירה רק אם יש callback
                   if (widget.onClosePane != null) ...[
                     const SizedBox(width: 8),
@@ -236,80 +305,101 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
                 ],
               ),
             ),
+          ] else ...[
+            // כפתור סגירה/פתיחה גלובלית כאשר אין תיבת חיפוש - מוצג רק אם יש מפרשים פעילים
+            if (state.activeCommentators.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        _allExpanded
+                            ? FluentIcons.arrow_collapse_all_24_regular
+                            : FluentIcons.arrow_expand_all_24_regular,
+                      ),
+                      tooltip: _allExpanded ? 'סגור את כל המפרשים' : 'פתח את כל המפרשים',
+                      onPressed: () {
+                        setState(() {
+                          _allExpanded = !_allExpanded;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
           ],
           Flexible(
             fit: FlexFit.loose,
-            child: FutureBuilder(
-              future: getLinksforIndexs(
-                  indexes: widget.indexes ??
-                      (state.selectedIndex != null
-                          ? [state.selectedIndex!]
-                          : state.visibleIndices),
-                  links: state.links,
-                  commentatorsToShow: state.activeCommentators),
-              builder: (context, thisLinksSnapshot) {
-                if (!thisLinksSnapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (thisLinksSnapshot.data!.isEmpty) {
-                  // בדיקה אם אין מפרשים פעילים כלל
-                  if (state.activeCommentators.isEmpty) {
-                    return const Center(child: Text("לא נבחרו מפרשים להצגה"));
-                  } else {
-                    return const Center(child: Text("לא נמצאו מפרשים להצגה"));
-                  }
-                }
-                final data = thisLinksSnapshot.data!;
-                _itemCount = data.length;
-
-                // יצירת מפתח ייחודי לאינדקסים הנוכחיים
+            child: Builder(
+              builder: (context) {
+                // בודק מראש אם יש קישורים רלוונטיים לאינדקסים הנוכחיים
                 final currentIndexes = widget.indexes ??
                     (state.selectedIndex != null
                         ? [state.selectedIndex!]
                         : state.visibleIndices);
-                final indexesKey = currentIndexes.join(',');
+                
+                // סינון מהיר של קישורים רלוונטיים
+                final hasRelevantLinks = state.links.any((link) =>
+                    currentIndexes.contains(link.index1 - 1) &&
+                    state.activeCommentators.contains(
+                        utils.getTitleFromPath(link.path2)));
+                
+                // אם אין קישורים רלוונטיים, לא מציג כלום
+                if (!hasRelevantLinks) {
+                  return const SizedBox.shrink();
+                }
+                
+                return FutureBuilder(
+                  future: getLinksforIndexs(
+                      indexes: currentIndexes,
+                      links: state.links,
+                      commentatorsToShow: state.activeCommentators),
+                  builder: (context, thisLinksSnapshot) {
+                    if (!thisLinksSnapshot.hasData) {
+                      // רק אם יש קישורים רלוונטיים, מציג אנימציית טעינה
+                      return _buildSkeletonLoading();
+                    }
+                    if (thisLinksSnapshot.data!.isEmpty) {
+                      // אם אין מפרשים, פשוט נציג מסך ריק
+                      return const SizedBox.shrink();
+                    }
+                    final data = thisLinksSnapshot.data!;
 
-                return ProgressiveScroll(
-                  scrollController: scrollController,
-                  maxSpeed: 10000.0,
-                  curve: 10.0,
-                  accelerationFactor: 5,
-                  child: ScrollablePositionedList.builder(
-                    itemScrollController: _itemScrollController,
-                    key: PageStorageKey(
-                        'commentary_${indexesKey}_${state.activeCommentators.hashCode}'),
-                    physics: const ClampingScrollPhysics(),
-                    scrollOffsetController: scrollController,
-                    shrinkWrap: true,
-                    itemCount: data.length,
-                    itemBuilder: (context, index1) => ListTile(
-                      title: BlocBuilder<SettingsBloc, SettingsState>(
-                        builder: (context, settingsState) {
-                          String displayTitle =
-                              thisLinksSnapshot.data![index1].heRef;
-                          if (settingsState.replaceHolyNames) {
-                            displayTitle = utils.replaceHolyNames(displayTitle);
-                          }
-                          return Text(displayTitle);
+                    // מקבץ את הקישורים לקבוצות רצופות
+                    final groups = _groupConsecutiveLinks(data);
+
+                    // יצירת מפתח ייחודי לאינדקסים הנוכחיים
+                    final indexesKey = currentIndexes.join(',');
+
+                    return ProgressiveScroll(
+                      scrollController: scrollController,
+                      maxSpeed: 10000.0,
+                      curve: 10.0,
+                      accelerationFactor: 5,
+                      child: ScrollablePositionedList.builder(
+                        itemScrollController: _itemScrollController,
+                        itemPositionsListener: _itemPositionsListener,
+                        initialScrollIndex:
+                            _lastScrollIndex.clamp(0, groups.length - 1),
+                        key: PageStorageKey(
+                            'commentary_${indexesKey}_${state.activeCommentators.hashCode}'),
+                        physics: const ClampingScrollPhysics(),
+                        scrollOffsetController: scrollController,
+                        shrinkWrap: true,
+                        itemCount: groups.length,
+                        itemBuilder: (context, groupIndex) {
+                          final group = groups[groupIndex];
+                          return _buildCommentaryGroupTile(
+                            group: group,
+                            state: state,
+                            indexesKey: indexesKey,
+                          );
                         },
                       ),
-                      subtitle: CommentaryContent(
-                        key: ValueKey(
-                            '${thisLinksSnapshot.data![index1].path2}_${thisLinksSnapshot.data![index1].index2}_$indexesKey'),
-                        link: thisLinksSnapshot.data![index1],
-                        fontSize: widget.fontSize,
-                        openBookCallback: widget.openBookCallback,
-                        removeNikud: state.removeNikud,
-                        searchQuery: widget.showSearch ? _searchQuery : '',
-                        currentSearchIndex:
-                            widget.showSearch ? _getItemSearchIndex(index1) : 0,
-                        onSearchResultsCountChanged: widget.showSearch
-                            ? (count) =>
-                                _updateSearchResultsCount(index1, count)
-                            : null,
-                      ),
-                    ),
-                  ),
+                    );
+                  },
                 );
               },
             ),
@@ -318,4 +408,80 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
       );
     });
   }
+
+  /// בניית skeleton loading לפרשנות - מספר פרשנויות עם כותרת ושלוש שורות
+  Widget _buildSkeletonLoading() {
+    final baseColor = Theme.of(context).colorScheme.surfaceContainerHighest;
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 4, // מציג 4 שלדים של פרשנויות
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // כותרת הפרשן
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: _SkeletonLine(width: 0.3, height: 20, color: baseColor),
+              ),
+            ),
+            // שלוש שורות תוכן
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _SkeletonLine(width: 0.95, height: 16, color: baseColor),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _SkeletonLine(width: 0.92, height: 16, color: baseColor),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _SkeletonLine(width: 0.88, height: 16, color: baseColor),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+/// Widget של שורה סטטית לשלד טעינה
+class _SkeletonLine extends StatelessWidget {
+  final double width;
+  final double height;
+  final Color color;
+
+  const _SkeletonLine({
+    required this.width,
+    required this.color,
+    this.height = 16,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: MediaQuery.of(context).size.width * width,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+}
+
+

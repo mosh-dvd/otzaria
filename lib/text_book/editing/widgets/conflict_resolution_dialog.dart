@@ -22,190 +22,204 @@ class _ConflictResolutionDialogState extends State<ConflictResolutionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('קונפליקט בעריכה'),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 400,
-        child: RadioGroup<String>(
-          groupValue: _selectedResolution,
-          onChanged: (value) {
-            if (value != null) {
-              setState(() => _selectedResolution = value);
-            }
+    return Actions(
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            widget.onResolve(_selectedResolution);
+            Navigator.of(context).pop();
+            return null;
           },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'הטקסט המקורי השתנה מאז שערכת אותו. בחר כיצד לפתור את הקונפליקט:',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
+        ),
+      },
+      child: AlertDialog(
+        title: const Text('קונפליקט בעריכה'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: RadioGroup<String>(
+            groupValue: _selectedResolution,
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _selectedResolution = value);
+              }
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'הטקסט המקורי השתנה מאז שערכת אותו. בחר כיצד לפתור את הקונפליקט:',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
 
-              // Resolution options
-              const RadioListTile<String>(
-                title: Text('שמור את העריכה שלי'),
-                subtitle: Text('התעלם מהשינויים במקור'),
-                value: 'keep_override',
-              ),
-              const RadioListTile<String>(
-                title: Text('השתמש בגרסה החדשה'),
-                subtitle: Text('בטל את העריכה שלי'),
-                value: 'use_new_source',
-              ),
-              const RadioListTile<String>(
-                title: Text('שמור בנפרד'),
-                subtitle: Text('שמור את העריכה שלי כגרסה נפרדת'),
-                value: 'save_separate',
-              ),
+                // Resolution options
+                const RadioListTile<String>(
+                  title: Text('שמור את העריכה שלי'),
+                  subtitle: Text('התעלם מהשינויים במקור'),
+                  value: 'keep_override',
+                ),
+                const RadioListTile<String>(
+                  title: Text('השתמש בגרסה החדשה'),
+                  subtitle: Text('בטל את העריכה שלי'),
+                  value: 'use_new_source',
+                ),
+                const RadioListTile<String>(
+                  title: Text('שמור בנפרד'),
+                  subtitle: Text('שמור את העריכה שלי כגרסה נפרדת'),
+                  value: 'save_separate',
+                ),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Three-way diff preview
-              Expanded(
-                child: Row(
-                  children: [
-                    // Original
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.withValues(alpha: 0.1),
-                              border: Border.all(
-                                  color: Colors.grey.withValues(alpha: 0.3)),
-                            ),
-                            child: const Text(
-                              'מקור ישן',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 12),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          Expanded(
-                            child: Container(
+                // Three-way diff preview
+                Expanded(
+                  child: Row(
+                    children: [
+                      // Original
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
+                                color: Colors.grey.withValues(alpha: 0.1),
                                 border: Border.all(
                                     color: Colors.grey.withValues(alpha: 0.3)),
                               ),
-                              child: SingleChildScrollView(
-                                child: Text(
-                                  widget.context.originalContent,
-                                  style: const TextStyle(fontSize: 12),
-                                  textDirection: TextDirection.rtl,
+                              child: const Text(
+                                'מקור ישן',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 12),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                      color:
+                                          Colors.grey.withValues(alpha: 0.3)),
+                                ),
+                                child: SingleChildScrollView(
+                                  child: Text(
+                                    widget.context.originalContent,
+                                    style: const TextStyle(fontSize: 12),
+                                    textDirection: TextDirection.rtl,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(width: 4),
+                      const SizedBox(width: 4),
 
-                    // Edited
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withValues(alpha: 0.1),
-                              border: Border.all(
-                                  color: Colors.blue.withValues(alpha: 0.3)),
-                            ),
-                            child: const Text(
-                              'העריכה שלי',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 12),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          Expanded(
-                            child: Container(
+                      // Edited
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
+                                color: Colors.blue.withValues(alpha: 0.1),
                                 border: Border.all(
                                     color: Colors.blue.withValues(alpha: 0.3)),
                               ),
-                              child: SingleChildScrollView(
-                                child: Text(
-                                  widget.context.overrideContent,
-                                  style: const TextStyle(fontSize: 12),
-                                  textDirection: TextDirection.rtl,
+                              child: const Text(
+                                'העריכה שלי',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 12),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                      color:
+                                          Colors.blue.withValues(alpha: 0.3)),
+                                ),
+                                child: SingleChildScrollView(
+                                  child: Text(
+                                    widget.context.overrideContent,
+                                    style: const TextStyle(fontSize: 12),
+                                    textDirection: TextDirection.rtl,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(width: 4),
+                      const SizedBox(width: 4),
 
-                    // New source
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.1),
-                              border: Border.all(
-                                  color: Colors.green.withValues(alpha: 0.3)),
-                            ),
-                            child: const Text(
-                              'מקור חדש',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 12),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          Expanded(
-                            child: Container(
+                      // New source
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.1),
                                 border: Border.all(
                                     color: Colors.green.withValues(alpha: 0.3)),
                               ),
-                              child: SingleChildScrollView(
-                                child: Text(
-                                  widget.context.newSourceContent,
-                                  style: const TextStyle(fontSize: 12),
-                                  textDirection: TextDirection.rtl,
+                              child: const Text(
+                                'מקור חדש',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 12),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                      color:
+                                          Colors.green.withValues(alpha: 0.3)),
+                                ),
+                                child: SingleChildScrollView(
+                                  child: Text(
+                                    widget.context.newSourceContent,
+                                    style: const TextStyle(fontSize: 12),
+                                    textDirection: TextDirection.rtl,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('ביטול'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              widget.onResolve(_selectedResolution);
+              Navigator.of(context).pop();
+            },
+            child: const Text('פתור קונפליקט'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('ביטול'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            widget.onResolve(_selectedResolution);
-            Navigator.of(context).pop();
-          },
-          child: const Text('פתור קונפליקט'),
-        ),
-      ],
     );
   }
 }

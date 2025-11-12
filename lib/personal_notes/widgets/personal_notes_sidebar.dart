@@ -7,6 +7,8 @@ import 'package:otzaria/personal_notes/bloc/personal_notes_event.dart';
 import 'package:otzaria/personal_notes/bloc/personal_notes_state.dart';
 import 'package:otzaria/personal_notes/models/personal_note.dart';
 import 'package:otzaria/personal_notes/widgets/personal_note_editor_dialog.dart';
+import 'package:otzaria/widgets/confirmation_dialog.dart';
+import 'package:otzaria/widgets/input_dialog.dart';
 
 class PersonalNotesSidebar extends StatefulWidget {
   final String bookId;
@@ -173,22 +175,12 @@ class _PersonalNotesSidebarState extends State<PersonalNotesSidebar> {
 
   Future<void> _confirmDelete(BuildContext context, PersonalNote note) async {
     final bloc = context.read<PersonalNotesBloc>();
-    final shouldDelete = await showDialog<bool>(
+    final shouldDelete = await showConfirmationDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('מחיקת הערה'),
-        content: const Text('האם למחוק את ההערה לצמיתות?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('ביטול'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('מחק'),
-          ),
-        ],
-      ),
+      title: 'מחיקת הערה',
+      content: 'האם למחוק את ההערה לצמיתות?',
+      confirmText: 'מחק',
+      isDangerous: true,
     );
 
     if (shouldDelete == true) {
@@ -203,52 +195,21 @@ class _PersonalNotesSidebarState extends State<PersonalNotesSidebar> {
   }
 
   Future<void> _reposition(BuildContext context, PersonalNote note) async {
-    final controller = TextEditingController(
-      text: note.lastKnownLineNumber?.toString() ?? '',
-    );
     final bloc = context.read<PersonalNotesBloc>();
 
-    final newLine = await showDialog<int>(
+    final result = await showInputDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('שחזור מיקום הערה'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (note.lastKnownLineNumber != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Text(
-                  'המיקום האחרון הידוע: שורה ${note.lastKnownLineNumber}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'שורה חדשה',
-                hintText: 'הקלד מספר שורה',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('ביטול'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text.trim());
-              Navigator.of(context).pop(value);
-            },
-            child: const Text('שמור'),
-          ),
-        ],
-      ),
+      title: 'שחזור מיקום הערה',
+      subtitle: note.lastKnownLineNumber != null
+          ? 'המיקום האחרון הידוע: שורה ${note.lastKnownLineNumber}'
+          : null,
+      labelText: 'שורה חדשה',
+      hintText: 'הקלד מספר שורה',
+      initialValue: note.lastKnownLineNumber?.toString() ?? '',
+      keyboardType: TextInputType.number,
     );
+
+    final newLine = result != null ? int.tryParse(result) : null;
 
     if (newLine != null) {
       if (!mounted) return;

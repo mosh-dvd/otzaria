@@ -12,6 +12,7 @@ import '../services/preview_renderer.dart';
 import '../models/editor_settings.dart';
 import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
+import 'package:otzaria/widgets/confirmation_dialog.dart';
 import 'markdown_toolbar.dart';
 
 /// Full-screen dialog for editing text sections with split-pane interface
@@ -234,28 +235,19 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
     Navigator.of(context).pop();
   }
 
-  void _discardChanges() {
+  void _discardChanges() async {
     if (_hasUnsavedChanges) {
-      showDialog(
+      final confirmed = await showConfirmationDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('בטל שינויים'),
-          content: const Text('האם אתה בטוח שברצונך לבטל את השינויים?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('ביטול'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop();
-              },
-              child: const Text('בטל שינויים'),
-            ),
-          ],
-        ),
+        title: 'בטל שינויים',
+        content: 'האם אתה בטוח שברצונך לבטל את השינויים?',
+        confirmText: 'בטל שינויים',
+        isDangerous: true,
       );
+
+      if (confirmed == true && mounted) {
+        Navigator.of(context).pop();
+      }
     } else {
       Navigator.of(context).pop();
     }
@@ -748,43 +740,59 @@ class _LinkInsertDialogState extends State<_LinkInsertDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('הוסף קישור'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _textController,
-            decoration: const InputDecoration(
-              labelText: 'טקסט הקישור',
-              hintText: 'לחץ כאן',
+    return Actions(
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            widget.onInsert(_textController.text, _urlController.text);
+            Navigator.of(context).pop();
+            return null;
+          },
+        ),
+      },
+      child: AlertDialog(
+        title: const Text('הוסף קישור'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _textController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'טקסט הקישור',
+                hintText: 'לחץ כאן',
+              ),
+              textDirection: TextDirection.rtl,
             ),
-            textDirection: TextDirection.rtl,
+            const SizedBox(height: 16),
+            TextField(
+              controller: _urlController,
+              decoration: const InputDecoration(
+                labelText: 'כתובת URL',
+                hintText: 'https://example.com',
+              ),
+              textDirection: TextDirection.ltr,
+              onSubmitted: (_) {
+                widget.onInsert(_textController.text, _urlController.text);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('ביטול'),
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _urlController,
-            decoration: const InputDecoration(
-              labelText: 'כתובת URL',
-              hintText: 'https://example.com',
-            ),
-            textDirection: TextDirection.ltr,
+          TextButton(
+            onPressed: () {
+              widget.onInsert(_textController.text, _urlController.text);
+              Navigator.of(context).pop();
+            },
+            child: const Text('הוסף'),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('ביטול'),
-        ),
-        TextButton(
-          onPressed: () {
-            widget.onInsert(_textController.text, _urlController.text);
-            Navigator.of(context).pop();
-          },
-          child: const Text('הוסף'),
-        ),
-      ],
     );
   }
 }

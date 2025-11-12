@@ -4,6 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart';
 import 'package:otzaria/history/bloc/history_bloc.dart';
 import 'package:otzaria/history/bloc/history_event.dart';
+import 'package:otzaria/navigation/bloc/navigation_bloc.dart';
+import 'package:otzaria/navigation/bloc/navigation_event.dart';
+import 'package:otzaria/navigation/bloc/navigation_state.dart' show Screen;
 import 'package:otzaria/pdf_book/pdf_book_screen.dart';
 import 'package:otzaria/tabs/bloc/tabs_bloc.dart';
 import 'package:otzaria/tabs/bloc/tabs_event.dart';
@@ -84,15 +87,135 @@ class _ReadingScreenState extends State<ReadingScreen>
       },
       listenWhen: (previous, current) =>
           previous.currentTabIndex != current.currentTabIndex,
-      child: BlocBuilder<TabsBloc, TabsState>(
-        builder: (context, state) {
-          if (!state.hasOpenTabs) {
-            // אם אין טאבים פתוחים אין מה להציג
-            return const Center(child: Text('אין כרטיסיות פתוחות'));
-          }
+      child: BlocBuilder<SettingsBloc, SettingsState>(
+        builder: (context, settingsState) {
+          return BlocBuilder<TabsBloc, TabsState>(
+            builder: (context, state) {
+              if (!state.hasOpenTabs) {
+                // קריאת הגדרות כדי להציג את קיצורי המקלדת
+                final historyShortcut =
+                    Settings.getValue<String>('key-shortcut-open-history') ??
+                        'ctrl+h';
+                final bookmarksShortcut =
+                    Settings.getValue<String>('key-shortcut-open-bookmarks') ??
+                        'ctrl+shift+b';
+                final workspaceShortcut = Settings.getValue<String>(
+                        'key-shortcut-switch-workspace') ??
+                    'ctrl+k';
 
-          return Builder(
-            builder: (context) {
+                return Scaffold(
+                  appBar: AppBar(
+                    key: ValueKey(
+                        'appbar_empty_${historyShortcut}_${bookmarksShortcut}_$workspaceShortcut'),
+                    leadingWidth: _kAppBarControlsWidth,
+                    leading: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // קבוצת היסטוריה וסימניות
+                        IconButton(
+                          icon: const Icon(FluentIcons.history_24_regular),
+                          tooltip:
+                              'הצג היסטוריה (${historyShortcut.toUpperCase()})',
+                          onPressed: () => _showHistoryDialog(context),
+                        ),
+                        IconButton(
+                          icon: const Icon(FluentIcons.bookmark_24_regular),
+                          tooltip:
+                              'הצג סימניות (${bookmarksShortcut.toUpperCase()})',
+                          onPressed: () => _showBookmarksDialog(context),
+                        ),
+                        // קו מפריד
+                        Container(
+                          height: 24,
+                          width: 1,
+                          color: Colors.grey.shade400,
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                        ),
+                        // קבוצת שולחן עבודה
+                        IconButton(
+                          icon: const Icon(FluentIcons.add_square_24_regular),
+                          tooltip:
+                              'החלף שולחן עבודה (${workspaceShortcut.toUpperCase()})',
+                          onPressed: () => _showSaveWorkspaceDialog(context),
+                        ),
+                      ],
+                    ),
+                    titleSpacing: 0,
+                    centerTitle: true,
+                    title: const Text('עיון'),
+                    actions: [
+                      // כפתור מסך מלא
+                      BlocBuilder<SettingsBloc, SettingsState>(
+                        builder: (context, settingsState) {
+                          return IconButton(
+                            icon: Icon(settingsState.isFullscreen
+                                ? FluentIcons.full_screen_minimize_24_regular
+                                : FluentIcons.full_screen_maximize_24_regular),
+                            tooltip: settingsState.isFullscreen
+                                ? 'צא ממסך מלא'
+                                : 'מסך מלא',
+                            onPressed: () async {
+                              final newFullscreenState =
+                                  !settingsState.isFullscreen;
+                              context
+                                  .read<SettingsBloc>()
+                                  .add(UpdateIsFullscreen(newFullscreenState));
+                              await windowManager
+                                  .setFullScreen(newFullscreenState);
+                            },
+                          );
+                        },
+                      ),
+                      // כפתור הגדרות
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: IconButton(
+                          icon: const Icon(FluentIcons.settings_24_regular),
+                          tooltip: 'הגדרות תצוגת הספרים',
+                          onPressed: () => showReadingSettingsDialog(context),
+                          style: IconButton.styleFrom(
+                            foregroundColor:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  body: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            'לא נבחרו ספרים',
+                            style: TextStyle(fontSize: 18),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              context.read<NavigationBloc>().add(
+                                    const NavigateToScreen(Screen.library),
+                                  );
+                            },
+                            icon: const Icon(FluentIcons.library_24_regular),
+                            label: const Text('דפדף בספרייה'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
               final controller = TabController(
                 length: state.tabs.length,
                 vsync: this,
@@ -107,6 +230,8 @@ class _ReadingScreenState extends State<ReadingScreen>
                       'DEBUG: מעבר בין טאבים - שמירת מצב טאב ${state.currentTabIndex}');
                   context.read<HistoryBloc>().add(CaptureStateForHistory(
                       state.tabs[state.currentTabIndex]));
+                  // שמירת כל הטאבים לדיסק
+                  context.read<TabsBloc>().add(const SaveTabs());
                 }
                 if (controller.index != state.currentTabIndex) {
                   debugPrint('DEBUG: עדכון טאב נוכחי ל-${controller.index}');
@@ -114,8 +239,24 @@ class _ReadingScreenState extends State<ReadingScreen>
                 }
               });
 
+              // קריאת הגדרות כדי לגרום ל-rebuild כשהן משתנות
+              final historyShortcut =
+                  Settings.getValue<String>('key-shortcut-open-history') ??
+                      'ctrl+h';
+              final bookmarksShortcut =
+                  Settings.getValue<String>('key-shortcut-open-bookmarks') ??
+                      'ctrl+shift+b';
+              final workspaceShortcut =
+                  Settings.getValue<String>('key-shortcut-switch-workspace') ??
+                      'ctrl+k';
+              final closeTabShortcut =
+                  Settings.getValue<String>('key-shortcut-close-tab') ??
+                      'ctrl+w';
+
               return Scaffold(
                 appBar: AppBar(
+                  key: ValueKey(
+                      'appbar_${historyShortcut}_${bookmarksShortcut}_${workspaceShortcut}_$closeTabShortcut'),
                   // 1. משתמשים בקבוע שהגדרנו עבור הרוחב
                   leadingWidth: _kAppBarControlsWidth,
                   leading: Row(
@@ -124,12 +265,14 @@ class _ReadingScreenState extends State<ReadingScreen>
                       // קבוצת היסטוריה וסימניות
                       IconButton(
                         icon: const Icon(FluentIcons.history_24_regular),
-                        tooltip: 'הצג היסטוריה',
+                        tooltip:
+                            'הצג היסטוריה (${historyShortcut.toUpperCase()})',
                         onPressed: () => _showHistoryDialog(context),
                       ),
                       IconButton(
                         icon: const Icon(FluentIcons.bookmark_24_regular),
-                        tooltip: 'הצג סימניות',
+                        tooltip:
+                            'הצג סימניות (${bookmarksShortcut.toUpperCase()})',
                         onPressed: () => _showBookmarksDialog(context),
                       ),
                       // קו מפריד
@@ -142,7 +285,8 @@ class _ReadingScreenState extends State<ReadingScreen>
                       // קבוצת שולחן עבודה עם אנימציה
                       IconButton(
                         icon: const Icon(FluentIcons.add_square_24_regular),
-                        tooltip: 'החלף שולחן עבודה',
+                        tooltip:
+                            'החלף שולחן עבודה (${workspaceShortcut.toUpperCase()})',
                         onPressed: () => _showSaveWorkspaceDialog(context),
                       ),
                     ],
@@ -263,6 +407,8 @@ class _ReadingScreenState extends State<ReadingScreen>
   Widget _buildTab(BuildContext context, OpenedTab tab, TabsState state) {
     final index = state.tabs.indexOf(tab);
     final isSelected = index == state.currentTabIndex;
+    final closeTabShortcut =
+        Settings.getValue<String>('key-shortcut-close-tab') ?? 'ctrl+w';
 
     return Listener(
       onPointerDown: (PointerDownEvent event) {
@@ -398,10 +544,7 @@ class _ReadingScreenState extends State<ReadingScreen>
                                   child: Text(truncate(tab.title, 12))),
                             Tooltip(
                               preferBelow: false,
-                              message: (Settings.getValue<String>(
-                                          'key-shortcut-close-tab') ??
-                                      'ctrl+w')
-                                  .toUpperCase(),
+                              message: closeTabShortcut.toUpperCase(),
                               child: IconButton(
                                 constraints: const BoxConstraints(
                                   minWidth: 25,

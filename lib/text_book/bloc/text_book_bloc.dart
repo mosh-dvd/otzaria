@@ -148,24 +148,21 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       );
 
       // Set up position listener with debouncing to prevent excessive updates
-      // רק אם loadCommentators=true (כלומר, לא בתצוגה מקדימה)
-      if (event.loadCommentators) {
-        Timer? debounceTimer;
-        positionsListener.itemPositions.addListener(() {
-          // Cancel previous timer if exists
-          debounceTimer?.cancel();
+      Timer? debounceTimer;
+      positionsListener.itemPositions.addListener(() {
+        // Cancel previous timer if exists
+        debounceTimer?.cancel();
 
-          // Set new timer with 100ms delay
-          debounceTimer = Timer(const Duration(milliseconds: 100), () {
-            final visibleIndicesNow = positionsListener.itemPositions.value
-                .map((e) => e.index)
-                .toList();
-            if (visibleIndicesNow.isNotEmpty) {
-              add(UpdateVisibleIndecies(visibleIndicesNow));
-            }
-          });
+        // Set new timer with 100ms delay
+        debounceTimer = Timer(const Duration(milliseconds: 100), () {
+          final visibleIndicesNow = positionsListener.itemPositions.value
+              .map((e) => e.index)
+              .toList();
+          if (visibleIndicesNow.isNotEmpty) {
+            add(UpdateVisibleIndecies(visibleIndicesNow));
+          }
         });
-      }
+      });
 
       emit(TextBookLoaded(
         book: book,
@@ -263,21 +260,10 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     if (state is TextBookLoaded) {
       final currentState = state as TextBookLoaded;
 
-      // אם אין מפרשים פעילים וחלונית הצד פתוחה, סוגר אותה
-      final shouldCloseSplitView =
-          event.commentators.isEmpty && currentState.showSplitView;
-
-      // אם יש מפרשים חדשים ואין חלונית פתוחה, פותח אותה
-      final shouldOpenSplitView = event.commentators.isNotEmpty &&
-          currentState.activeCommentators.isEmpty &&
-          !currentState.showSplitView;
-
+      // עדכון המפרשים הפעילים בלבד, ללא שינוי של סוג התצוגה
       emit(currentState.copyWith(
         activeCommentators: event.commentators,
         selectedIndex: currentState.selectedIndex,
-        showSplitView: shouldCloseSplitView
-            ? false
-            : (shouldOpenSplitView ? true : currentState.showSplitView),
       ));
     }
   }
