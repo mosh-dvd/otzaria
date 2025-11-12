@@ -56,17 +56,30 @@ class FileSystemData {
     titleToPath = _getTitleToPath();
     metadata = _getMetadata();
 
-    // Get library from file system
-    final fsLibrary = await _getLibraryFromDirectory(
-        '$libraryPath${Platform.pathSeparator}אוצריא', await metadata);
+    // Determine the correct library path
+    String otzariaPath = '$libraryPath${Platform.pathSeparator}אוצריא';
+
+    Library fsLibrary;
+
+    // Check if the אוצריא directory exists
+    if (await Directory(otzariaPath).exists()) {
+      debugPrint('✅ Found אוצריא directory at $otzariaPath');
+      // Get library from file system
+      fsLibrary = await _getLibraryFromDirectory(otzariaPath, await metadata);
+    } else {
+      debugPrint('⚠️ No אוצריא directory found at $otzariaPath');
+      debugPrint('📚 Will load library from SQLite database only');
+      // Create empty library - will be populated from database
+      fsLibrary = Library(categories: []);
+    }
 
     // Try to merge books from SQLite database
-    debugPrint('🚀 Attempting to merge books from SQLite...');
+    debugPrint('🚀 Attempting to load books from SQLite...');
     try {
       await _mergeBooksFromDatabase(fsLibrary);
-      debugPrint('✅ Merged books from SQLite database into library');
+      debugPrint('✅ Loaded books from SQLite database into library');
     } catch (e) {
-      debugPrint('⚠️ Could not merge books from database: $e');
+      debugPrint('⚠️ Could not load books from database: $e');
     }
 
     return fsLibrary;
@@ -181,19 +194,32 @@ class FileSystemData {
     // Initialize empty library
     Library library = Library(categories: []);
 
-    // Process top-level directories
-    await for (FileSystemEntity entity in Directory(path).list()) {
-      if (entity is Directory) {
-        // Skip "אודות התוכנה" directory
-        final dirName = entity.path.split(Platform.pathSeparator).last;
-        if (dirName == 'אודות התוכנה') {
-          continue;
-        }
-
-        library.subCategories.add(await getAllCategoriesAndBooksFromDirectory(
-            Directory(entity.path), library));
-      }
+    // Check if directory exists before trying to list it
+    final directory = Directory(path);
+    if (!await directory.exists()) {
+      debugPrint('⚠️ Library directory does not exist: $path');
+      return library; // Return empty library
     }
+
+    // Process top-level directories
+    try {
+      await for (FileSystemEntity entity in directory.list()) {
+        if (entity is Directory) {
+          // Skip "אודות התוכנה" directory
+          final dirName = entity.path.split(Platform.pathSeparator).last;
+          if (dirName == 'אודות התוכנה') {
+            continue;
+          }
+
+          library.subCategories.add(await getAllCategoriesAndBooksFromDirectory(
+              Directory(entity.path), library));
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error listing directory $path: $e');
+      // Return library with whatever we managed to load
+    }
+
     library.subCategories.sort((a, b) => a.order.compareTo(b.order));
     return library;
   }
@@ -909,7 +935,8 @@ class FileSystemData {
 
           final categoryId = bookMeta['categoryId'] as int?;
           if (categoryId == null || !categoryMap.containsKey(categoryId)) {
-            debugPrint('⚠️ Book "$title" has invalid category (id: $categoryId)');
+            debugPrint(
+                '⚠️ Book "$title" has invalid category (id: $categoryId)');
             continue;
           }
 
@@ -954,7 +981,8 @@ class FileSystemData {
 
       library.subCategories.sort((a, b) => a.title.compareTo(b.title));
 
-      debugPrint('✅ Successfully built category hierarchy with $totalAdded books');
+      debugPrint(
+          '✅ Successfully built category hierarchy with $totalAdded books');
     } catch (e) {
       debugPrint('❌ Error building category hierarchy: $e');
       debugPrint('❌ Error building category hierarchy: $e');
@@ -1060,4 +1088,3 @@ class FileSystemData {
         normalized.contains(ktuvim);
   }
 }
-

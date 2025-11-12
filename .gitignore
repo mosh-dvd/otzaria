@@ -70,3 +70,6 @@ flutter/
 *.db-wal
 *.db-shm
 seforim.db
+
+# DB directories
+DB/
