@@ -89,6 +89,8 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
   int _totalSearchResults = 0;
   final Map<String, int> _searchResultsPerLink = {}; // שונה למפתח String
   int _lastScrollIndex = 0; // שומר את מיקום הגלילה האחרון
+  bool _allExpanded = true; // מצב גלובלי של פתיחה/סגירה של כל המפרשים
+
 
   String _getLinkKey(Link link) => '${link.path2}_${link.index2}';
 
@@ -138,12 +140,12 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
     required TextBookLoaded state,
     required String indexesKey,
   }) {
-    final groupKey = '${group.bookTitle}_$indexesKey';
+    final groupKey = '${group.bookTitle}_${indexesKey}_$_allExpanded';
 
     return ExpansionTile(
       key: PageStorageKey(groupKey),
       maintainState: true,
-      initiallyExpanded: true, // כרטיסיות פתוחות בברירת מחדל
+      initiallyExpanded: _allExpanded, // נשלט על ידי המצב הגלובלי
       backgroundColor: Theme.of(context).colorScheme.surface,
       collapsedBackgroundColor: Theme.of(context).colorScheme.surface,
       title: BlocBuilder<SettingsBloc, SettingsState>(
@@ -254,6 +256,21 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
                       },
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  // כפתור סגירה/פתיחה גלובלית של כל המפרשים
+                  IconButton(
+                    icon: Icon(
+                      _allExpanded
+                          ? FluentIcons.arrow_collapse_all_24_regular
+                          : FluentIcons.arrow_expand_all_24_regular,
+                    ),
+                    tooltip: _allExpanded ? 'סגור את כל המפרשים' : 'פתח את כל המפרשים',
+                    onPressed: () {
+                      setState(() {
+                        _allExpanded = !_allExpanded;
+                      });
+                    },
+                  ),
                   // מציג את לחצן הסגירה רק אם יש callback
                   if (widget.onClosePane != null) ...[
                     const SizedBox(width: 8),
@@ -284,6 +301,29 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
                       ),
                     ),
                   ],
+                ],
+              ),
+            ),
+          ] else ...[
+            // כפתור סגירה/פתיחה גלובלית כאשר אין תיבת חיפוש
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      _allExpanded
+                          ? FluentIcons.arrow_collapse_all_24_regular
+                          : FluentIcons.arrow_expand_all_24_regular,
+                    ),
+                    tooltip: _allExpanded ? 'סגור את כל המפרשים' : 'פתח את כל המפרשים',
+                    onPressed: () {
+                      setState(() {
+                        _allExpanded = !_allExpanded;
+                      });
+                    },
+                  ),
                 ],
               ),
             ),
@@ -441,3 +481,5 @@ class _SkeletonLine extends StatelessWidget {
     );
   }
 }
+
+
