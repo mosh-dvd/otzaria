@@ -22,7 +22,7 @@ import 'package:otzaria/utils/toc_parser.dart';
 /// - Handling external book data from CSV files
 /// - Managing book links and metadata
 /// - Providing table of contents functionality
-/// 
+///
 /// Now supports reading from SQLite database with fallback to file system.
 class FileSystemData {
   /// Future that resolves to a mapping of book titles to their file system paths
@@ -55,22 +55,20 @@ class FileSystemData {
   Future<Library> getLibrary() async {
     titleToPath = _getTitleToPath();
     metadata = _getMetadata();
-    
+
     // Get library from file system
     final fsLibrary = await _getLibraryFromDirectory(
         '$libraryPath${Platform.pathSeparator}אוצריא', await metadata);
-    
+
     // Try to merge books from SQLite database
-    print('🚀 Attempting to merge books from SQLite...');
+    debugPrint('🚀 Attempting to merge books from SQLite...');
     try {
       await _mergeBooksFromDatabase(fsLibrary);
-      print('✅ Merged books from SQLite database into library');
       debugPrint('✅ Merged books from SQLite database into library');
     } catch (e) {
-      print('⚠️ Could not merge books from database: $e');
       debugPrint('⚠️ Could not merge books from database: $e');
     }
-    
+
     return fsLibrary;
   }
 
@@ -163,18 +161,20 @@ class FileSystemData {
 
       // Update book order based on generation (from CSV) before sorting
       if (category.books.isNotEmpty) {
-        debugPrint('📂 Processing category: ${category.title} (${category.books.length} books)');
+        debugPrint(
+            '📂 Processing category: ${category.title} (${category.books.length} books)');
         await _updateBooksOrderByGeneration(category.books);
       }
-      
+
       // Sort categories and books by their order
       category.subCategories.sort((a, b) => a.order.compareTo(b.order));
       category.books.sort((a, b) => a.order.compareTo(b.order));
-      
+
       if (category.books.isNotEmpty && category.books.length <= 5) {
-        debugPrint('   After sort: ${category.books.map((b) => "${b.title} (${b.order})").join(", ")}');
+        debugPrint(
+            '   After sort: ${category.books.map((b) => "${b.title} (${b.order})").join(", ")}');
       }
-      
+
       return category;
     }
 
@@ -345,22 +345,24 @@ class FileSystemData {
   /// Supports both plain text and DOCX formats.
   Future<String> getBookText(String title) async {
     final stopwatch = Stopwatch()..start();
-    
+
     try {
       // Try SQLite first
       final text = await _sqliteProvider.getBookText(title);
       stopwatch.stop();
-      debugPrint('✅ Loaded "$title" from SQLite in ${stopwatch.elapsedMilliseconds}ms (${text.length} chars)');
+      debugPrint(
+          '✅ Loaded "$title" from SQLite in ${stopwatch.elapsedMilliseconds}ms (${text.length} chars)');
       return text;
     } catch (e) {
       stopwatch.stop();
-      debugPrint('⚠️ SQLite failed for "$title" after ${stopwatch.elapsedMilliseconds}ms, trying file system: $e');
+      debugPrint(
+          '⚠️ SQLite failed for "$title" after ${stopwatch.elapsedMilliseconds}ms, trying file system: $e');
     }
 
     // Fallback to file system
     stopwatch.reset();
     stopwatch.start();
-    
+
     final path = await _getBookPath(title);
     final file = File(path);
 
@@ -371,9 +373,10 @@ class FileSystemData {
     } else {
       text = await file.readAsString();
     }
-    
+
     stopwatch.stop();
-    debugPrint('📁 Loaded "$title" from FILE in ${stopwatch.elapsedMilliseconds}ms (${text.length} chars)');
+    debugPrint(
+        '📁 Loaded "$title" from FILE in ${stopwatch.elapsedMilliseconds}ms (${text.length} chars)');
     return text;
   }
 
@@ -384,7 +387,7 @@ class FileSystemData {
   /// Updates both the database and file system for consistency.
   Future<void> saveBookText(String title, String content) async {
     debugPrint('💾 Saving "$title" (${content.length} chars)...');
-    
+
     // Try to update SQLite first
     bool updatedInDb = false;
     try {
@@ -404,7 +407,7 @@ class FileSystemData {
     // Also save to file system (as backup or primary storage)
     try {
       final path = await _getBookPath(title);
-      
+
       // Skip if path not found or is DOCX
       if (path.startsWith('error:')) {
         if (updatedInDb) {
@@ -414,21 +417,23 @@ class FileSystemData {
           throw Exception('Cannot save: $path');
         }
       }
-      
+
       if (path.endsWith('.docx')) {
         if (updatedInDb) {
           debugPrint('✅ Saved to database only (DOCX not editable)');
           return;
         } else {
-          throw Exception('Cannot save to DOCX files. Only text files are supported.');
+          throw Exception(
+              'Cannot save to DOCX files. Only text files are supported.');
         }
       }
 
       final file = File(path);
-      
+
       // Create backup of original file if it exists
       if (await file.exists()) {
-        final backupPath = '$path.backup.${DateTime.now().millisecondsSinceEpoch}';
+        final backupPath =
+            '$path.backup.${DateTime.now().millisecondsSinceEpoch}';
         await file.copy(backupPath);
         debugPrint('💾 Created backup: $backupPath');
       }
@@ -442,7 +447,8 @@ class FileSystemData {
         await _cleanupOldBackups(path);
       } catch (e) {
         // If save fails, restore from backup
-        final backupPath = '$path.backup.${DateTime.now().millisecondsSinceEpoch}';
+        final backupPath =
+            '$path.backup.${DateTime.now().millisecondsSinceEpoch}';
         final backupFile = File(backupPath);
         if (await backupFile.exists()) {
           await backupFile.copy(path);
@@ -459,7 +465,7 @@ class FileSystemData {
         rethrow;
       }
     }
-    
+
     debugPrint('✅ Save completed for "$title"');
   }
 
@@ -554,18 +560,20 @@ class FileSystemData {
     try {
       final bookTitle = getTitleFromPath(link.path2);
       final lineIndex = link.index2 - 1; // Convert to 0-based index
-      
+
       // Try SQLite first
       try {
         final lines = await _sqliteProvider.getBookLines(bookTitle);
         if (lines.isNotEmpty && lineIndex >= 0 && lineIndex < lines.length) {
-          debugPrint('✅ Loaded link content from SQLite: $bookTitle line $lineIndex');
+          debugPrint(
+              '✅ Loaded link content from SQLite: $bookTitle line $lineIndex');
           return lines[lineIndex];
         }
       } catch (e) {
-        debugPrint('⚠️ SQLite failed for link content "$bookTitle", trying file: $e');
+        debugPrint(
+            '⚠️ SQLite failed for link content "$bookTitle", trying file: $e');
       }
-      
+
       // Fallback to file system
       String path = await _getBookPath(bookTitle);
       if (path.startsWith('error:')) {
@@ -647,14 +655,14 @@ class FileSystemData {
     if (!Settings.isInitialized) {
       await Settings.init(cacheProvider: HiveCache());
     }
-    
+
     Map<String, Map<String, dynamic>> metadata = {};
-    
+
     // Try to get metadata from SQLite first
     try {
       final db = await SqliteDataProvider.database;
       final books = await db.query('book');
-      
+
       for (final book in books) {
         final title = book['title'] as String;
         metadata[title] = {
@@ -667,15 +675,16 @@ class FileSystemData {
           'order': (book['orderIndex'] as num?)?.toInt() ?? 999,
         };
       }
-      
+
       if (metadata.isNotEmpty) {
-        debugPrint('✅ Loaded metadata from SQLite for ${metadata.length} books');
+        debugPrint(
+            '✅ Loaded metadata from SQLite for ${metadata.length} books');
         return metadata;
       }
     } catch (e) {
       debugPrint('⚠️ Could not load metadata from SQLite: $e');
     }
-    
+
     // Fallback to JSON file
     String metadataString = '';
     try {
@@ -686,7 +695,7 @@ class FileSystemData {
       debugPrint('⚠️ Could not load metadata from JSON: $e');
       return {};
     }
-    
+
     final tempMetadata =
         await Isolate.run(() => jsonDecode(metadataString) as List);
 
@@ -709,7 +718,7 @@ class FileSystemData {
                 : row['order'] as int,
       };
     }
-    
+
     debugPrint('✅ Loaded metadata from JSON for ${metadata.length} books');
     return metadata;
   }
@@ -739,60 +748,64 @@ class FileSystemData {
   /// Merges books from SQLite databases into the library structure
   /// Supports both main database (seforim.db) and personal database (my_books.db)
   Future<void> _mergeBooksFromDatabase(Library library) async {
-    print('🔄 Starting to merge books from databases...');
     debugPrint('🔄 Starting to merge books from databases...');
-    
+    debugPrint('🔄 Starting to merge books from databases...');
+
     // Try main database (seforim.db)
-    await _mergeBooksFromSingleDatabase(library, 'seforim.db', 'ספרים ממאגר הנתונים');
-    
+    await _mergeBooksFromSingleDatabase(
+        library, 'seforim.db', 'ספרים ממאגר הנתונים');
+
     // Try personal database (my_books.db)
-    await _mergeBooksFromSingleDatabase(library, 'my_books.db', 'הספרים האישיים שלי');
+    await _mergeBooksFromSingleDatabase(
+        library, 'my_books.db', 'הספרים האישיים שלי');
   }
-  
+
   /// Merges books from a single SQLite database
   Future<void> _mergeBooksFromSingleDatabase(
     Library library,
     String dbFileName,
     String categoryName,
   ) async {
-    print('📚 Trying to load from $dbFileName...');
-    
+    debugPrint('📚 Trying to load from $dbFileName...');
+
     try {
       // Create a temporary provider for this specific database
       final provider = SqliteDataProvider();
-      
+
       // Get all book titles from this database
       final dbBookTitles = await provider.getAllBookTitles();
-      
+
       if (dbBookTitles.isEmpty) {
-        print('⚠️ No books found in $dbFileName');
+        debugPrint('⚠️ No books found in $dbFileName');
         debugPrint('⚠️ No books found in $dbFileName');
         return;
       }
-      
-      print('🔵 Found ${dbBookTitles.length} books in $dbFileName');
+
       debugPrint('🔵 Found ${dbBookTitles.length} books in $dbFileName');
-      
+      debugPrint('🔵 Found ${dbBookTitles.length} books in $dbFileName');
+
       // Get existing book titles from file system
       final existingTitles = library.getAllBooks().map((b) => b.title).toSet();
-      
+
       // Find books that are only in DB (not in file system)
-      final dbOnlyBooks = dbBookTitles.where((title) => !existingTitles.contains(title)).toList();
-      
-      print('📊 Total books in DB: ${dbBookTitles.length}');
-      print('📊 Existing books in file system: ${existingTitles.length}');
-      print('📊 DB-only books: ${dbOnlyBooks.length}');
+      final dbOnlyBooks = dbBookTitles
+          .where((title) => !existingTitles.contains(title))
+          .toList();
+
+      debugPrint('📊 Total books in DB: ${dbBookTitles.length}');
+      debugPrint('📊 Existing books in file system: ${existingTitles.length}');
+      debugPrint('📊 DB-only books: ${dbOnlyBooks.length}');
       if (dbOnlyBooks.length <= 10) {
-        print('📚 DB-only books: ${dbOnlyBooks.join(", ")}');
+        debugPrint('📚 DB-only books: ${dbOnlyBooks.join(", ")}');
       }
-      
+
       if (dbOnlyBooks.isEmpty) {
         debugPrint('✅ All database books already in file system');
         return;
       }
-      
-      print('🟢 Building category structure from database...');
-      
+
+      debugPrint('🟢 Building category structure from database...');
+
       // Build the full category hierarchy from database
       await _buildCategoryHierarchyFromDatabase(library, dbOnlyBooks);
     } catch (e) {
@@ -802,22 +815,23 @@ class FileSystemData {
   }
 
   /// Builds the complete category hierarchy from database
-  Future<void> _buildCategoryHierarchyFromDatabase(Library library, List<String> bookTitles) async {
+  Future<void> _buildCategoryHierarchyFromDatabase(
+      Library library, List<String> bookTitles) async {
     try {
       // Get all categories and books with their relationships from DB
       final categoriesData = await _sqliteProvider.getAllCategoriesWithBooks();
-      
+
       if (categoriesData.isEmpty) {
-        print('⚠️ No categories found in database');
+        debugPrint('⚠️ No categories found in database');
         return;
       }
-      
-      print('📂 Found ${categoriesData.length} categories in database');
-      
+
+      debugPrint('📂 Found ${categoriesData.length} categories in database');
+
       // Build category map: categoryId -> Category object
       final Map<int, Category> categoryMap = {};
       final Map<String, Category> existingCategoriesByTitle = {};
-      
+
       // Build map of existing categories by title
       void mapExistingCategories(Category cat) {
         existingCategoriesByTitle[cat.title] = cat;
@@ -825,20 +839,22 @@ class FileSystemData {
           mapExistingCategories(sub);
         }
       }
+
       for (final cat in library.subCategories) {
         mapExistingCategories(cat);
       }
-      
-      print('📋 Found ${existingCategoriesByTitle.length} existing categories in library');
-      
+
+      debugPrint(
+          '📋 Found ${existingCategoriesByTitle.length} existing categories in library');
+
       // First pass: create or reuse categories
       for (final catData in categoriesData) {
         final catId = catData['id'] as int;
         final title = catData['title'] as String;
-        
+
         // Try to find existing category
         if (existingCategoriesByTitle.containsKey(title)) {
-          print('♻️ Reusing existing category: $title');
+          debugPrint('♻️ Reusing existing category: $title');
           categoryMap[catId] = existingCategoriesByTitle[title]!;
         } else {
           // Create new category
@@ -854,12 +870,12 @@ class FileSystemData {
           categoryMap[catId] = category;
         }
       }
-      
+
       // Second pass: build hierarchy
       for (final catData in categoriesData) {
         final catId = catData['id'] as int;
         final parentId = catData['parentId'] as int?;
-        
+
         if (parentId != null && categoryMap.containsKey(parentId)) {
           // Add as subcategory to parent
           final parent = categoryMap[parentId]!;
@@ -873,31 +889,32 @@ class FileSystemData {
           library.subCategories.add(rootCat);
         }
       }
-      
+
       // Third pass: add books to categories (optimized with batch query)
       int totalAdded = 0;
-      print('📚 Adding ${bookTitles.length} books to categories...');
-      
+      debugPrint('📚 Adding ${bookTitles.length} books to categories...');
+
       // Get all metadata in one batch query (performance optimization)
-      final allMetadata = await _sqliteProvider.getBooksMetadataBatch(bookTitles);
-      print('📊 Retrieved metadata for ${allMetadata.length} books');
-      
+      final allMetadata =
+          await _sqliteProvider.getBooksMetadataBatch(bookTitles);
+      debugPrint('📊 Retrieved metadata for ${allMetadata.length} books');
+
       for (final title in bookTitles) {
         try {
           final bookMeta = allMetadata[title];
           if (bookMeta == null) {
-            print('⚠️ No metadata for "$title"');
+            debugPrint('⚠️ No metadata for "$title"');
             continue;
           }
-          
+
           final categoryId = bookMeta['categoryId'] as int?;
           if (categoryId == null || !categoryMap.containsKey(categoryId)) {
-            print('⚠️ Book "$title" has invalid category (id: $categoryId)');
+            debugPrint('⚠️ Book "$title" has invalid category (id: $categoryId)');
             continue;
           }
-          
+
           final category = categoryMap[categoryId]!;
-          
+
           category.books.add(TextBook(
             title: title,
             category: category,
@@ -908,19 +925,19 @@ class FileSystemData {
             order: (bookMeta['orderIndex'] as num?)?.toInt() ?? 999,
             topics: '',
           ));
-          
+
           totalAdded++;
           if (totalAdded <= 5) {
-            print('  ✅ Added "$title" to category "${category.title}"');
+            debugPrint('  ✅ Added "$title" to category "${category.title}"');
           }
         } catch (e) {
-          print('⚠️ Could not add book "$title": $e');
+          debugPrint('⚠️ Could not add book "$title": $e');
           debugPrint('⚠️ Could not add book "$title": $e');
         }
       }
-      
-      print('📊 Total books added: $totalAdded');
-      
+
+      debugPrint('📊 Total books added: $totalAdded');
+
       // Update order by generation for all categories
       debugPrint('🔄 Updating book order by generation for all categories...');
       for (final category in categoryMap.values) {
@@ -928,18 +945,18 @@ class FileSystemData {
           await _updateBooksOrderByGeneration(category.books);
         }
       }
-      
+
       // Sort everything
       for (final category in categoryMap.values) {
         category.books.sort((a, b) => a.order.compareTo(b.order));
         category.subCategories.sort((a, b) => a.title.compareTo(b.title));
       }
-      
+
       library.subCategories.sort((a, b) => a.title.compareTo(b.title));
-      
-      print('✅ Successfully built category hierarchy with $totalAdded books');
+
+      debugPrint('✅ Successfully built category hierarchy with $totalAdded books');
     } catch (e) {
-      print('❌ Error building category hierarchy: $e');
+      debugPrint('❌ Error building category hierarchy: $e');
       debugPrint('❌ Error building category hierarchy: $e');
       rethrow;
     }
@@ -948,9 +965,9 @@ class FileSystemData {
   /// Update books order based on their generation from CSV
   Future<void> _updateBooksOrderByGeneration(List<Book> books) async {
     if (books.isEmpty) return;
-    
+
     debugPrint('📚 Updating order for ${books.length} books by generation...');
-    
+
     // Generation order mapping
     const generationOrder = {
       'תורה שבכתב': 100,
@@ -960,30 +977,30 @@ class FileSystemData {
       'מחברי זמננו': 500,
       'מפרשים נוספים': 600,
     };
-    
+
     int updatedCount = 0;
     final Map<String, int> generationCounts = {};
-    
+
     for (final book in books) {
       final originalOrder = book.order;
-      
+
       // Get generation for this book
       String generation = 'מפרשים נוספים'; // default
-      
+
       for (final gen in generationOrder.keys) {
         if (await hasTopic(book.title, gen)) {
           generation = gen;
           break;
         }
       }
-      
+
       // Count books per generation
       generationCounts[generation] = (generationCounts[generation] ?? 0) + 1;
-      
+
       // Update order: generation base + original order
       // This keeps books in same generation together, but preserves relative order within generation
       final baseOrder = generationOrder[generation] ?? 600;
-      
+
       // If original order is 999 (default), use alphabetical position
       if (originalOrder == 999) {
         book.order = baseOrder;
@@ -991,15 +1008,16 @@ class FileSystemData {
         // Preserve original order within generation (0-99 range)
         book.order = baseOrder + (originalOrder % 100);
       }
-      
+
       if (book.order != originalOrder) {
         updatedCount++;
         if (updatedCount <= 3) {
-          debugPrint('   "${book.title}": $originalOrder → ${book.order} ($generation)');
+          debugPrint(
+              '   "${book.title}": $originalOrder → ${book.order} ($generation)');
         }
       }
     }
-    
+
     debugPrint('✅ Updated $updatedCount books. Distribution:');
     generationCounts.forEach((gen, count) {
       debugPrint('   $gen: $count books');
@@ -1007,7 +1025,7 @@ class FileSystemData {
   }
 
   /// Checks if a book with the given title exists in the library.
-  /// 
+  ///
   /// First checks SQLite database, then falls back to file system.
   Future<bool> bookExists(String title) async {
     try {
@@ -1042,3 +1060,4 @@ class FileSystemData {
         normalized.contains(ktuvim);
   }
 }
+

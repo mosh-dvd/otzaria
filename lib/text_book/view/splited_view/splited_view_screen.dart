@@ -63,16 +63,17 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
   int _getInitialTabIndex() {
     // קביעת הטאב הראשוני
     if (widget.initialTabIndex != null) {
-      print('DEBUG: Using initialTabIndex: ${widget.initialTabIndex}');
+      debugPrint('DEBUG: Using initialTabIndex: ${widget.initialTabIndex}');
       return widget.initialTabIndex!;
     } else if (widget.showSplitView) {
       // תצוגה מפוצלת - תמיד מפרשים (0)
-      print('DEBUG: Split view - returning 0 (commentaries)');
+      debugPrint('DEBUG: Split view - returning 0 (commentaries)');
       return 0;
     } else {
       // תצוגה משולבת - טוען שמור או ברירת מחדל קישורים (1)
       final saved = Settings.getValue<int>('key-sidebar-tab-index-combined');
-      print('DEBUG: Combined view - saved: $saved, returning: ${saved ?? 1}');
+      debugPrint(
+          'DEBUG: Combined view - saved: $saved, returning: ${saved ?? 1}');
       return saved ?? 1;
     }
   }
@@ -151,7 +152,7 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
         if (state is! TextBookLoaded) {
           return const Center(child: CircularProgressIndicator());
         }
-        
+
         // אם החלונית סגורה - מציגים combined view עם כפתור צף
         if (!_paneOpen) {
           return Stack(
@@ -200,7 +201,7 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
             ],
           );
         }
-        
+
         return MultiSplitView(
           controller: _controller,
           axis: Axis.horizontal,
@@ -234,16 +235,19 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
                   onClosePane: _togglePane,
                   initialTabIndex: _currentTabIndex,
                   onTabChanged: (index) {
-                    print('DEBUG: Tab changed to $index, showSplitView: ${widget.showSplitView}');
+                    debugPrint(
+                        'DEBUG: Tab changed to $index, showSplitView: ${widget.showSplitView}');
                     setState(() {
                       _currentTabIndex = index;
                     });
                     // שומר את הטאב רק בתצוגה משולבת
                     if (!widget.showSplitView) {
-                      print('DEBUG: Saving tab $index to combined settings');
-                      Settings.setValue<int>('key-sidebar-tab-index-combined', index);
+                      debugPrint(
+                          'DEBUG: Saving tab $index to combined settings');
+                      Settings.setValue<int>(
+                          'key-sidebar-tab-index-combined', index);
                     } else {
-                      print('DEBUG: NOT saving tab (split view mode)');
+                      debugPrint('DEBUG: NOT saving tab (split view mode)');
                     }
                   },
                 ),

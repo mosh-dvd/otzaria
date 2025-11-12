@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
@@ -9,7 +8,7 @@ import 'package:otzaria/models/links.dart';
 import 'package:synchronized/synchronized.dart';
 
 /// SQLite data provider for reading books from the seforim.db database
-/// 
+///
 /// This provider reads book content, table of contents, and links from a SQLite database
 /// instead of individual text files, providing much better performance.
 class SqliteDataProvider {
@@ -20,7 +19,7 @@ class SqliteDataProvider {
   /// Get the singleton database instance with thread-safe initialization
   static Future<Database> get database async {
     if (_database != null) return _database!;
-    
+
     // Use lock to prevent race condition
     return await _lock.synchronized(() async {
       // Double-check inside lock
@@ -46,7 +45,7 @@ class SqliteDataProvider {
       }
 
       _dbPath = dbFile.absolute.path;
-      print('🔵 SQLite: Opening database at: $_dbPath');
+      debugPrint('🔵 SQLite: Opening database at: $_dbPath');
       debugPrint('🔵 SQLite: Opening database at: $_dbPath');
 
       // Open the database in read-only mode
@@ -56,7 +55,7 @@ class SqliteDataProvider {
         singleInstance: false,
       );
 
-      print('🟢 SQLite: Database opened successfully!');
+      debugPrint('🟢 SQLite: Database opened successfully!');
       debugPrint('🟢 SQLite: Database opened successfully!');
       return db;
     } catch (e) {
@@ -68,22 +67,23 @@ class SqliteDataProvider {
   /// Find the database file in the library directory
   static Future<File?> _findDatabaseFile() async {
     debugPrint('🔍 Searching for database file...');
-    
+
     // Get library path from settings
     final libraryPath = await _getLibraryPath();
-    
+
     // Check for seforim.db in library directory
     final dbPath = join(libraryPath, 'seforim.db');
     final dbFile = File(dbPath);
-    
+
     debugPrint('🔍 Checking: $dbPath');
-    
+
     if (await dbFile.exists()) {
       final size = await dbFile.length();
-      debugPrint('✅ Found database at: ${dbFile.path} (${(size / 1024 / 1024).toStringAsFixed(2)} MB)');
+      debugPrint(
+          '✅ Found database at: ${dbFile.path} (${(size / 1024 / 1024).toStringAsFixed(2)} MB)');
       return dbFile;
     }
-    
+
     debugPrint('❌ Database not found at: $dbPath');
     return null;
   }
@@ -99,7 +99,7 @@ class SqliteDataProvider {
           return path;
         }
       }
-      
+
       // Fallback: try current directory
       debugPrint('📂 Using default library path: .');
       return '.';
@@ -141,7 +141,7 @@ class SqliteDataProvider {
   Future<List<String>> getBookLines(String title) async {
     try {
       final stopwatch = Stopwatch()..start();
-      
+
       final bookId = await getBookId(title);
       if (bookId == null) {
         throw Exception('Book not found: $title');
@@ -158,9 +158,10 @@ class SqliteDataProvider {
 
       final lines = result.map((row) => row['content'] as String).toList();
       stopwatch.stop();
-      
-      debugPrint('⚡ SQLite: Loaded ${lines.length} lines from "$title" in ${stopwatch.elapsedMilliseconds}ms');
-      
+
+      debugPrint(
+          '⚡ SQLite: Loaded ${lines.length} lines from "$title" in ${stopwatch.elapsedMilliseconds}ms');
+
       return lines;
     } catch (e) {
       debugPrint('❌ SQLite: Error getting book lines for "$title": $e');
@@ -183,7 +184,7 @@ class SqliteDataProvider {
       }
 
       final db = await database;
-      
+
       // Get TOC entries with their text
       final result = await db.rawQuery('''
         SELECT 
@@ -247,7 +248,7 @@ class SqliteDataProvider {
       }
 
       final db = await database;
-      
+
       // Get links where this book is the source
       final result = await db.rawQuery('''
         SELECT 
@@ -282,7 +283,8 @@ class SqliteDataProvider {
         final sourceTitle = row['sourceTitle'] as String;
 
         // Build heRef using TOC to get chapter:verse format
-        final reference = _buildReferenceFromToc(sourceLineIndex, tocEntries, sourceTitle);
+        final reference =
+            _buildReferenceFromToc(sourceLineIndex, tocEntries, sourceTitle);
         final heRef = '$targetTitle $reference';
 
         return Link(
@@ -331,7 +333,8 @@ class SqliteDataProvider {
   /// Build a reference string from TOC entries
   /// For example: "על בראשית א, א" or "על תהילים כג, א"
   /// The format is designed to sort correctly (using padded numbers internally)
-  String _buildReferenceFromToc(int lineIndex, List<Map<String, dynamic>> tocEntries, String bookTitle) {
+  String _buildReferenceFromToc(
+      int lineIndex, List<Map<String, dynamic>> tocEntries, String bookTitle) {
     if (tocEntries.isEmpty) {
       // Fallback: use line index with padding for correct sorting
       return 'על $bookTitle ${(lineIndex + 1).toString().padLeft(6, '0')}';
@@ -363,13 +366,13 @@ class SqliteDataProvider {
     // Build reference string with sortable format
     // Format: "על בראשית 001,001" (padded numbers for sorting)
     // But display as: "על בראשית א, א" (Hebrew letters)
-    
+
     if (currentChapter != null) {
       final chapterText = (currentChapter['text'] as String)
           .replaceAll('פרק ', '')
           .replaceAll('פרק', '')
           .trim();
-      
+
       final verseText = currentVerse != null
           ? (currentVerse['text'] as String)
               .replaceAll('פסוק ', '')
@@ -387,8 +390,6 @@ class SqliteDataProvider {
     // Fallback
     return 'על $bookTitle ${(lineIndex + 1).toString().padLeft(6, '0')}';
   }
-
-
 
   /// Check if a book exists in the database
   Future<bool> bookExists(String title) async {
@@ -462,15 +463,15 @@ class SqliteDataProvider {
       }
 
       final db = await database;
-      
+
       // Split content into lines
       final lines = content.split('\n');
-      
+
       // Use transaction for atomic update
       await db.transaction((txn) async {
         // Delete old lines
         await txn.delete('line', where: 'bookId = ?', whereArgs: [bookId]);
-        
+
         // Insert new lines
         for (int i = 0; i < lines.length; i++) {
           await txn.insert('line', {
@@ -479,7 +480,7 @@ class SqliteDataProvider {
             'content': lines[i],
           });
         }
-        
+
         // Update totalLines in book table
         await txn.update(
           'book',
@@ -488,7 +489,7 @@ class SqliteDataProvider {
           whereArgs: [bookId],
         );
       });
-      
+
       debugPrint('✅ Updated "$title" in SQLite (${lines.length} lines)');
     } catch (e) {
       debugPrint('❌ Error updating book text for "$title": $e');
@@ -497,10 +498,11 @@ class SqliteDataProvider {
   }
 
   /// Get books metadata in batch (optimized for multiple books)
-  Future<Map<String, Map<String, dynamic>>> getBooksMetadataBatch(List<String> titles) async {
+  Future<Map<String, Map<String, dynamic>>> getBooksMetadataBatch(
+      List<String> titles) async {
     try {
       if (titles.isEmpty) return {};
-      
+
       final db = await database;
       final placeholders = List.filled(titles.length, '?').join(',');
       final result = await db.rawQuery('''
@@ -513,13 +515,13 @@ class SqliteDataProvider {
         LEFT JOIN source s ON b.sourceId = s.id
         WHERE b.title IN ($placeholders)
       ''', titles);
-      
+
       return Map.fromEntries(
-        result.map((row) => MapEntry(row['title'] as String, row))
-      );
+          result.map((row) => MapEntry(row['title'] as String, row)));
     } catch (e) {
       debugPrint('Error getting batch metadata: $e');
       return {};
     }
   }
 }
+

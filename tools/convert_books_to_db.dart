@@ -1,31 +1,35 @@
 /// Standalone script to convert text books to SQLite database
-/// 
+///
 /// This script reads text files from a directory and converts them to SQLite format.
 /// The output is a separate database file that can be tested independently.
-/// 
+///
 /// Usage:
-///   dart run tools/convert_books_to_db.dart <input_dir> <output_db>
-/// 
+///   dart run tools/convert_books_to_db.dart `<input_dir>` `<output_db>`
+///
 /// Example:
 ///   dart run tools/convert_books_to_db.dart "C:\Books\אוצריא" "output_books.db"
+library;
 
 import 'dart:io';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart' as path;
 
 void main(List<String> args) async {
-  print('📚 Book to SQLite Converter');
-  print('═══════════════════════════════════════\n');
+  debugPrint('📚 Book to SQLite Converter');
+  debugPrint('═══════════════════════════════════════\n');
 
   // Parse arguments
   if (args.length < 2) {
-    print('❌ Error: Missing arguments');
-    print('');
-    print('Usage:');
-    print('  dart run tools/convert_books_to_db.dart <input_dir> <output_db>');
-    print('');
-    print('Example:');
-    print('  dart run tools/convert_books_to_db.dart "C:\\Books\\אוצריא" "output_books.db"');
+    debugPrint('❌ Error: Missing arguments');
+    debugPrint('');
+    debugPrint('Usage:');
+    debugPrint(
+        '  dart run tools/convert_books_to_db.dart <input_dir> <output_db>');
+    debugPrint('');
+    debugPrint('Example:');
+    debugPrint(
+        '  dart run tools/convert_books_to_db.dart "C:\\Books\\אוצריא" "output_books.db"');
     exit(1);
   }
 
@@ -34,7 +38,7 @@ void main(List<String> args) async {
 
   // Validate input directory
   if (!await Directory(inputDir).exists()) {
-    print('❌ Error: Input directory does not exist: $inputDir');
+    debugPrint('❌ Error: Input directory does not exist: $inputDir');
     exit(1);
   }
 
@@ -42,25 +46,25 @@ void main(List<String> args) async {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  print('📂 Input directory: $inputDir');
-  print('💾 Output database: $outputDb');
-  print('');
+  debugPrint('📂 Input directory: $inputDir');
+  debugPrint('💾 Output database: $outputDb');
+  debugPrint('');
 
   try {
     // Create converter
     final converter = BookToDbConverter(inputDir, outputDb);
-    
+
     // Run conversion
     await converter.convert();
-    
-    print('');
-    print('═══════════════════════════════════════');
-    print('✅ Conversion completed successfully!');
-    print('═══════════════════════════════════════');
+
+    debugPrint('');
+    debugPrint('═══════════════════════════════════════');
+    debugPrint('✅ Conversion completed successfully!');
+    debugPrint('═══════════════════════════════════════');
   } catch (e, stackTrace) {
-    print('');
-    print('❌ Error during conversion: $e');
-    print('Stack trace: $stackTrace');
+    debugPrint('');
+    debugPrint('❌ Error during conversion: $e');
+    debugPrint('Stack trace: $stackTrace');
     exit(1);
   }
 }
@@ -69,14 +73,14 @@ class BookToDbConverter {
   final String inputDir;
   final String outputDbPath;
   late Database db;
-  
+
   int bookIdCounter = 1;
   int lineIdCounter = 1;
   int tocIdCounter = 1;
   int tocTextIdCounter = 1;
   int categoryIdCounter = 1;
   int sourceIdCounter = 1;
-  
+
   final Map<String, int> categoryCache = {};
   final Map<String, int> tocTextCache = {};
   int defaultSourceId = 1;
@@ -84,51 +88,51 @@ class BookToDbConverter {
   BookToDbConverter(this.inputDir, this.outputDbPath);
 
   Future<void> convert() async {
-    print('🔧 Step 1: Creating database schema...');
+    debugPrint('🔧 Step 1: Creating database schema...');
     await _createDatabase();
-    
-    print('✅ Database schema created\n');
-    
-    print('🔧 Step 2: Scanning for text files...');
+
+    debugPrint('✅ Database schema created\n');
+
+    debugPrint('🔧 Step 2: Scanning for text files...');
     final textFiles = await _scanTextFiles();
-    print('✅ Found ${textFiles.length} text files\n');
-    
+    debugPrint('✅ Found ${textFiles.length} text files\n');
+
     if (textFiles.isEmpty) {
-      print('⚠️  No text files found. Nothing to convert.');
+      debugPrint('⚠️  No text files found. Nothing to convert.');
       return;
     }
-    
-    print('🔧 Step 3: Converting books...');
+
+    debugPrint('🔧 Step 3: Converting books...');
     int converted = 0;
     int failed = 0;
-    
+
     for (final file in textFiles) {
       try {
         await _convertBook(file);
         converted++;
         if (converted % 10 == 0) {
-          print('   Converted $converted/${textFiles.length} books...');
+          debugPrint('   Converted $converted/${textFiles.length} books...');
         }
       } catch (e) {
         failed++;
-        print('   ⚠️  Failed to convert ${path.basename(file.path)}: $e');
+        debugPrint('   ⚠️  Failed to convert ${path.basename(file.path)}: $e');
       }
     }
-    
-    print('✅ Converted $converted books successfully');
+
+    debugPrint('✅ Converted $converted books successfully');
     if (failed > 0) {
-      print('⚠️  Failed to convert $failed books');
+      debugPrint('⚠️  Failed to convert $failed books');
     }
-    
-    print('');
-    print('🔧 Step 4: Creating indexes...');
+
+    debugPrint('');
+    debugPrint('🔧 Step 4: Creating indexes...');
     await _createIndexes();
-    print('✅ Indexes created');
-    
-    print('');
-    print('📊 Statistics:');
+    debugPrint('✅ Indexes created');
+
+    debugPrint('');
+    debugPrint('📊 Statistics:');
     await _printStatistics();
-    
+
     await db.close();
   }
 
@@ -136,7 +140,7 @@ class BookToDbConverter {
     // Delete existing database
     if (await File(outputDbPath).exists()) {
       await File(outputDbPath).delete();
-      print('   Deleted existing database');
+      debugPrint('   Deleted existing database');
     }
 
     // Create new database
@@ -218,14 +222,15 @@ class BookToDbConverter {
         ''');
 
         // Insert default source
-        await db.insert('source', {'id': 1, 'name': 'Converted from text files'});
+        await db
+            .insert('source', {'id': 1, 'name': 'Converted from text files'});
       },
     );
   }
 
   Future<List<File>> _scanTextFiles() async {
     final files = <File>[];
-    
+
     await for (final entity in Directory(inputDir).list(recursive: true)) {
       if (entity is File) {
         final ext = path.extension(entity.path).toLowerCase();
@@ -234,18 +239,18 @@ class BookToDbConverter {
         }
       }
     }
-    
+
     return files;
   }
 
   Future<void> _convertBook(File file) async {
     final bookTitle = _extractBookTitle(file.path);
     final categoryId = await _getOrCreateCategory(file.path);
-    
+
     // Read file content
     final content = await file.readAsString();
     final lines = content.split('\n');
-    
+
     // Insert book
     final bookId = await db.insert('book', {
       'id': bookIdCounter,
@@ -256,13 +261,13 @@ class BookToDbConverter {
       'totalLines': lines.length,
       'isBaseBook': 0,
     });
-    
+
     // Insert lines and parse TOC
     final tocEntries = <Map<String, dynamic>>[];
-    
+
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];
-      
+
       // Insert line
       await db.insert('line', {
         'id': lineIdCounter,
@@ -270,13 +275,13 @@ class BookToDbConverter {
         'lineIndex': i,
         'content': line,
       });
-      
+
       // Check if this is a heading (TOC entry)
       final headingLevel = _extractHeadingLevel(line);
       if (headingLevel > 0) {
         final headingText = _extractHeadingText(line);
         final tocTextId = await _getOrCreateTocText(headingText);
-        
+
         tocEntries.add({
           'bookId': bookId,
           'textId': tocTextId,
@@ -284,10 +289,10 @@ class BookToDbConverter {
           'lineId': lineIdCounter,
         });
       }
-      
+
       lineIdCounter++;
     }
-    
+
     // Insert TOC entries
     for (final entry in tocEntries) {
       await db.insert('tocEntry', {
@@ -296,7 +301,7 @@ class BookToDbConverter {
       });
       tocIdCounter++;
     }
-    
+
     bookIdCounter++;
   }
 
@@ -309,12 +314,12 @@ class BookToDbConverter {
     // Extract category from path
     final relativePath = path.relative(filePath, from: inputDir);
     final parts = path.split(relativePath);
-    
+
     if (parts.length <= 1) {
       // No category, use default
       return await _getOrCreateCategoryByName('אחר', null);
     }
-    
+
     // Use the parent directory as category
     final categoryName = parts[parts.length - 2];
     return await _getOrCreateCategoryByName(categoryName, null);
@@ -326,7 +331,7 @@ class BookToDbConverter {
     if (categoryCache.containsKey(cacheKey)) {
       return categoryCache[cacheKey]!;
     }
-    
+
     // Check database
     final existing = await db.query(
       'category',
@@ -334,13 +339,13 @@ class BookToDbConverter {
       whereArgs: parentId == null ? [name] : [name, parentId],
       limit: 1,
     );
-    
+
     if (existing.isNotEmpty) {
       final id = existing.first['id'] as int;
       categoryCache[cacheKey] = id;
       return id;
     }
-    
+
     // Create new category
     final id = await db.insert('category', {
       'id': categoryIdCounter,
@@ -348,7 +353,7 @@ class BookToDbConverter {
       'title': name,
       'level': parentId == null ? 0 : 1,
     });
-    
+
     categoryCache[cacheKey] = id;
     categoryIdCounter++;
     return id;
@@ -359,7 +364,7 @@ class BookToDbConverter {
     if (tocTextCache.containsKey(text)) {
       return tocTextCache[text]!;
     }
-    
+
     // Check database
     final existing = await db.query(
       'tocText',
@@ -367,19 +372,19 @@ class BookToDbConverter {
       whereArgs: [text],
       limit: 1,
     );
-    
+
     if (existing.isNotEmpty) {
       final id = existing.first['id'] as int;
       tocTextCache[text] = id;
       return id;
     }
-    
+
     // Create new
     final id = await db.insert('tocText', {
       'id': tocTextIdCounter,
       'text': text,
     });
-    
+
     tocTextCache[text] = id;
     tocTextIdCounter++;
     return id;
@@ -391,12 +396,12 @@ class BookToDbConverter {
     final h2 = RegExp(r'<h2[^>]*>');
     final h3 = RegExp(r'<h3[^>]*>');
     final h4 = RegExp(r'<h4[^>]*>');
-    
+
     if (h1.hasMatch(line)) return 1;
     if (h2.hasMatch(line)) return 2;
     if (h3.hasMatch(line)) return 3;
     if (h4.hasMatch(line)) return 4;
-    
+
     return 0;
   }
 
@@ -407,26 +412,34 @@ class BookToDbConverter {
   }
 
   Future<void> _createIndexes() async {
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_book_category ON book(categoryId)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_book_title ON book(title)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_line_book_index ON line(bookId, lineIndex)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_toc_book ON tocEntry(bookId)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_toc_text_id ON tocEntry(textId)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_book_category ON book(categoryId)');
+    await db
+        .execute('CREATE INDEX IF NOT EXISTS idx_book_title ON book(title)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_line_book_index ON line(bookId, lineIndex)');
+    await db
+        .execute('CREATE INDEX IF NOT EXISTS idx_toc_book ON tocEntry(bookId)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_toc_text_id ON tocEntry(textId)');
   }
 
   Future<void> _printStatistics() async {
     final bookCount = await db.rawQuery('SELECT COUNT(*) as count FROM book');
     final lineCount = await db.rawQuery('SELECT COUNT(*) as count FROM line');
-    final tocCount = await db.rawQuery('SELECT COUNT(*) as count FROM tocEntry');
-    final categoryCount = await db.rawQuery('SELECT COUNT(*) as count FROM category');
-    
-    print('   Books: ${bookCount.first['count']}');
-    print('   Lines: ${lineCount.first['count']}');
-    print('   TOC entries: ${tocCount.first['count']}');
-    print('   Categories: ${categoryCount.first['count']}');
-    
+    final tocCount =
+        await db.rawQuery('SELECT COUNT(*) as count FROM tocEntry');
+    final categoryCount =
+        await db.rawQuery('SELECT COUNT(*) as count FROM category');
+
+    debugPrint('   Books: ${bookCount.first['count']}');
+    debugPrint('   Lines: ${lineCount.first['count']}');
+    debugPrint('   TOC entries: ${tocCount.first['count']}');
+    debugPrint('   Categories: ${categoryCount.first['count']}');
+
     final dbFile = File(outputDbPath);
     final size = await dbFile.length();
-    print('   Database size: ${(size / 1024 / 1024).toStringAsFixed(2)} MB');
+    debugPrint(
+        '   Database size: ${(size / 1024 / 1024).toStringAsFixed(2)} MB');
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
@@ -28,7 +29,7 @@ class DatabaseImportService {
       final List<dynamic> decoded = json.decode(jsonString);
       return decoded.cast<String>();
     } catch (e) {
-      print('⚠️ Failed to decode imported categories: $e');
+      debugPrint('⚠️ Failed to decode imported categories: $e');
       return [];
     }
   }
@@ -39,7 +40,7 @@ class DatabaseImportService {
     if (!categories.contains(categoryTitle)) {
       categories.add(categoryTitle);
       await Settings.setValue(_importedCategoriesKey, json.encode(categories));
-      print('✅ Added "$categoryTitle" to imported categories list');
+      debugPrint('✅ Added "$categoryTitle" to imported categories list');
     }
   }
 
@@ -48,7 +49,7 @@ class DatabaseImportService {
     final categories = getImportedCategories();
     categories.remove(categoryTitle);
     await Settings.setValue(_importedCategoriesKey, json.encode(categories));
-    print('✅ Removed "$categoryTitle" from imported categories list');
+    debugPrint('✅ Removed "$categoryTitle" from imported categories list');
   }
 
   /// Remove a category and all its books from the database
@@ -57,9 +58,9 @@ class DatabaseImportService {
     String categoryTitle,
     void Function(String status)? onProgress,
   ) async {
-    print('🗑️ Starting category removal...');
-    print('📂 Database: $dbPath');
-    print('📁 Category: $categoryTitle');
+    debugPrint('🗑️ Starting category removal...');
+    debugPrint('📂 Database: $dbPath');
+    debugPrint('📁 Category: $categoryTitle');
 
     final dbFile = File(dbPath);
     if (!await dbFile.exists()) {
@@ -76,7 +77,7 @@ class DatabaseImportService {
           singleInstance: false,
         ),
       );
-      print('✅ Database opened');
+      debugPrint('✅ Database opened');
 
       // Find the category ID
       onProgress?.call('מחפש קטגוריה...');
@@ -90,7 +91,7 @@ class DatabaseImportService {
       }
 
       final categoryId = categoryResult.first['id'] as int;
-      print('📁 Found category ID: $categoryId');
+      debugPrint('📁 Found category ID: $categoryId');
 
       // Count books in this category
       final bookCountResult = await db.rawQuery(
@@ -98,7 +99,7 @@ class DatabaseImportService {
         [categoryId],
       );
       final bookCount = bookCountResult.first['count'] as int;
-      print('📚 Found $bookCount books in category');
+      debugPrint('📚 Found $bookCount books in category');
 
       onProgress?.call('מוחק $bookCount ספרים...');
 
@@ -112,7 +113,7 @@ class DatabaseImportService {
           whereArgs: [categoryId],
         );
         final bookIds = bookIdsResult.map((row) => row['id'] as int).toList();
-        print('📚 Book IDs to delete: $bookIds');
+        debugPrint('📚 Book IDs to delete: $bookIds');
 
         if (bookIds.isNotEmpty) {
           // Delete lines for these books
@@ -120,40 +121,42 @@ class DatabaseImportService {
           for (final bookId in bookIds) {
             await txn.delete('line', where: 'bookId = ?', whereArgs: [bookId]);
           }
-          print('✅ Lines deleted');
+          debugPrint('✅ Lines deleted');
 
           // Delete TOC entries for these books
           onProgress?.call('מוחק תוכן עניינים...');
           for (final bookId in bookIds) {
-            await txn.delete('tocEntry', where: 'bookId = ?', whereArgs: [bookId]);
+            await txn
+                .delete('tocEntry', where: 'bookId = ?', whereArgs: [bookId]);
           }
-          print('✅ TOC entries deleted');
+          debugPrint('✅ TOC entries deleted');
 
           // Delete books
           onProgress?.call('מוחק ספרים...');
-          await txn.delete('book', where: 'categoryId = ?', whereArgs: [categoryId]);
-          print('✅ Books deleted');
+          await txn
+              .delete('book', where: 'categoryId = ?', whereArgs: [categoryId]);
+          debugPrint('✅ Books deleted');
         }
 
         // Delete the category itself
         onProgress?.call('מוחק קטגוריה...');
         await txn.delete('category', where: 'id = ?', whereArgs: [categoryId]);
-        print('✅ Category deleted');
+        debugPrint('✅ Category deleted');
       });
-      
-      print('✅ Transaction committed successfully');
+
+      debugPrint('✅ Transaction committed successfully');
 
       // Remove from imported categories list
       await removeImportedCategory(categoryTitle);
 
       onProgress?.call('הקטגוריה "$categoryTitle" נמחקה בהצלחה!');
     } catch (e) {
-      print('❌ Fatal error: $e');
+      debugPrint('❌ Fatal error: $e');
       rethrow;
     } finally {
       if (db != null) {
         await db.close();
-        print('✅ Database closed');
+        debugPrint('✅ Database closed');
       }
     }
   }
@@ -177,68 +180,68 @@ class DatabaseImportService {
     String? mainDbPath,
   }) async {
     _isCancelled = false;
-    print('📖 Starting book conversion...');
-    print('📂 Folder: $folderPath');
-    
+    debugPrint('📖 Starting book conversion...');
+    debugPrint('📂 Folder: $folderPath');
+
     final folder = Directory(folderPath);
     if (!await folder.exists()) {
-      print('❌ Folder does not exist: $folderPath');
+      debugPrint('❌ Folder does not exist: $folderPath');
       throw Exception('התיקייה לא קיימת: $folderPath');
     }
-    print('✅ Folder exists');
+    debugPrint('✅ Folder exists');
 
     // Create temporary database
     final tempDbPath = path.join(
       Directory.systemTemp.path,
       'temp_books_${DateTime.now().millisecondsSinceEpoch}.db',
     );
-    print('💾 Creating temp database: $tempDbPath');
+    debugPrint('💾 Creating temp database: $tempDbPath');
 
     final db = await databaseFactory.openDatabase(tempDbPath);
-    print('✅ Temp database created');
+    debugPrint('✅ Temp database created');
 
     try {
       // If mainDbPath provided, copy ALL tables schema from it
       if (mainDbPath != null && await File(mainDbPath).exists()) {
-        print('📋 Copying ALL tables schema from main database: $mainDbPath');
+        debugPrint(
+            '📋 Copying ALL tables schema from main database: $mainDbPath');
         final mainDb = await databaseFactory.openDatabase(mainDbPath);
-        
+
         try {
           // Get ALL tables from main database
           final tablesResult = await mainDb.rawQuery(
-            "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
-          );
-          
-          print('📊 Found ${tablesResult.length} tables in main database');
-          
+              "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+
+          debugPrint('📊 Found ${tablesResult.length} tables in main database');
+
           // Create all tables in temp database
           for (final table in tablesResult) {
             final tableName = table['name'] as String;
             final sql = table['sql'] as String;
-            
+
             try {
               await db.execute(sql);
-              print('✅ Created table: $tableName');
+              debugPrint('✅ Created table: $tableName');
             } catch (e) {
-              print('⚠️ Failed to create table $tableName: $e');
+              debugPrint('⚠️ Failed to create table $tableName: $e');
               // Continue anyway - some tables might not be needed
             }
           }
-          
-          print('✅ All tables created successfully!');
+
+          debugPrint('✅ All tables created successfully!');
         } finally {
           await mainDb.close();
         }
       } else {
-        print('📋 Creating minimal schema (no main DB provided)...');
-        
+        debugPrint('📋 Creating minimal schema (no main DB provided)...');
+
         await db.execute('''
           CREATE TABLE IF NOT EXISTS category (
             id INTEGER PRIMARY KEY,
             title TEXT NOT NULL
           )
         ''');
-        print('✅ Category table created');
+        debugPrint('✅ Category table created');
 
         await db.execute('''
           CREATE TABLE IF NOT EXISTS book (
@@ -246,8 +249,8 @@ class DatabaseImportService {
             title TEXT NOT NULL
           )
         ''');
-        print('✅ Book table created');
-        
+        debugPrint('✅ Book table created');
+
         await db.execute('''
           CREATE TABLE IF NOT EXISTS line (
           id INTEGER PRIMARY KEY,
@@ -258,7 +261,7 @@ class DatabaseImportService {
         )
       ''');
 
-      await db.execute('''
+        await db.execute('''
         CREATE TABLE IF NOT EXISTS tocEntry (
           id INTEGER PRIMARY KEY,
           book INTEGER NOT NULL,
@@ -278,7 +281,7 @@ class DatabaseImportService {
             text TEXT NOT NULL UNIQUE
           )
         ''');
-        print('✅ TOC text table created');
+        debugPrint('✅ TOC text table created');
       }
 
       // Get all text files
@@ -290,15 +293,15 @@ class DatabaseImportService {
           .cast<File>()
           .toList();
 
-      print('📚 Found ${files.length} text files');
-      
+      debugPrint('📚 Found ${files.length} text files');
+
       if (files.isEmpty) {
         throw Exception('לא נמצאו קבצי טקסט בתיקייה');
       }
 
       // Get folder name for category
       final folderName = path.basename(folderPath);
-      print('📁 Using folder name as category: $folderName');
+      debugPrint('📁 Using folder name as category: $folderName');
 
       // Create category with folder name
       await db.insert('category', {
@@ -306,17 +309,17 @@ class DatabaseImportService {
         'title': folderName,
         'level': 0,
       });
-      print('✅ Category created: $folderName');
-      
+      debugPrint('✅ Category created: $folderName');
+
       // Create default source (if source table exists)
       try {
         await db.insert('source', {
           'id': 1,
           'name': 'ייבוא מקומי',
         });
-        print('✅ Default source created');
+        debugPrint('✅ Default source created');
       } catch (e) {
-        print('⚠️ Could not create default source: $e');
+        debugPrint('⚠️ Could not create default source: $e');
       }
 
       int bookId = 1;
@@ -325,16 +328,16 @@ class DatabaseImportService {
       int tocEntryId = 1;
 
       // Get actual column names from tables
-      print('📋 Reading table schemas...');
+      debugPrint('📋 Reading table schemas...');
       final bookColumns = await getTableColumns(db, 'book');
       final lineColumns = await getTableColumns(db, 'line');
       final tocEntryColumns = await getTableColumns(db, 'tocEntry');
-      print('   book columns: ${bookColumns.join(", ")}');
-      print('   line columns: ${lineColumns.join(", ")}');
-      print('   tocEntry columns: ${tocEntryColumns.join(", ")}');
-      
-      print('🔄 Starting to process ${files.length} files...');
-      
+      debugPrint('   book columns: ${bookColumns.join(", ")}');
+      debugPrint('   line columns: ${lineColumns.join(", ")}');
+      debugPrint('   tocEntry columns: ${tocEntryColumns.join(", ")}');
+
+      debugPrint('🔄 Starting to process ${files.length} files...');
+
       for (int i = 0; i < files.length; i++) {
         // Check for cancellation
         if (_isCancelled) {
@@ -348,21 +351,22 @@ class DatabaseImportService {
 
         final file = files[i];
         final rawTitle = path.basenameWithoutExtension(file.path);
-        
+
         // Sanitize and validate book title
         final bookTitle = _sanitizeTitle(rawTitle);
         if (bookTitle.isEmpty) {
-          print('   ⚠️ Skipping file with invalid title: $rawTitle');
+          debugPrint('   ⚠️ Skipping file with invalid title: $rawTitle');
           continue;
         }
 
-        print('📖 Processing file ${i + 1}/${files.length}: $bookTitle');
+        debugPrint('📖 Processing file ${i + 1}/${files.length}: $bookTitle');
         onProgress?.call(i + 1, files.length, bookTitle);
 
         // Check for duplicates
-        final existing = await db.query('book', where: 'title = ?', whereArgs: [bookTitle]);
+        final existing =
+            await db.query('book', where: 'title = ?', whereArgs: [bookTitle]);
         if (existing.isNotEmpty) {
-          print('   ⚠️ Book "$bookTitle" already exists, skipping');
+          debugPrint('   ⚠️ Book "$bookTitle" already exists, skipping');
           continue;
         }
 
@@ -373,25 +377,25 @@ class DatabaseImportService {
             'title': bookTitle,
             'categoryId': 1,
             'sourceId': 1,
-            'orderIndex': bookId,  // Use bookId as order
-            'totalLines': 0,  // Will be updated later
+            'orderIndex': bookId, // Use bookId as order
+            'totalLines': 0, // Will be updated later
             'isBaseBook': 0,
             'hasTargumConnection': 0,
             'hasReferenceConnection': 0,
             'hasCommentaryConnection': 0,
             'hasOtherConnection': 0,
           });
-          print('   ✅ Book inserted: $bookTitle');
+          debugPrint('   ✅ Book inserted: $bookTitle');
         } catch (e) {
-          print('   ❌ Failed to insert book: $e');
+          debugPrint('   ❌ Failed to insert book: $e');
           throw Exception('Failed to insert book "$bookTitle": $e');
         }
 
         // Read and insert lines
-        print('   📝 Reading file content...');
+        debugPrint('   📝 Reading file content...');
         final content = await file.readAsString();
         final lines = content.split('\n');
-        print('   📝 Found ${lines.length} lines');
+        debugPrint('   📝 Found ${lines.length} lines');
 
         int linesInserted = 0;
         for (int lineNum = 0; lineNum < lines.length; lineNum++) {
@@ -401,18 +405,18 @@ class DatabaseImportService {
               await db.insert('line', {
                 'id': lineId,
                 'bookId': bookId,
-                'lineIndex': lineNum,  // 0-based index
-                'content': lineText,   // 'content' not 'text'!
+                'lineIndex': lineNum, // 0-based index
+                'content': lineText, // 'content' not 'text'!
               });
               lineId++;
               linesInserted++;
             } catch (e) {
-              print('   ❌ Failed to insert line $lineNum: $e');
+              debugPrint('   ❌ Failed to insert line $lineNum: $e');
               throw Exception('Failed to insert line in "$bookTitle": $e');
             }
           }
         }
-        print('   ✅ Inserted $linesInserted lines');
+        debugPrint('   ✅ Inserted $linesInserted lines');
 
         // Create simple TOC entry
         await db.insert('tocText', {
@@ -423,8 +427,8 @@ class DatabaseImportService {
         await db.insert('tocEntry', {
           'id': tocEntryId,
           'bookId': bookId,
-          'parentId': null,  // 'parentId' not 'parent'
-          'textId': tocTextId,  // 'textId' not 'text'
+          'parentId': null, // 'parentId' not 'parent'
+          'textId': tocTextId, // 'textId' not 'text'
           'level': 0,
           'isLastChild': 1,
           'hasChildren': 0,
@@ -449,10 +453,11 @@ class DatabaseImportService {
   }
 
   /// Get the actual schema of a table from the database
-  static Future<List<String>> getTableColumns(Database db, String tableName) async {
+  static Future<List<String>> getTableColumns(
+      Database db, String tableName) async {
     final result = await db.rawQuery('PRAGMA table_info($tableName)');
     final columns = result.map((row) => row['name'] as String).toList();
-    print('📋 Table $tableName columns: ${columns.join(", ")}');
+    debugPrint('📋 Table $tableName columns: ${columns.join(", ")}');
     return columns;
   }
 
@@ -460,12 +465,12 @@ class DatabaseImportService {
   static String _sanitizeTitle(String title) {
     // Remove control characters and trim
     title = title.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '').trim();
-    
+
     // Limit length to prevent overflow
     if (title.length > 255) {
       title = title.substring(0, 255);
     }
-    
+
     return title;
   }
 
@@ -477,117 +482,124 @@ class DatabaseImportService {
     bool createBackup = true,
     String? backupPath,
   }) async {
-    print('🔄 Starting merge process...');
-    print('📂 Main DB: $mainDbPath');
-    print('📂 Temp DB: $tempDbPath');
-    
+    debugPrint('🔄 Starting merge process...');
+    debugPrint('📂 Main DB: $mainDbPath');
+    debugPrint('📂 Temp DB: $tempDbPath');
+
     // Check if main DB is locked
     final mainDbFile = File(mainDbPath);
     if (!await mainDbFile.exists()) {
       throw Exception('קובץ מאגר הנתונים לא קיים: $mainDbPath');
     }
-    
-    print('✅ Main DB file exists');
-    
+
+    debugPrint('✅ Main DB file exists');
+
     Database? mainDb;
     try {
-      print('🔓 Attempting to open main database...');
-      
+      debugPrint('🔓 Attempting to open main database...');
+
       // Try to enable WAL mode for concurrent access
       try {
         final testDb = await databaseFactory.openDatabase(mainDbPath);
         await testDb.execute('PRAGMA journal_mode=WAL');
         await testDb.close();
-        print('✅ WAL mode enabled');
+        debugPrint('✅ WAL mode enabled');
       } catch (e) {
-        print('⚠️ Could not enable WAL mode: $e');
+        debugPrint('⚠️ Could not enable WAL mode: $e');
       }
-      
+
       mainDb = await databaseFactory.openDatabase(
         mainDbPath,
         options: OpenDatabaseOptions(
           readOnly: false,
-          singleInstance: true,  // Prevent concurrent access issues
+          singleInstance: true, // Prevent concurrent access issues
         ),
       );
-      print('✅ Main database opened successfully (single instance mode)');
-      
+      debugPrint('✅ Main database opened successfully (single instance mode)');
+
       // Get actual schema from main database
-      print('📋 Reading main database schema...');
+      debugPrint('📋 Reading main database schema...');
       final categoryColumns = await getTableColumns(mainDb, 'category');
       final bookColumns = await getTableColumns(mainDb, 'book');
       final lineColumns = await getTableColumns(mainDb, 'line');
       final tocEntryColumns = await getTableColumns(mainDb, 'tocEntry');
       final tocTextColumns = await getTableColumns(mainDb, 'tocText');
-      
-      print('');
-      print('🔍 DETECTED SCHEMA:');
-      print('   category: ${categoryColumns.join(", ")}');
-      print('   book: ${bookColumns.join(", ")}');
-      print('   line: ${lineColumns.join(", ")}');
-      print('   tocEntry: ${tocEntryColumns.join(", ")}');
-      print('   tocText: ${tocTextColumns.join(", ")}');
-      print('');
-      
+
+      debugPrint('');
+      debugPrint('🔍 DETECTED SCHEMA:');
+      debugPrint('   category: ${categoryColumns.join(", ")}');
+      debugPrint('   book: ${bookColumns.join(", ")}');
+      debugPrint('   line: ${lineColumns.join(", ")}');
+      debugPrint('   tocEntry: ${tocEntryColumns.join(", ")}');
+      debugPrint('   tocText: ${tocTextColumns.join(", ")}');
+      debugPrint('');
     } catch (e) {
-      print('❌ Failed to open main database: $e');
-      throw Exception('לא ניתן לפתוח את מאגר הנתונים.\n\nהסיבה: $e\n\nנסה לסגור את האפליקציה ולהריץ את הייבוא מחוץ לאפליקציה.');
+      debugPrint('❌ Failed to open main database: $e');
+      throw Exception(
+          'לא ניתן לפתוח את מאגר הנתונים.\n\nהסיבה: $e\n\nנסה לסגור את האפליקציה ולהריץ את הייבוא מחוץ לאפליקציה.');
     }
 
     try {
       // Create backup if requested
       if (createBackup) {
         onProgress?.call('יוצר גיבוי...');
-        print('💾 Creating backup...');
+        debugPrint('💾 Creating backup...');
 
         try {
-          final defaultBackupPath = '$mainDbPath.backup.${DateTime.now().millisecondsSinceEpoch}';
+          final defaultBackupPath =
+              '$mainDbPath.backup.${DateTime.now().millisecondsSinceEpoch}';
           final finalBackupPath = backupPath ?? defaultBackupPath;
-          
+
           // Check if there's enough space
           final dbFile = File(mainDbPath);
           final dbSize = await dbFile.length();
-          print('📊 Database size: ${(dbSize / 1024 / 1024).toStringAsFixed(2)} MB');
-          
+          debugPrint(
+              '📊 Database size: ${(dbSize / 1024 / 1024).toStringAsFixed(2)} MB');
+
           await dbFile.copy(finalBackupPath);
-          print('✅ Backup created: $finalBackupPath');
+          debugPrint('✅ Backup created: $finalBackupPath');
         } catch (e) {
-          print('⚠️ Backup failed: $e');
+          debugPrint('⚠️ Backup failed: $e');
           if (e.toString().contains('not enough space')) {
-            print('💡 Continuing without backup due to disk space...');
+            debugPrint('💡 Continuing without backup due to disk space...');
             onProgress?.call('⚠️ אין מספיק מקום לגיבוי, ממשיך בלי גיבוי...');
           } else {
             rethrow;
           }
         }
       } else {
-        print('⚠️ Skipping backup as requested');
+        debugPrint('⚠️ Skipping backup as requested');
         onProgress?.call('מדלג על גיבוי...');
       }
 
       onProgress?.call('מחשב offsets...');
-      print('🔢 Calculating offsets...');
+      debugPrint('🔢 Calculating offsets...');
 
       // Get max IDs from main database
-      final maxBookIdResult = await mainDb.rawQuery('SELECT MAX(id) as max_id FROM book');
+      final maxBookIdResult =
+          await mainDb.rawQuery('SELECT MAX(id) as max_id FROM book');
       final maxBookId = maxBookIdResult.first['max_id'] as int? ?? 0;
-      print('📚 Max book ID: $maxBookId');
+      debugPrint('📚 Max book ID: $maxBookId');
 
-      final maxLineIdResult = await mainDb.rawQuery('SELECT MAX(id) as max_id FROM line');
+      final maxLineIdResult =
+          await mainDb.rawQuery('SELECT MAX(id) as max_id FROM line');
       final maxLineId = maxLineIdResult.first['max_id'] as int? ?? 0;
-      print('📝 Max line ID: $maxLineId');
+      debugPrint('📝 Max line ID: $maxLineId');
 
-      final maxTocEntryIdResult = await mainDb.rawQuery('SELECT MAX(id) as max_id FROM tocEntry');
+      final maxTocEntryIdResult =
+          await mainDb.rawQuery('SELECT MAX(id) as max_id FROM tocEntry');
       final maxTocEntryId = maxTocEntryIdResult.first['max_id'] as int? ?? 0;
-      print('📖 Max TOC entry ID: $maxTocEntryId');
+      debugPrint('📖 Max TOC entry ID: $maxTocEntryId');
 
-      final maxTocTextIdResult = await mainDb.rawQuery('SELECT MAX(id) as max_id FROM tocText');
+      final maxTocTextIdResult =
+          await mainDb.rawQuery('SELECT MAX(id) as max_id FROM tocText');
       final maxTocTextId = maxTocTextIdResult.first['max_id'] as int? ?? 0;
-      print('📑 Max TOC text ID: $maxTocTextId');
+      debugPrint('📑 Max TOC text ID: $maxTocTextId');
 
-      final maxCategoryIdResult = await mainDb.rawQuery('SELECT MAX(id) as max_id FROM category');
+      final maxCategoryIdResult =
+          await mainDb.rawQuery('SELECT MAX(id) as max_id FROM category');
       final maxCategoryId = maxCategoryIdResult.first['max_id'] as int? ?? 0;
-      print('📂 Max category ID: $maxCategoryId');
+      debugPrint('📂 Max category ID: $maxCategoryId');
 
       // Calculate offsets
       final categoryOffset = maxCategoryId + 10000;
@@ -595,81 +607,89 @@ class DatabaseImportService {
       final lineOffset = maxLineId + 10000;
       final tocEntryOffset = maxTocEntryId + 1000;
       final tocTextOffset = maxTocTextId + 1000;
-      
-      print('➕ Offsets: book=$bookOffset, line=$lineOffset, toc=$tocEntryOffset');
+
+      debugPrint(
+          '➕ Offsets: book=$bookOffset, line=$lineOffset, toc=$tocEntryOffset');
 
       onProgress?.call('מאחד מאגרי נתונים...');
-      print('🔗 Attaching temp database...');
+      debugPrint('🔗 Attaching temp database...');
 
       // Attach temp database
       await mainDb.execute("ATTACH DATABASE '$tempDbPath' AS temp_db");
-      print('✅ Temp database attached');
+      debugPrint('✅ Temp database attached');
 
       // Start transaction
-      print('🔄 Starting transaction...');
+      debugPrint('🔄 Starting transaction...');
       await mainDb.execute('BEGIN TRANSACTION');
 
       try {
         // Get columns again for INSERT statements
         final catColumns = await getTableColumns(mainDb, 'category');
         final bkColumns = await getTableColumns(mainDb, 'book');
-        
+
         // Check if category already exists by title
-        print('📂 Checking for existing category...');
-        final tempCategoryResult = await mainDb.rawQuery(
-          'SELECT title FROM temp_db.category WHERE id = 1'
-        );
+        debugPrint('📂 Checking for existing category...');
+        final tempCategoryResult = await mainDb
+            .rawQuery('SELECT title FROM temp_db.category WHERE id = 1');
         final categoryTitle = tempCategoryResult.first['title'] as String;
-        print('   Looking for category: $categoryTitle');
-        
+        debugPrint('   Looking for category: $categoryTitle');
+
         final existingCategoryResult = await mainDb.rawQuery(
           'SELECT id FROM category WHERE title = ?',
           [categoryTitle],
         );
-        
+
         int actualCategoryId;
         if (existingCategoryResult.isNotEmpty) {
           actualCategoryId = existingCategoryResult.first['id'] as int;
-          print('   ✅ Category already exists with id: $actualCategoryId');
+          debugPrint('   ✅ Category already exists with id: $actualCategoryId');
         } else {
           // Create new category
-          print('   Creating new category...');
+          debugPrint('   Creating new category...');
           final catCols = catColumns.join(', ');
           final catColsWithOffset = catColumns.map((col) {
-            if (col == 'id') return 'id + $categoryOffset';
-            if (col == 'parentId') return 'CASE WHEN parentId IS NULL THEN NULL ELSE parentId + $categoryOffset END';
+            if (col == 'id') {
+              return 'id + $categoryOffset';
+            }
+            if (col == 'parentId') {
+              return 'CASE WHEN parentId IS NULL THEN NULL ELSE parentId + $categoryOffset END';
+            }
             return col;
           }).join(', ');
-          
+
           await mainDb.execute('''
             INSERT INTO category ($catCols)
             SELECT $catColsWithOffset
             FROM temp_db.category
           ''');
           actualCategoryId = 1 + categoryOffset;
-          print('   ✅ New category created with id: $actualCategoryId');
+          debugPrint('   ✅ New category created with id: $actualCategoryId');
         }
 
         // Copy books - link to the actual category
-        print('📚 Copying books...');
+        debugPrint('📚 Copying books...');
         final bookCols = bkColumns.join(', ');
         final bookColsWithOffset = bkColumns.map((col) {
-          if (col == 'id') return 'id + $bookOffset';
-          if (col == 'categoryId') return '$actualCategoryId';  // Use actual category ID!
+          if (col == 'id') {
+            return 'id + $bookOffset';
+          }
+          if (col == 'categoryId') {
+            return '$actualCategoryId'; // Use actual category ID!
+          }
           return col;
         }).join(', ');
-        
-        print('   Using columns: $bookCols');
-        print('   Linking books to category: $actualCategoryId');
+
+        debugPrint('   Using columns: $bookCols');
+        debugPrint('   Linking books to category: $actualCategoryId');
         await mainDb.execute('''
           INSERT INTO book ($bookCols)
           SELECT $bookColsWithOffset
           FROM temp_db.book
         ''');
-        print('✅ Books copied');
+        debugPrint('✅ Books copied');
 
         // Copy TOC texts (use INSERT OR IGNORE for UNIQUE constraint)
-        print('📑 Copying TOC texts...');
+        debugPrint('📑 Copying TOC texts...');
         await mainDb.execute('''
           INSERT OR IGNORE INTO tocText (id, text)
           SELECT 
@@ -677,10 +697,10 @@ class DatabaseImportService {
             text
           FROM temp_db.tocText
         ''');
-        print('✅ TOC texts copied');
+        debugPrint('✅ TOC texts copied');
 
         // Copy lines - use actual columns
-        print('📝 Copying lines...');
+        debugPrint('📝 Copying lines...');
         final lineColumns = await getTableColumns(mainDb, 'line');
         final lineCols = lineColumns.join(', ');
         final lineColsWithOffset = lineColumns.map((col) {
@@ -688,58 +708,60 @@ class DatabaseImportService {
           if (col == 'bookId') return 'bookId + $bookOffset';
           return col;
         }).join(', ');
-        
-        print('   Using columns: $lineCols');
+
+        debugPrint('   Using columns: $lineCols');
         await mainDb.execute('''
           INSERT INTO line ($lineCols)
           SELECT $lineColsWithOffset
           FROM temp_db.line
         ''');
-        print('✅ Lines copied');
+        debugPrint('✅ Lines copied');
 
         // Copy TOC entries - use actual columns
-        print('📖 Copying TOC entries...');
+        debugPrint('📖 Copying TOC entries...');
         final tocColumns = await getTableColumns(mainDb, 'tocEntry');
         final tocCols = tocColumns.join(', ');
         final tocColsWithOffset = tocColumns.map((col) {
           if (col == 'id') return 'id + $tocEntryOffset';
           if (col == 'bookId') return 'bookId + $bookOffset';
-          if (col == 'parentId') return 'CASE WHEN parentId IS NULL THEN NULL ELSE parentId + $tocEntryOffset END';
+          if (col == 'parentId') {
+            return 'CASE WHEN parentId IS NULL THEN NULL ELSE parentId + $tocEntryOffset END';
+          }
           if (col == 'textId') return 'textId + $tocTextOffset';
           return col;
         }).join(', ');
-        
-        print('   Using columns: $tocCols');
+
+        debugPrint('   Using columns: $tocCols');
         await mainDb.execute('''
           INSERT INTO tocEntry ($tocCols)
           SELECT $tocColsWithOffset
           FROM temp_db.tocEntry
         ''');
-        print('✅ TOC entries copied');
-        
-        print('💾 Committing transaction...');
+        debugPrint('✅ TOC entries copied');
+
+        debugPrint('💾 Committing transaction...');
         await mainDb.execute('COMMIT');
-        print('✅ Transaction committed successfully');
+        debugPrint('✅ Transaction committed successfully');
         onProgress?.call('הושלם בהצלחה!');
       } catch (e) {
-        print('❌ Error during merge: $e');
-        print('🔙 Rolling back transaction...');
+        debugPrint('❌ Error during merge: $e');
+        debugPrint('🔙 Rolling back transaction...');
         await mainDb.execute('ROLLBACK');
-        print('✅ Rollback completed');
+        debugPrint('✅ Rollback completed');
         onProgress?.call('שגיאה: $e');
         rethrow;
       } finally {
-        print('🔌 Detaching temp database...');
+        debugPrint('🔌 Detaching temp database...');
         await mainDb.execute('DETACH DATABASE temp_db');
-        print('✅ Temp database detached');
+        debugPrint('✅ Temp database detached');
       }
     } catch (e) {
-      print('❌ Fatal error in merge: $e');
+      debugPrint('❌ Fatal error in merge: $e');
       rethrow;
     } finally {
-      print('🔒 Closing main database...');
+      debugPrint('🔒 Closing main database...');
       await mainDb.close();
-      print('✅ Main database closed');
+      debugPrint('✅ Main database closed');
     }
   }
 
@@ -797,27 +819,29 @@ class DatabaseImportService {
       // Add category to imported categories list (using folder name)
       final folderName = path.basename(folderPath);
       await addImportedCategory(folderName);
-      print('📝 Registered category "$folderName" as user-imported');
+      debugPrint('📝 Registered category "$folderName" as user-imported');
 
       // Delete source text files if requested (for internal folders)
       if (deleteSourceFiles && importedFiles.isNotEmpty) {
         onProgress?.call('מוחק קבצי טקסט מקוריים...');
-        print('🗑️ Deleting ${importedFiles.length} source text files...');
-        
+        debugPrint('🗑️ Deleting ${importedFiles.length} source text files...');
+
         int deletedCount = 0;
         for (final file in importedFiles) {
           try {
             if (await file.exists()) {
               await file.delete();
               deletedCount++;
-              print('   ✅ Deleted: ${path.basename(file.path)}');
+              debugPrint('   ✅ Deleted: ${path.basename(file.path)}');
             }
           } catch (e) {
-            print('   ⚠️ Failed to delete ${path.basename(file.path)}: $e');
+            debugPrint(
+                '   ⚠️ Failed to delete ${path.basename(file.path)}: $e');
             // Continue with other files even if one fails
           }
         }
-        print('✅ Deleted $deletedCount/${ importedFiles.length} text files');
+        debugPrint(
+            '✅ Deleted $deletedCount/${importedFiles.length} text files');
       }
 
       onProgress?.call('הושלם בהצלחה!');
