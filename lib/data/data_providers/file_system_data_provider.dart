@@ -213,6 +213,7 @@ class FileSystemData {
       // Return library with whatever we managed to load
     }
 
+    // Sort top-level categories by order (from metadata)
     library.subCategories.sort((a, b) => a.order.compareTo(b.order));
     return library;
   }
@@ -854,7 +855,12 @@ class FileSystemData {
         mapExistingCategories(cat);
       }
 
+      // Load metadata to get correct order
+      final metadataMap = await metadata;
+      debugPrint('📊 Loaded metadata for ${metadataMap.length} items');
+
       // First pass: create or reuse categories
+      int categoriesWithOrder = 0;
       for (final catData in categoriesData) {
         final catId = catData['id'] as int;
         final title = catData['title'] as String;
@@ -863,12 +869,22 @@ class FileSystemData {
         if (existingCategoriesByTitle.containsKey(title)) {
           categoryMap[catId] = existingCategoriesByTitle[title]!;
         } else {
+          // Get order from metadata, fallback to orderIndex from DB, then to 999
+          final metaOrder = metadataMap[title]?['order'] as int?;
+          final dbOrder = (catData['orderIndex'] as num?)?.toInt();
+          final finalOrder = metaOrder ?? dbOrder ?? 999;
+
+          if (metaOrder != null && catData['parentId'] == null) {
+            categoriesWithOrder++;
+            debugPrint('📂 Category "$title" -> order: $finalOrder (from metadata)');
+          }
+
           // Create new category
           final category = Category(
             title: title,
-            description: '',
-            shortDescription: '',
-            order: 999,
+            description: catData['description'] as String? ?? '',
+            shortDescription: catData['shortDescription'] as String? ?? '',
+            order: finalOrder,
             subCategories: [],
             books: [],
             parent: null,
@@ -876,6 +892,8 @@ class FileSystemData {
           categoryMap[catId] = category;
         }
       }
+      
+      debugPrint('✅ Found order in metadata for $categoriesWithOrder top-level categories');
 
       // Second pass: build hierarchy
       for (final catData in categoriesData) {
@@ -946,13 +964,19 @@ class FileSystemData {
         }
       }
 
-      // Sort everything
+      // Sort everything by order
       for (final category in categoryMap.values) {
         category.books.sort((a, b) => a.order.compareTo(b.order));
-        category.subCategories.sort((a, b) => a.title.compareTo(b.title));
+        category.subCategories.sort((a, b) => a.order.compareTo(b.order));
       }
 
-      library.subCategories.sort((a, b) => a.title.compareTo(b.title));
+      // Sort top-level categories by order (now loaded from metadata)
+      debugPrint('🔄 Sorting ${library.subCategories.length} top-level categories...');
+      debugPrint('   Before sort: ${library.subCategories.take(5).map((c) => "${c.title}(${c.order})").join(", ")}');
+      
+      library.subCategories.sort((a, b) => a.order.compareTo(b.order));
+      
+      debugPrint('   After sort: ${library.subCategories.take(5).map((c) => "${c.title}(${c.order})").join(", ")}');
     } catch (e) {
       debugPrint('❌ Error building category hierarchy: $e');
       rethrow;
@@ -982,11 +1006,11 @@ class FileSystemData {
     for (final book in books) {
       final originalOrder = book.order;
 
-      // Get generation for this book
+      // Get generation for this book based on topics field
       String generation = 'מפרשים נוספים'; // default
 
       for (final gen in generationOrder.keys) {
-        if (await hasTopic(book.title, gen)) {
+        if (book.topics.contains(gen)) {
           generation = gen;
           break;
         }

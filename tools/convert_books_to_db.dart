@@ -11,9 +11,11 @@
 library;
 
 import 'dart:io';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'dart:convert';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart' as path;
+
+void debugPrint(String message) => print(message);
 
 void main(List<String> args) async {
   debugPrint('📚 Book to SQLite Converter');
@@ -84,16 +86,21 @@ class BookToDbConverter {
   final Map<String, int> categoryCache = {};
   final Map<String, int> tocTextCache = {};
   int defaultSourceId = 1;
+  Map<String, dynamic> metadata = {};
 
   BookToDbConverter(this.inputDir, this.outputDbPath);
 
   Future<void> convert() async {
-    debugPrint('🔧 Step 1: Creating database schema...');
+    debugPrint('🔧 Step 1: Loading metadata...');
+    await _loadMetadata();
+    debugPrint('✅ Metadata loaded\n');
+
+    debugPrint('🔧 Step 2: Creating database schema...');
     await _createDatabase();
 
     debugPrint('✅ Database schema created\n');
 
-    debugPrint('🔧 Step 2: Scanning for text files...');
+    debugPrint('🔧 Step 3: Scanning for text files...');
     final textFiles = await _scanTextFiles();
     debugPrint('✅ Found ${textFiles.length} text files\n');
 
@@ -155,6 +162,9 @@ class BookToDbConverter {
             parentId INTEGER,
             title TEXT NOT NULL,
             level INTEGER NOT NULL DEFAULT 0,
+            orderIndex INTEGER NOT NULL DEFAULT 999,
+            description TEXT,
+            shortDescription TEXT,
             FOREIGN KEY (parentId) REFERENCES category(id) ON DELETE CASCADE
           )
         ''');
@@ -172,7 +182,10 @@ class BookToDbConverter {
             categoryId INTEGER NOT NULL,
             sourceId INTEGER NOT NULL,
             title TEXT NOT NULL,
+            author TEXT,
             heShortDesc TEXT,
+            pubDate TEXT,
+            pubPlace TEXT,
             notesContent TEXT,
             orderIndex INTEGER NOT NULL DEFAULT 999,
             totalLines INTEGER NOT NULL DEFAULT 0,
@@ -228,6 +241,34 @@ class BookToDbConverter {
     );
   }
 
+  Future<void> _loadMetadata() async {
+    try {
+      final metadataFile = File(path.join(inputDir, 'metadata.json'));
+      if (await metadataFile.exists()) {
+        final content = await metadataFile.readAsString();
+        final jsonData = jsonDecode(content);
+        
+        // Convert List to Map (title -> metadata)
+        if (jsonData is List) {
+          for (final item in jsonData) {
+            if (item is Map<String, dynamic> && item.containsKey('title')) {
+              final title = item['title'].toString().replaceAll('"', '');
+              metadata[title] = item;
+            }
+          }
+          debugPrint('   Loaded metadata for ${metadata.length} items from List');
+        } else if (jsonData is Map) {
+          metadata = Map<String, dynamic>.from(jsonData);
+          debugPrint('   Loaded metadata for ${metadata.length} items from Map');
+        }
+      } else {
+        debugPrint('   ⚠️  metadata.json not found, using defaults');
+      }
+    } catch (e) {
+      debugPrint('   ⚠️  Error loading metadata: $e');
+    }
+  }
+
   Future<List<File>> _scanTextFiles() async {
     final files = <File>[];
 
@@ -247,6 +288,14 @@ class BookToDbConverter {
     final bookTitle = _extractBookTitle(file.path);
     final categoryId = await _getOrCreateCategory(file.path);
 
+    // Get metadata for this book
+    final bookMeta = metadata[bookTitle] as Map<String, dynamic>?;
+    final orderIndex = bookMeta?['order'] ?? 999;
+    final author = bookMeta?['author'] ?? '';
+    final heShortDesc = bookMeta?['heShortDesc'] ?? '';
+    final pubDate = bookMeta?['pubDate'] ?? '';
+    final pubPlace = bookMeta?['pubPlace'] ?? '';
+
     // Read file content
     final content = await file.readAsString();
     final lines = content.split('\n');
@@ -257,7 +306,11 @@ class BookToDbConverter {
       'categoryId': categoryId,
       'sourceId': defaultSourceId,
       'title': bookTitle,
-      'orderIndex': 999,
+      'author': author,
+      'heShortDesc': heShortDesc,
+      'pubDate': pubDate,
+      'pubPlace': pubPlace,
+      'orderIndex': orderIndex,
       'totalLines': lines.length,
       'isBaseBook': 0,
     });
@@ -346,12 +399,21 @@ class BookToDbConverter {
       return id;
     }
 
+    // Get metadata for this category
+    final categoryMeta = metadata[name] as Map<String, dynamic>?;
+    final orderIndex = categoryMeta?['order'] ?? 999;
+    final description = categoryMeta?['heDesc'] ?? '';
+    final shortDescription = categoryMeta?['heShortDesc'] ?? '';
+
     // Create new category
     final id = await db.insert('category', {
       'id': categoryIdCounter,
       'parentId': parentId,
       'title': name,
       'level': parentId == null ? 0 : 1,
+      'orderIndex': orderIndex,
+      'description': description,
+      'shortDescription': shortDescription,
     });
 
     categoryCache[cacheKey] = id;

@@ -284,7 +284,8 @@ class TantivyDataProvider {
 
   /// Clears the index and resets the list of indexed books.
   Future<void> clear() async {
-    isIndexing.value = false;
+    // Don't change isIndexing here - let the caller manage it
+    // isIndexing.value = false; ← Removed to prevent race condition
     final index = await engine;
     await index.clear();
     final refIndex = refEngine;

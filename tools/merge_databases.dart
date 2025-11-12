@@ -104,12 +104,15 @@ void main() async {
       // 1. Copy categories
       debugPrint('   📂 Copying categories...');
       await db.execute('''
-        INSERT OR IGNORE INTO category (id, parentId, title, level)
+        INSERT OR IGNORE INTO category (id, parentId, title, level, orderIndex, description, shortDescription)
         SELECT 
           id + $categoryOffset,
           CASE WHEN parentId IS NOT NULL THEN parentId + $categoryOffset ELSE NULL END,
           title,
-          level
+          level,
+          orderIndex,
+          description,
+          shortDescription
         FROM personal.category
       ''');
 
@@ -117,7 +120,7 @@ void main() async {
       debugPrint('   📚 Copying books...');
       await db.execute('''
         INSERT INTO book (
-          id, categoryId, sourceId, title, heShortDesc, notesContent,
+          id, categoryId, sourceId, title, author, heShortDesc, pubDate, pubPlace, notesContent,
           orderIndex, totalLines, isBaseBook, hasTargumConnection,
           hasReferenceConnection, hasCommentaryConnection, hasOtherConnection
         )
@@ -126,7 +129,10 @@ void main() async {
           categoryId + $categoryOffset,
           sourceId,
           title,
+          author,
           heShortDesc,
+          pubDate,
+          pubPlace,
           notesContent,
           orderIndex,
           totalLines,

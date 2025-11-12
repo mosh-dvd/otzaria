@@ -63,9 +63,24 @@ class IndexingBloc extends Bloc<IndexingEvent, IndexingState> {
   }
 
   /// Handles the EraseIndex event
-  void _onEraseIndex(ClearIndex event, Emitter<IndexingState> emit) async {
-    await _repository.clearIndex();
-    emit(IndexingInitial());
+  Future<void> _onEraseIndex(ClearIndex event, Emitter<IndexingState> emit) async {
+    print('🔵 [IndexingBloc] ClearIndex event received');
+    
+    emit(IndexingInProgress(
+      booksProcessed: 0,
+      totalBooks: 0,
+      booksDone: [],
+    ));
+    
+    try {
+      print('🔵 [IndexingBloc] Calling repository.clearIndex()...');
+      await _repository.clearIndex();
+      print('✅ [IndexingBloc] clearIndex completed successfully');
+      emit(IndexingInitial());
+    } catch (e) {
+      print('❌ [IndexingBloc] clearIndex failed: $e');
+      emit(IndexingError('Failed to clear index: $e'));
+    }
   }
 
   /// Handles the UpdateIndexingProgress event

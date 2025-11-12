@@ -325,9 +325,24 @@ class EmptyLibraryBloc extends Bloc<EmptyLibraryEvent, EmptyLibraryState> {
         downloadProgress: 0,
         downloadedMB: 0,
         downloadSpeed: 0,
-        currentOperation: ''));
+        currentOperation: 'בודק את התיקייה...'));
+
+    // Check if the selected directory contains a valid library
+    final dbFile = File('$selectedDirectory${Platform.pathSeparator}seforim.db');
+    final otzariaDir = Directory('$selectedDirectory${Platform.pathSeparator}אוצריא');
+    
+    final hasDb = await dbFile.exists();
+    final hasOtzariaDir = await otzariaDir.exists() && (await otzariaDir.list().isEmpty == false);
+
+    if (!hasDb && !hasOtzariaDir) {
+      emit(const EmptyLibraryError(
+          errorMessage: 'התיקייה שנבחרה לא מכילה ספרייה תקינה.\nנא לבחור תיקייה שמכילה את קובץ seforim.db או תיקיית אוצריא.'));
+      emit(EmptyLibraryInitial());
+      return;
+    }
+
     Settings.setValue('key-library-path', selectedDirectory);
-    emit(
-        EmptyLibraryDownloaded()); // Or maybe a different state like DirectorySelected?
+    debugPrint('✅ Selected valid library directory: $selectedDirectory');
+    emit(EmptyLibraryDownloaded());
   }
 }

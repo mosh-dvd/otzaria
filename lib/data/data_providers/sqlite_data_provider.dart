@@ -18,12 +18,16 @@ class SqliteDataProvider {
 
   /// Get the singleton database instance with thread-safe initialization
   static Future<Database> get database async {
-    if (_database != null) return _database!;
+    if (_database != null) {
+      return _database!;
+    }
 
     // Use lock to prevent race condition
     return await _lock.synchronized(() async {
       // Double-check inside lock
-      if (_database != null) return _database!;
+      if (_database != null) {
+        return _database!;
+      }
       _database = await _initDatabase();
       return _database!;
     });
@@ -42,7 +46,7 @@ class SqliteDataProvider {
       }
 
       _dbPath = dbFile.absolute.path;
-      debugPrint('🔵 SQLite: Opening database at: $_dbPath');
+      debugPrint('✅ [SQLite] Opening database: $_dbPath');
 
       // Open the database in read-only mode
       final db = await openDatabase(
@@ -51,18 +55,17 @@ class SqliteDataProvider {
         singleInstance: false,
       );
 
-      debugPrint('🟢 SQLite: Database opened successfully!');
+      debugPrint('✅ [SQLite] Database opened successfully');
+      
       return db;
     } catch (e) {
-      debugPrint('Error initializing database: $e');
+      debugPrint('❌ [SQLite] Error initializing database: $e');
       rethrow;
     }
   }
 
   /// Find the database file in the library directory
   static Future<File?> _findDatabaseFile() async {
-    debugPrint('🔍 Searching for database file...');
-
     // Get library path from settings
     final libraryPath = await _getLibraryPath();
 
@@ -70,16 +73,11 @@ class SqliteDataProvider {
     final dbPath = join(libraryPath, 'seforim.db');
     final dbFile = File(dbPath);
 
-    debugPrint('🔍 Checking: $dbPath');
-
     if (await dbFile.exists()) {
-      final size = await dbFile.length();
-      debugPrint(
-          '✅ Found database at: ${dbFile.path} (${(size / 1024 / 1024).toStringAsFixed(2)} MB)');
       return dbFile;
     }
 
-    debugPrint('❌ Database not found at: $dbPath');
+    debugPrint('❌ [SQLite] Database file not found at: $dbPath');
     return null;
   }
 
@@ -127,7 +125,7 @@ class SqliteDataProvider {
       if (result.isEmpty) return null;
       return result.first['id'] as int;
     } catch (e) {
-      debugPrint('Error getting book ID for "$title": $e');
+      debugPrint('❌ [SQLite] Error getting book ID for "$title": $e');
       return null;
     }
   }
@@ -135,8 +133,6 @@ class SqliteDataProvider {
   /// Get all lines of a book as a list of strings
   Future<List<String>> getBookLines(String title) async {
     try {
-      final stopwatch = Stopwatch()..start();
-
       final bookId = await getBookId(title);
       if (bookId == null) {
         throw Exception('Book not found: $title');
@@ -151,15 +147,9 @@ class SqliteDataProvider {
         orderBy: 'lineIndex ASC',
       );
 
-      final lines = result.map((row) => row['content'] as String).toList();
-      stopwatch.stop();
-
-      debugPrint(
-          '⚡ SQLite: Loaded ${lines.length} lines from "$title" in ${stopwatch.elapsedMilliseconds}ms');
-
-      return lines;
+      return result.map((row) => row['content'] as String).toList();
     } catch (e) {
-      debugPrint('❌ SQLite: Error getting book lines for "$title": $e');
+      debugPrint('❌ [SQLite] Error getting book lines for "$title": $e');
       rethrow;
     }
   }
@@ -229,7 +219,7 @@ class SqliteDataProvider {
 
       return entries;
     } catch (e) {
-      debugPrint('Error getting TOC for "$title": $e');
+      debugPrint('❌ [SQLite] Error getting TOC for "$title": $e');
       return [];
     }
   }
@@ -415,7 +405,7 @@ class SqliteDataProvider {
       final db = await database;
       final result = await db.query(
         'category',
-        orderBy: 'level ASC, title ASC',
+        orderBy: 'level ASC, id ASC',  // Sort by id instead of title - we'll sort by order later
       );
 
       return result;
