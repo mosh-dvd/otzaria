@@ -3007,20 +3007,13 @@ Map<String, String> _getSourceDisplayInfo(String source) {
     case 'OnYourWay':
       return {'text': 'ובלכתך בדרך', 'url': 'https://mobile.tora.ws/'};
     case 'Orayta':
-      return {
-        'text': 'אורייתא',
-        'url': 'https://github.com/MosheWagner/Orayta-Books'
-      };
+      return {'text': 'אורייתא', 'url': 'https://github.com/MosheWagner/Orayta-Books'};
     case 'sefaria':
       return {'text': 'ספריא', 'url': 'https://www.sefaria.org/texts'};
     case 'MoreBooks':
       return {'text': 'ספרים פרטיים או מקורות נוספים', 'url': ''};
     case 'wiki_jewish_books':
-      return {
-        'text': 'אוצר הספרים היהודי השיתופי',
-        'url':
-            'https://wiki.jewishbooks.org.il/mediawiki/wiki/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99'
-      };
+      return {'text': 'אוצר הספרים היהודי השיתופי', 'url': 'https://wiki.jewishbooks.org.il/mediawiki/wiki/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99'};
     case 'Tashma':
       return {'text': 'תא שמע', 'url': 'https://tashma.co.il/'};
     default:
