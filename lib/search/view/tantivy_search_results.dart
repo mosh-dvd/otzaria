@@ -8,6 +8,8 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/search/bloc/search_bloc.dart';
 import 'package:otzaria/search/bloc/search_state.dart';
+import 'package:otzaria/library/bloc/library_bloc.dart';
+import 'package:otzaria/library/models/library.dart';
 
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
@@ -30,6 +32,61 @@ class TantivySearchResults extends StatefulWidget {
 }
 
 class _TantivySearchResultsState extends State<TantivySearchResults> {
+  
+  // Filter results based on selected facets
+  List _filterResultsByFacets(List results, List<String> facets) {
+    // If root facet is selected, show all results
+    if (facets.isEmpty || facets.contains('/')) {
+      return results;
+    }
+    
+    // Get all book titles that belong to selected facets
+    final libraryState = context.read<LibraryBloc>().state;
+    if (libraryState.library == null) {
+      return results;
+    }
+    
+    final allowedTitles = <String>{};
+    for (final facet in facets) {
+      // Check if facet is a book (ends with book title)
+      // Format: /category/subcategory/BookTitle
+      final parts = facet.split('/').where((p) => p.isNotEmpty).toList();
+      if (parts.isNotEmpty) {
+        final lastPart = parts.last;
+        
+        // Check if this is a book title by looking for it in results
+        final isBook = results.any((r) => r.title == lastPart);
+        
+        if (isBook) {
+          // This is a specific book
+          allowedTitles.add(lastPart);
+        } else {
+          // This is a category - find all books in it
+          final category = _findCategoryByPath(libraryState.library!, facet);
+          if (category != null) {
+            final books = category.getAllBooks();
+            allowedTitles.addAll(books.map((b) => b.title));
+          }
+        }
+      }
+    }
+    
+    // Filter results by title
+    return results.where((r) => allowedTitles.contains(r.title)).toList();
+  }
+  
+  // Helper to find category by path
+  Category? _findCategoryByPath(Category root, String path) {
+    if (root.path == path) return root;
+    
+    for (final sub in root.subCategories) {
+      final found = _findCategoryByPath(sub, path);
+      if (found != null) return found;
+    }
+    
+    return null;
+  }
+  
   // פונקציה עזר ליצירת וריאציות כתיב מלא/חסר
   List<String> _generateFullPartialSpellingVariations(String word) {
     if (word.isEmpty) return [word];
@@ -360,17 +417,39 @@ class _TantivySearchResultsState extends State<TantivySearchResults> {
       ));
     }
 
+    // Filter results based on currentFacets
+    final filteredResults = _filterResultsByFacets(state.results, state.currentFacets);
+    
+    if (filteredResults.isEmpty) {
+      return const Center(
+          child: Padding(
+        padding: EdgeInsets.all(8.0),
+        child: Text('אין תוצאות בקטגוריה זו'),
+      ));
+    }
+
     // תמיד נשתמש ב-ListView גם לתוצאה אחת - כך היא תופיע למעלה
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: state.results.length,
+      itemCount: filteredResults.length,
       itemBuilder: (context, index) {
-        final result = state.results[index];
+        final result = filteredResults[index];
         return BlocBuilder<SettingsBloc, SettingsState>(
           builder: (context, settingsState) {
-            String titleText = result.reference;
+            // Use reference if available (it includes the full path), otherwise use title
+            String titleText = result.reference.isNotEmpty 
+                ? result.reference
+                : result.title;
             String rawHtml = result.text;
-            // Debug info removed for production
+            // Debug: print reference to see what we're getting
+            if (index == 0) {
+              debugPrint('🔍 Result #${index + 1}:');
+              debugPrint('   title: "${result.title}"');
+              debugPrint('   reference: "${result.reference}"');
+              debugPrint('   segment: ${result.segment}');
+              debugPrint('   isPdf: ${result.isPdf}');
+              debugPrint('   Final display: "$titleText"');
+            }
             if (settingsState.replaceHolyNames) {
               titleText = utils.replaceHolyNames(titleText);
               rawHtml = utils.replaceHolyNames(rawHtml);

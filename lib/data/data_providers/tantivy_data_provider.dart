@@ -120,6 +120,11 @@ class TantivyDataProvider {
       Map<String, String>? customSpacing,
       Map<int, List<String>>? alternativeWords,
       Map<String, Map<String, bool>>? searchOptions}) async {
+    // Debug: print what we're searching for
+    if (facets.length == 1 && facets[0] != '/') {
+      debugPrint('🔍 [COUNT] Searching with facet: ${facets[0]}');
+    }
+    
     // Global cache check
     final cacheKey =
         '$query|${facets.join(',')}|$fuzzy|$distance|${customSpacing.toString()}|${alternativeWords.toString()}|${searchOptions.toString()}';

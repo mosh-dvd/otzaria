@@ -143,7 +143,23 @@ class SearchingTab extends OpenedTab {
 
   @override
   factory SearchingTab.fromJson(Map<String, dynamic> json) {
-    final tab = SearchingTab(json['title'], json['searchText']);
+    final searchText = json['searchText'] ?? '';
+    final tab = SearchingTab(json['title'] ?? 'חיפוש', searchText);
+    
+    // Restore the search query
+    if (searchText.isNotEmpty) {
+      tab.queryController.text = searchText;
+      // Trigger search after a short delay to allow UI to build
+      Future.delayed(const Duration(milliseconds: 500), () {
+        tab.searchBloc.add(UpdateSearchQuery(
+          searchText,
+          customSpacing: const {},
+          alternativeWords: const {},
+          searchOptions: const {},
+        ));
+      });
+    }
+    
     return tab;
   }
 

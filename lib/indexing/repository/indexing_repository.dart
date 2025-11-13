@@ -216,19 +216,25 @@ class IndexingRepository {
 
     // Try to get TOC from DB for reference indexing (reuse same provider)
     bool tocIndexed = false;
+    Map<int, String> lineToReference = {}; // Map from line index to reference path
+    
     try {
       final toc = await sqliteProvider.getBookToc(title);
       
       if (toc.isNotEmpty) {
+        debugPrint('📚 [INDEXING] Found ${toc.length} TOC entries for "$title"');
         
         // Use counter for IDs instead of DateTime for better performance
         int idCounter = DateTime.now().microsecondsSinceEpoch;
         
-        // Index TOC entries as references
+        // Index TOC entries as references and build line-to-reference map
         void indexTocEntry(TocEntry entry, List<String> parentPath) {
           final fullPath = [...parentPath, entry.text];
           final refText = fullPath.join(', ');
           final shortref = replaceParaphrases(removeSectionNames(refText));
+          
+          // Store the reference for this line index
+          lineToReference[entry.index] = refText;
           
           refIndex.addDocument(
               id: BigInt.from(idCounter++),
@@ -250,9 +256,18 @@ class IndexingRepository {
           indexTocEntry(entry, []);
         }
         
+        debugPrint('📚 [INDEXING] Built lineToReference map with ${lineToReference.length} entries');
+        if (lineToReference.isNotEmpty) {
+          final firstEntry = lineToReference.entries.first;
+          debugPrint('📚 [INDEXING] Example: line ${firstEntry.key} -> "${firstEntry.value}"');
+        }
+        
         tocIndexed = true;
+      } else {
+        debugPrint('⚠️  [INDEXING] No TOC found for "$title", will use HTML headers');
       }
     } catch (e) {
+      debugPrint('⚠️  [INDEXING] Error loading TOC for "$title": $e');
       // TOC not available, will use HTML headers as fallback
     }
 
@@ -310,11 +325,42 @@ class IndexingRepository {
         line = stripHtmlIfNeeded(line);
         line = removeVolwels(line);
 
+        // Build clean reference text
+        String cleanReference;
+        if (tocIndexed) {
+          // Find the most recent TOC entry before or at this line
+          String? foundRef;
+          int closestIndex = -1;
+          for (final entry in lineToReference.entries) {
+            if (entry.key <= i && entry.key > closestIndex) {
+              closestIndex = entry.key;
+              foundRef = entry.value;
+            }
+          }
+          cleanReference = foundRef ?? '';
+          
+          // Debug: print first few references
+          if (i < 5 && cleanReference.isNotEmpty) {
+            debugPrint('📚 [INDEXING] Line $i reference: "$cleanReference"');
+          }
+        } else {
+          // Use HTML headers
+          cleanReference = reference.map((h) => stripHtmlIfNeeded(h)).join(', ');
+        }
+
+        // Debug: print topics for first indexed line
+        if (i == 0) {
+          debugPrint('📚 [INDEXING] First line of "$title":');
+          debugPrint('   book.topics: "${book.topics}"');
+          debugPrint('   topics variable: "$topics"');
+          debugPrint('   final topics field: "$topics/$title"');
+        }
+
         // Add to search index
         index.addDocument(
             id: BigInt.from(idCounter++),
             title: title,
-            reference: stripHtmlIfNeeded(reference.join(', ')),
+            reference: cleanReference,
             topics: '$topics/$title',
             text: line,
             segment: BigInt.from(i),
