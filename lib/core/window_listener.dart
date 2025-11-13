@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:otzaria/services/sources_books_service.dart';
 
 /// Window listener that handles window events properly to prevent crashes
 class AppWindowListener extends WindowListener {
@@ -13,7 +12,6 @@ class AppWindowListener extends WindowListener {
 
     try {
       // Perform cleanup operations here if needed
-      _performCleanup();
 
       // Close the window properly
       if (!kIsWeb &&
@@ -74,30 +72,8 @@ class AppWindowListener extends WindowListener {
     }
   }
 
-  /// Perform cleanup operations before closing
-  void _performCleanup() {
-    try {
-      if (kDebugMode) {
-        print('Performing cleanup operations...');
-      }
-
-      // Clear SourcesBooks data from memory
-      SourcesBooksService().clearData();
-
-      if (kDebugMode) {
-        print('Cleanup completed successfully');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error during cleanup: $e');
-      }
-    }
-  }
-
   /// Clean up the listener when disposing
   void dispose() {
-    // Perform cleanup operations
-    _performCleanup();
 
     // Remove this listener from window manager
     if (!kIsWeb &&
