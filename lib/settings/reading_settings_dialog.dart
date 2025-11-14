@@ -145,36 +145,36 @@ void showReadingSettingsDialog(BuildContext context) {
                                     items: const [
                                       DropdownMenuItem(
                                           value: 'TaameyDavidCLM',
-                                          child: Text('דוד')),
+                                          child: Text('דוד', style: TextStyle(fontFamily: 'TaameyDavidCLM'))),
                                       DropdownMenuItem(
                                           value: 'FrankRuhlCLM',
-                                          child: Text('פרנק-רוהל')),
+                                          child: Text('פרנק-רוהל', style: TextStyle(fontFamily: 'FrankRuhlCLM'))),
                                       DropdownMenuItem(
                                           value: 'TaameyAshkenaz',
-                                          child: Text('טעמי אשכנז')),
+                                          child: Text('טעמי אשכנז', style: TextStyle(fontFamily: 'TaameyAshkenaz'))),
                                       DropdownMenuItem(
-                                          value: 'KeterYG', child: Text('כתר')),
+                                          value: 'KeterYG', child: Text('כתר', style: TextStyle(fontFamily: 'KeterYG'))),
                                       DropdownMenuItem(
-                                          value: 'Shofar', child: Text('שופר')),
+                                          value: 'Shofar', child: Text('שופר', style: TextStyle(fontFamily: 'Shofar'))),
                                       DropdownMenuItem(
                                           value: 'NotoSerifHebrew',
-                                          child: Text('נוטו')),
+                                          child: Text('נוטו', style: TextStyle(fontFamily: 'NotoSerifHebrew'))),
                                       DropdownMenuItem(
-                                          value: 'Tinos', child: Text('טינוס')),
+                                          value: 'Tinos', child: Text('טינוס', style: TextStyle(fontFamily: 'Tinos'))),
                                       DropdownMenuItem(
                                           value: 'NotoRashiHebrew',
-                                          child: Text('רש"י')),
+                                          child: Text('רש"י', style: TextStyle(fontFamily: 'NotoRashiHebrew'))),
                                       DropdownMenuItem(
                                           value: 'Candara',
-                                          child: Text('קנדרה')),
+                                          child: Text('קנדרה', style: TextStyle(fontFamily: 'Candara'))),
                                       DropdownMenuItem(
                                           value: 'roboto',
-                                          child: Text('רובוטו')),
+                                          child: Text('רובוטו', style: TextStyle(fontFamily: 'roboto'))),
                                       DropdownMenuItem(
                                           value: 'Calibri',
-                                          child: Text('קליברי')),
+                                          child: Text('קליברי', style: TextStyle(fontFamily: 'Calibri'))),
                                       DropdownMenuItem(
-                                          value: 'Arial', child: Text('אריאל')),
+                                          value: 'Arial', child: Text('אריאל', style: TextStyle(fontFamily: 'Arial'))),
                                     ],
                                     onChanged: (value) {
                                       if (value != null) {
@@ -233,36 +233,36 @@ void showReadingSettingsDialog(BuildContext context) {
                                     items: const [
                                       DropdownMenuItem(
                                           value: 'TaameyDavidCLM',
-                                          child: Text('דוד')),
+                                          child: Text('דוד', style: TextStyle(fontFamily: 'TaameyDavidCLM'))),
                                       DropdownMenuItem(
                                           value: 'FrankRuhlCLM',
-                                          child: Text('פרנק-רוהל')),
+                                          child: Text('פרנק-רוהל', style: TextStyle(fontFamily: 'FrankRuhlCLM'))),
                                       DropdownMenuItem(
                                           value: 'TaameyAshkenaz',
-                                          child: Text('טעמי אשכנז')),
+                                          child: Text('טעמי אשכנז', style: TextStyle(fontFamily: 'TaameyAshkenaz'))),
                                       DropdownMenuItem(
-                                          value: 'KeterYG', child: Text('כתר')),
+                                          value: 'KeterYG', child: Text('כתר', style: TextStyle(fontFamily: 'KeterYG'))),
                                       DropdownMenuItem(
-                                          value: 'Shofar', child: Text('שופר')),
+                                          value: 'Shofar', child: Text('שופר', style: TextStyle(fontFamily: 'Shofar'))),
                                       DropdownMenuItem(
                                           value: 'NotoSerifHebrew',
-                                          child: Text('נוטו')),
+                                          child: Text('נוטו', style: TextStyle(fontFamily: 'NotoSerifHebrew'))),
                                       DropdownMenuItem(
-                                          value: 'Tinos', child: Text('טינוס')),
+                                          value: 'Tinos', child: Text('טינוס', style: TextStyle(fontFamily: 'Tinos'))),
                                       DropdownMenuItem(
                                           value: 'NotoRashiHebrew',
-                                          child: Text('רש"י')),
+                                          child: Text('רש"י', style: TextStyle(fontFamily: 'NotoRashiHebrew'))),
                                       DropdownMenuItem(
                                           value: 'Candara',
-                                          child: Text('קנדרה')),
+                                          child: Text('קנדרה', style: TextStyle(fontFamily: 'Candara'))),
                                       DropdownMenuItem(
                                           value: 'roboto',
-                                          child: Text('רובוטו')),
+                                          child: Text('רובוטו', style: TextStyle(fontFamily: 'roboto'))),
                                       DropdownMenuItem(
                                           value: 'Calibri',
-                                          child: Text('קליברי')),
+                                          child: Text('קליברי', style: TextStyle(fontFamily: 'Calibri'))),
                                       DropdownMenuItem(
-                                          value: 'Arial', child: Text('אריאל')),
+                                          value: 'Arial', child: Text('אריאל', style: TextStyle(fontFamily: 'Arial'))),
                                     ],
                                     onChanged: (value) {
                                       if (value != null) {
