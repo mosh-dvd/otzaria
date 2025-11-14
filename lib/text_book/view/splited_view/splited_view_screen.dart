@@ -64,12 +64,12 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
     // קביעת הטאב הראשוני
     // הטאבים בטור השמאלי: 0=קישורים, 1=הערות אישיות
     if (widget.initialTabIndex != null) {
-      print('DEBUG: Using initialTabIndex: ${widget.initialTabIndex}');
+      debugPrint('DEBUG: Using initialTabIndex: ${widget.initialTabIndex}');
       return widget.initialTabIndex!;
     } else {
       // ברירת מחדל - קישורים (0)
       final saved = Settings.getValue<int>('key-sidebar-tab-index-combined');
-      print('DEBUG: saved: $saved, returning: ${saved ?? 0}');
+      debugPrint('DEBUG: saved: $saved, returning: ${saved ?? 0}');
       return saved ?? 0;
     }
   }
@@ -109,10 +109,10 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
     }
 
     int targetTab;
-    
+
     // הטאבים בטור השמאלי עכשיו הם: 0=קישורים, 1=הערות אישיות
     // (מפרשים עבר לטור הימני)
-    
+
     if (state.visibleIndices.isNotEmpty) {
       // בדוק אם יש קישורים בשורה הנוכחית
       final hasLinks = _hasLinksInCurrentLine(state);
@@ -173,8 +173,8 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
       listenWhen: (previous, current) {
         // האזן רק אם הוספנו מפרשים (לא אם הסרנו)
         if (previous is TextBookLoaded && current is TextBookLoaded) {
-          return current.activeCommentators.length > 
-                 previous.activeCommentators.length;
+          return current.activeCommentators.length >
+              previous.activeCommentators.length;
         }
         return false;
       },
@@ -193,7 +193,7 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
         if (state is! TextBookLoaded) {
           return const Center(child: CircularProgressIndicator());
         }
-        
+
         // אם החלונית סגורה - מציגים combined view עם כפתור צף
         if (!_paneOpen) {
           return Stack(
@@ -242,7 +242,7 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
             ],
           );
         }
-        
+
         return MultiSplitView(
           controller: _controller,
           axis: Axis.horizontal,
@@ -276,16 +276,19 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
                   onClosePane: _togglePane,
                   initialTabIndex: _currentTabIndex,
                   onTabChanged: (index) {
-                    print('DEBUG: Tab changed to $index, showSplitView: ${widget.showSplitView}');
+                    debugPrint(
+                        'DEBUG: Tab changed to $index, showSplitView: ${widget.showSplitView}');
                     setState(() {
                       _currentTabIndex = index;
                     });
                     // שומר את הטאב רק בתצוגה משולבת
                     if (!widget.showSplitView) {
-                      print('DEBUG: Saving tab $index to combined settings');
-                      Settings.setValue<int>('key-sidebar-tab-index-combined', index);
+                      debugPrint(
+                          'DEBUG: Saving tab $index to combined settings');
+                      Settings.setValue<int>(
+                          'key-sidebar-tab-index-combined', index);
                     } else {
-                      print('DEBUG: NOT saving tab (split view mode)');
+                      debugPrint('DEBUG: NOT saving tab (split view mode)');
                     }
                   },
                 ),
