@@ -45,7 +45,8 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"; WorkingDir: "{app}"; Parameters: " -sta -WindowStyle Hidden -noprofile -executionpolicy bypass -file uninstall_msix.ps1"; 
+Filename: "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"; WorkingDir: "{app}"; Parameters: " -sta -WindowStyle Hidden -noprofile -executionpolicy bypass -file uninstall_msix.ps1"; Flags: runhidden waituntilterminated
+Filename: "{app}\{#MyAppExeName}"; Description: "הפעל את {#MyAppName}"; Flags: nowait postinstall skipifsilent 
 
 [Languages]
 Name: "hebrew"; MessagesFile: "compiler:Languages\Hebrew.isl"
