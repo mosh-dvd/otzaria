@@ -47,7 +47,7 @@ var
   InstallPath: String;
 begin
   Result := True;
-  InstallPath := ExpandConstant('C:\{#MyAppName}');
+  InstallPath := ExpandConstant('C:\{#MyAppNameEnglish}');
   
   // בדיקה אם התיקיות קיימות והצגת אזהרה
   if DirExists(InstallPath + '\אוצריא') or DirExists(InstallPath + '\links') then
