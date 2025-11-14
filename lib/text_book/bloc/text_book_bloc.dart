@@ -246,6 +246,8 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
   ) {
     if (state is TextBookLoaded) {
       final currentState = state as TextBookLoaded;
+      // שמירת ההגדרה ב-Settings כדי שתישמר כברירת מחדל
+      Settings.setValue<bool>('key-splited-view', event.show);
       emit(currentState.copyWith(
         showSplitView: event.show,
         selectedIndex: currentState.selectedIndex,

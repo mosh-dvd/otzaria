@@ -689,6 +689,7 @@ $textWithBreaks
                   padding: const EdgeInsets.symmetric(vertical: 4.0),
                   child: BlocBuilder<SettingsBloc, SettingsState>(
                     builder: (context, settingsState) {
+                      final horizontalPadding = settingsState.paddingSize;
                       String data = widget.data[index];
 
                       // הוספת קישורים מבוססי תווים
@@ -727,25 +728,28 @@ $textWithBreaks
                       processedData =
                           utils.formatTextWithParentheses(processedData);
 
-                      return HtmlWidget(
-                        '''
-                    <div style="text-align: justify; direction: rtl;">
-                      $processedData
-                    </div>
-                    ''',
-                        key: ValueKey('html_${widget.tab.book.title}_$index'),
-                        textStyle: TextStyle(
-                          fontSize: widget.textSize,
-                          fontFamily: settingsState.fontFamily,
-                          height: 1.5,
+                      return Padding(
+                        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                        child: HtmlWidget(
+                          '''
+                      <div style="text-align: justify; direction: rtl;">
+                        $processedData
+                      </div>
+                      ''',
+                          key: ValueKey('html_${widget.tab.book.title}_$index'),
+                          textStyle: TextStyle(
+                            fontSize: widget.textSize,
+                            fontFamily: settingsState.fontFamily,
+                            height: 1.5,
+                          ),
+                          onTapUrl: (url) async {
+                            return await HtmlLinkHandler.handleLink(
+                              context,
+                              url,
+                              (tab) => widget.openBookCallback(tab),
+                            );
+                          },
                         ),
-                        onTapUrl: (url) async {
-                          return await HtmlLinkHandler.handleLink(
-                            context,
-                            url,
-                            (tab) => widget.openBookCallback(tab),
-                          );
-                        },
                       );
                     },
                   ),

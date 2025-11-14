@@ -74,6 +74,7 @@ class AppWindowListener extends WindowListener {
 
   /// Clean up the listener when disposing
   void dispose() {
+
     // Remove this listener from window manager
     if (!kIsWeb &&
         (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
