@@ -5,7 +5,6 @@ import 'package:otzaria/tabs/models/tab.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/text_book/bloc/text_book_event.dart';
-import 'package:otzaria/text_book/view/commentary_list_base.dart';
 import 'package:otzaria/text_book/view/selected_line_links_view.dart';
 import 'package:otzaria/personal_notes/widgets/personal_notes_sidebar.dart';
 
@@ -38,8 +37,8 @@ class _TabbedCommentaryPanelState extends State<TabbedCommentaryPanel>
 
   // פונקציה ציבורית לעבור לכרטיסיית הקישורים
   void switchToLinksTab() {
-    if (_tabController.index != 1) {
-      _tabController.animateTo(1);
+    if (_tabController.index != 0) {
+      _tabController.animateTo(0);
     }
   }
 
@@ -47,7 +46,7 @@ class _TabbedCommentaryPanelState extends State<TabbedCommentaryPanel>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 3,
+      length: 2, // רק 2 טאבים: קישורים והערות אישיות
       vsync: this,
       initialIndex: widget.initialTabIndex ?? 0, // כרטיסייה ראשונית
     );
@@ -86,7 +85,7 @@ class _TabbedCommentaryPanelState extends State<TabbedCommentaryPanel>
 
         return Column(
           children: [
-            // שורת הכרטיסיות עם לחצן סגירה
+            // שורת הכרטיסיות עם כפתור סגירה
             Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
@@ -103,7 +102,6 @@ class _TabbedCommentaryPanelState extends State<TabbedCommentaryPanel>
                     child: TabBar(
                       controller: _tabController,
                       tabs: const [
-                        Tab(text: 'מפרשים'),
                         Tab(text: 'קישורים'),
                         Tab(text: 'הערות אישיות'),
                       ],
@@ -152,19 +150,12 @@ class _TabbedCommentaryPanelState extends State<TabbedCommentaryPanel>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // כרטיסיית המפרשים
-                  CommentaryListBase(
-                    openBookCallback: widget.openBookCallback,
-                    fontSize: widget.fontSize,
-                    showSearch: widget.showSearch,
-                    onClosePane: null, // הסרת לחצן הסגירה מכאן
-                  ),
                   // כרטיסיית הקישורים
                   SelectedLineLinksView(
                     openBookCallback: widget.openBookCallback,
                     fontSize: widget.fontSize,
                     showVisibleLinksIfNoSelection:
-                        widget.initialTabIndex == 1, // אם נפתח ישירות לקישורים
+                        widget.initialTabIndex == 0, // אם נפתח ישירות לקישורים
                   ),
                   // כרטיסיית ההערות האישיות
                   PersonalNotesSidebar(

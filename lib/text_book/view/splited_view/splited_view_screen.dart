@@ -62,18 +62,15 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
 
   int _getInitialTabIndex() {
     // קביעת הטאב הראשוני
+    // הטאבים בטור השמאלי: 0=קישורים, 1=הערות אישיות
     if (widget.initialTabIndex != null) {
       print('DEBUG: Using initialTabIndex: ${widget.initialTabIndex}');
       return widget.initialTabIndex!;
-    } else if (widget.showSplitView) {
-      // תצוגה מפוצלת - תמיד מפרשים (0)
-      print('DEBUG: Split view - returning 0 (commentaries)');
-      return 0;
     } else {
-      // תצוגה משולבת - טוען שמור או ברירת מחדל קישורים (1)
+      // ברירת מחדל - קישורים (0)
       final saved = Settings.getValue<int>('key-sidebar-tab-index-combined');
-      print('DEBUG: Combined view - saved: $saved, returning: ${saved ?? 1}');
-      return saved ?? 1;
+      print('DEBUG: saved: $saved, returning: ${saved ?? 0}');
+      return saved ?? 0;
     }
   }
 
@@ -92,10 +89,53 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
   }
 
   void _togglePane() {
+    if (!_paneOpen) {
+      // פתיחת הטור - בחר את הטאב הנכון
+      _openPaneWithSmartTab();
+    } else {
+      // סגירת הטור
+      setState(() {
+        _paneOpen = false;
+        _updateAreas();
+      });
+    }
+  }
+
+  void _openPaneWithSmartTab() {
+    final state = context.read<TextBookBloc>().state;
+    if (state is! TextBookLoaded) {
+      _openPane();
+      return;
+    }
+
+    int targetTab;
+    
+    // הטאבים בטור השמאלי עכשיו הם: 0=קישורים, 1=הערות אישיות
+    // (מפרשים עבר לטור הימני)
+    
+    if (state.visibleIndices.isNotEmpty) {
+      // בדוק אם יש קישורים בשורה הנוכחית
+      final hasLinks = _hasLinksInCurrentLine(state);
+      if (hasLinks) {
+        targetTab = 0; // קישורים
+      } else {
+        targetTab = 1; // הערות אישיות
+      }
+    } else {
+      targetTab = 0; // ברירת מחדל - קישורים
+    }
+
     setState(() {
-      _paneOpen = !_paneOpen;
+      _paneOpen = true;
+      _currentTabIndex = targetTab;
       _updateAreas();
     });
+  }
+
+  bool _hasLinksInCurrentLine(TextBookLoaded state) {
+    // בדיקה פשוטה - אם יש אינדקס נראה, נניח שיש קישורים
+    // אפשר לשפר את זה בעתיד עם בדיקה מדויקת יותר
+    return state.visibleIndices.isNotEmpty;
   }
 
   void _openPane() {
@@ -131,14 +171,16 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
   Widget build(BuildContext context) {
     return BlocConsumer<TextBookBloc, TextBookState>(
       listenWhen: (previous, current) {
-        return previous is TextBookLoaded &&
-            current is TextBookLoaded &&
-            previous.activeCommentators != current.activeCommentators;
+        // האזן רק אם הוספנו מפרשים (לא אם הסרנו)
+        if (previous is TextBookLoaded && current is TextBookLoaded) {
+          return current.activeCommentators.length > 
+                 previous.activeCommentators.length;
+        }
+        return false;
       },
       listener: (context, state) {
-        if (state is TextBookLoaded) {
-          _openPane();
-        }
+        // מפרשים עברו לטור הימני, אז לא צריך לפתוח את הטור השמאלי
+        // כשמוסיפים מפרשים
       },
       buildWhen: (previous, current) {
         if (previous is TextBookLoaded && current is TextBookLoaded) {

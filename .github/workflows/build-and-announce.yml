@@ -4,12 +4,26 @@ permissions:
   contents: write
 
 on:
+  push:
+    branches:
+      - main
+      - dev
+
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
+
+  # טריגר לפרסום בלבד
+  release:
+    types: [published, prereleased]
 
 jobs:
   build_windows:
     if: github.event_name != 'release'
     runs-on: windows-2022
+    # env:
+    #   RUSTUP_HOME: ${{ github.workspace }}\.rustup
+    #   CARGO_HOME:  ${{ github.workspace }}\.cargo
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
@@ -17,8 +31,29 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.35.7'
           cache: true
+
+      # - name: Install Rust (stable)
+      #   uses: dtolnay/rust-toolchain@stable
+
+      # - name: Cache cargo registry and git
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: |
+      #       ${{ env.CARGO_HOME }}\registry
+      #       ${{ env.CARGO_HOME }}\git
+      #     key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-cargo-
+
+      # - name: Add cargo to PATH & verify toolchain
+      #   shell: pwsh
+      #   run: |
+      #     "$env:CARGO_HOME\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+      #     rustc -Vv
+      #     cargo -V
+      #     rustup show
 
       - name: Install Inno Setup (project script + fallback)
         shell: pwsh
@@ -44,10 +79,11 @@ jobs:
           if (-not $iscc) { throw "ISCC.exe not found after installation" }
           "ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append
           Write-Host "ISCC resolved to: $iscc"
-      
+
       - name: Build Flutter Windows app
         shell: pwsh
         run: |
+          # flutter pub get
           flutter build windows --release
 
       - name: Zip Windows build
@@ -64,26 +100,86 @@ jobs:
         run: |
           dart run msix:create --install-certificate false
 
-      - name: Download library for full installer (main branch only)
-        if: github.ref == 'refs/heads/main'
+      - name: Check if commit message is a version tag
+        id: check_version
         shell: pwsh
         run: |
-          Write-Host "Downloading library for full installer..."
-          Invoke-WebRequest -Uri "https://github.com/zevisvei/otzaria-library/releases/download/latest/otzaria_latest.zip" -OutFile "otzaria_library.zip"
-          Write-Host "Extracting library to otzaria-library directory..."
-          Expand-Archive -Path "otzaria_library.zip" -DestinationPath "otzaria-library" -Force
-          Write-Host "Library downloaded and extracted successfully to otzaria-library/"
-          Write-Host "Library contents:"
-          Get-ChildItem -Path "otzaria-library" -Recurse | Select-Object -First 10
+          $commitMessage = "${{ github.event.head_commit.message }}"
+          $commitMessage = $commitMessage.Split([Environment]::NewLine)[0].Trim()
+          Write-Host "Commit message: $commitMessage"
+          
+          # בדיקה אם ההודעה היא גרסה במבנה X.Y.Z (מספרים בלבד עם נקודות)
+          if ($commitMessage -match '^\d+\.\d+\.\d+$') {
+            Write-Host "✓ Commit message is a version tag: $commitMessage"
+            echo "is_version=true" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "✗ Commit message is not a version tag"
+            echo "is_version=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Download and extract library for full installer (version tags only)
+        if: steps.check_version.outputs.is_version == 'true'
+        shell: pwsh
+        run: |
+          Write-Host "Downloading library ZIP for full installer from Y-PLONI/otzaria-library..."
+          $ErrorActionPreference = "Stop"
+          
+          try {
+            $downloadUrl = "https://github.com/Y-PLONI/otzaria-library/releases/download/latest/otzaria_latest.zip"
+            Write-Host "Downloading from: $downloadUrl"
+            
+            Invoke-WebRequest -Uri $downloadUrl -OutFile "otzaria_latest.zip" -UseBasicParsing
+            
+            $fileSize = (Get-Item "otzaria_latest.zip").Length
+            Write-Host "Library ZIP downloaded successfully. Size: $([math]::Round($fileSize / 1MB, 2)) MB"
+            
+            # Extract the library to installer/library_files directory
+            Write-Host "Extracting library files..."
+            $extractPath = "installer\library_files"
+            if (Test-Path $extractPath) {
+              Remove-Item -Recurse -Force $extractPath
+            }
+            New-Item -ItemType Directory -Path $extractPath -Force | Out-Null
+            Expand-Archive -Path "otzaria_latest.zip" -DestinationPath $extractPath -Force
+            
+            # Remove the ZIP file as we don't need it anymore
+            Remove-Item "otzaria_latest.zip"
+            
+            Write-Host "Library extracted successfully to $extractPath"
+            $extractedSize = (Get-ChildItem -Path $extractPath -Recurse | Measure-Object -Property Length -Sum).Sum
+            Write-Host "Extracted size: $([math]::Round($extractedSize / 1MB, 2)) MB"
+          }
+          catch {
+            Write-Host "::error::Failed to download or extract library: $_"
+            exit 1
+          }
+
+      - name: Download Visual C++ Redistributable for full installer (version tags only)
+        if: steps.check_version.outputs.is_version == 'true'
+        shell: pwsh
+        run: |
+          Write-Host "Downloading Visual C++ Redistributable for full installer..."
+          $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/abbodi1406/vcredist/releases/latest"
+          $asset = $latestRelease.assets | Where-Object { $_.name -eq "VisualCppRedist_AIO_x86_x64.exe" }
+          if (-not $asset) {
+            Write-Host "::error::Could not find VisualCppRedist_AIO_x86_x64.exe in latest release"
+            exit 1
+          }
+          Write-Host "Downloading from: $($asset.browser_download_url)"
+          Write-Host "Size: $([math]::Round($asset.size / 1MB, 2)) MB"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "installer\VisualCppRedist_AIO_x86_x64.exe"
+          Write-Host "Visual C++ Redistributable downloaded successfully"
 
       - name: Build Inno Setup installer
         shell: pwsh
         run: |
-          if ("${{ github.ref }}" -eq "refs/heads/main") {
-            Write-Host "Building full installer with library for main branch..."
+          if ("${{ steps.check_version.outputs.is_version }}" -eq "true") {
+            Write-Host "Building FULL installer with library and VC++ Redistributable (version tag detected)..."
             & "$env:ISCC" installer\otzaria_full.iss
+            Write-Host "Building REGULAR installer (without VC++ Redistributable)..."
+            & "$env:ISCC" installer\otzaria.iss
           } else {
-            Write-Host "Building regular installer for non-main branch..."
+            Write-Host "Building regular installer only (not a version tag)..."
             & "$env:ISCC" installer\otzaria.iss
           }
 
@@ -91,7 +187,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: otzaria-windows-installer
-          path: installer/otzaria-*-windows.exe
+          path: installer/otzaria-*-windows*.exe
 
       - name: Upload Windows ZIP
         uses: actions/upload-artifact@v4
@@ -108,6 +204,9 @@ jobs:
   build_linux:
     if: github.event_name != 'release'
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_HOME: ${{ github.workspace }}/.rustup
+      CARGO_HOME:  ${{ github.workspace }}/.cargo
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
@@ -115,20 +214,60 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.35.7'
           cache: true
+
+      - name: Install Rust (stable) with rustup
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add cargo to PATH and verify toolchain
+        run: |
+          echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
+          rustc -Vv
+          cargo -V
+          rustup show
+
+      - name: Cache cargo registry and git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CARGO_HOME }}/registry
+            ${{ env.CARGO_HOME }}/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
       
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y ninja-build libgtk-3-dev libblkid1 liblzma5 clang cmake git pkg-config liblzma-dev libstdc++-12-dev rpm patchelf
+          sudo apt-get install -y \
+            build-essential ninja-build libgtk-3-dev libblkid1 liblzma5 \
+            clang cmake git pkg-config liblzma-dev rpm patchelf curl xz-utils
+          # Fallback אם מסיבה כלשהי cargo לא קיים (למשל כשל זמני ב-rustup)
+          if ! command -v cargo >/dev/null 2>&1; then
+            sudo apt-get install -y rustc cargo
+          fi
       
       - name: Install flutter_distributor
         run: dart pub global activate flutter_distributor
       
-      - name: Build Flutter Linux app
+      - name: Build Flutter Linux app (with retry)
         run: |
-          flutter build linux
+          set -e
+          tries=0
+          until [ $tries -ge 3 ]
+          do
+            if flutter build linux; then
+              break
+            fi
+            tries=$((tries+1))
+            echo "flutter build linux failed. retry $tries/3 after short sleep..."
+            sleep 15
+          done
+          if [ $tries -ge 3 ]; then
+            echo "::error::flutter build linux failed after 3 attempts"
+            exit 1
+          fi
       
       - name: Build and Patch Linux DEB package
         shell: bash
@@ -253,7 +392,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.35.7'
           cache: true
       
       - run: sudo apt install ninja-build
@@ -272,185 +411,52 @@ jobs:
   build_macos:
     if: github.event_name != 'release'
     runs-on: macos-latest
+    env:
+      # אחסון יציב בתוך ה-workspace כדי למנוע תקלות rename של rustup
+      RUSTUP_HOME: ${{ github.workspace }}/.rustup
+      CARGO_HOME:  ${{ github.workspace }}/.cargo
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
 
-      - name: Install create-dmg (optional)
-        run: |
-          # Try to install create-dmg, but don't fail if it doesn't work
-          echo "Attempting to install create-dmg for better DMG creation..."
-          # Check if npm is available
-          if command -v npm >/dev/null 2>&1; then
-            npm install -g create-dmg || echo "create-dmg installation failed, will use hdiutil as fallback"
-          else
-            # Try installing node first
-            brew install node || echo "Node installation failed"
-            npm install -g create-dmg || echo "create-dmg installation failed, will use hdiutil as fallback"
-          fi
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          cache: true
 
-      - name: Download and setup Flutter ARM64 SDK
+      # התקנת Rust יציבה לפני flutter build
+      - name: Install Rust (stable)
+      # מחליף את ההתקנה האוטומטית של cargokit
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add cargo to PATH & verify toolchain
         run: |
-          # Download Flutter ARM64 SDK
-          curl -o flutter-arm64.zip https://storage.googleapis.com/flutter_infra_release/releases/stable/macos/flutter_macos_arm64_3.35.7-stable.zip
-          
-          # Extract to a separate directory
-          unzip -q flutter-arm64.zip -d ~/flutter-arm64
-          
-          # Set Flutter ARM64 path
-          export PATH="$HOME/flutter-arm64/flutter/bin:$PATH"
-          
-          # Verify we're using ARM64 Flutter
-          which flutter
-          flutter --version
-          
-          # Configure Flutter
-          flutter config --enable-macos-desktop
-          flutter pub get
-      
-      - name: Build Flutter macOS app for ARM64
+          echo "$CARGO_HOME/bin" >> "$GITHUB_PATH"
+          rustc -Vv
+          cargo -V
+          rustup show
+
+      # (רשות אבל מומלץ) קאשינג לספריות cargo כדי לזרז בניות
+      - name: Cache cargo registry and git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.CARGO_HOME }}/registry
+            ${{ env.CARGO_HOME }}/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build Flutter macOS app
         run: |
-          # Use the ARM64 Flutter to build
-          export PATH="$HOME/flutter-arm64/flutter/bin:$PATH"
-          
-          # Set minimum macOS version to 11.0 to match dependencies
-          export MACOSX_DEPLOYMENT_TARGET=11.0
-          
-          # Build with release configuration
-          flutter build macos --release --dart-define=MACOSX_DEPLOYMENT_TARGET=11.0
-      
-      - name: Create DMG for ARM64
-        run: |
-          # Find the app - using more robust method
-          APP_PATH=$(ls -d build/macos/Build/Products/Release/*.app | head -n1)
-          if [ -z "$APP_PATH" ]; then
-            echo "Error: Could not find .app bundle"
-            exit 1
-          fi
-          APP_NAME=$(basename "$APP_PATH")
-          echo "Found app: $APP_NAME at $APP_PATH"
-          
-          # Try create-dmg first
-          if command -v create-dmg >/dev/null 2>&1; then
-            echo "Using create-dmg to create DMG..."
-            create-dmg \
-              --volname "Otzaria ARM64" \
-              --window-pos 200 120 \
-              --window-size 800 400 \
-              --icon-size 100 \
-              --icon "$APP_NAME" 200 190 \
-              --hide-extension "$APP_NAME" \
-              --app-drop-link 600 185 \
-              --no-internet-enable \
-              "otzaria-macos-arm64.dmg" \
-              "$APP_PATH" || true
-          fi
-          
-          # Use hdiutil if DMG doesn't exist
-          if [ ! -f "otzaria-macos-arm64.dmg" ]; then
-            echo "Using hdiutil to create DMG..."
-            hdiutil create -volname "Otzaria ARM64" -srcfolder "$APP_PATH" -ov -format UDZO "otzaria-macos-arm64.dmg"
-          fi
-          
-          # Verify DMG was created
-          if [ -f "otzaria-macos-arm64.dmg" ]; then
-            echo "Successfully created otzaria-macos-arm64.dmg"
-            ls -lh otzaria-macos-arm64.dmg
-          else
-            echo "Error: Failed to create DMG"
-            exit 1
-          fi
-      
-      - name: Clean build directory for x64 build
-        run: |
-          # Clean with ARM64 Flutter first
-          export PATH="$HOME/flutter-arm64/flutter/bin:$PATH"
-          flutter clean
-          rm -rf build
-      
-      - name: Download and setup Flutter x64 SDK
-        run: |
-          # Download Flutter x64 SDK
-          curl -o flutter-x64.zip https://storage.googleapis.com/flutter_infra_release/releases/stable/macos/flutter_macos_3.35.7-stable.zip
-          
-          # Extract to a separate directory
-          unzip -q flutter-x64.zip -d ~/flutter-x64
-          
-          # Set Flutter x64 path
-          export PATH="$HOME/flutter-x64/flutter/bin:$PATH"
-          
-          # Verify we're using x64 Flutter
-          which flutter
-          flutter --version
-          
-          # Configure Flutter
-          flutter config --enable-macos-desktop
-          flutter pub get
-      
-      - name: Build Flutter macOS app for x64
-        run: |
-          # Use the x64 Flutter to build
-          export PATH="$HOME/flutter-x64/flutter/bin:$PATH"
-          
-          # Set minimum macOS version to 11.0 to match dependencies
-          export MACOSX_DEPLOYMENT_TARGET=11.0
-          
-          # Build with release configuration
-          flutter build macos --release --dart-define=MACOSX_DEPLOYMENT_TARGET=11.0
-      
-      - name: Create DMG for x64
-        run: |
-          # Find the app - using more robust method
-          APP_PATH=$(ls -d build/macos/Build/Products/Release/*.app | head -n1)
-          if [ -z "$APP_PATH" ]; then
-            echo "Error: Could not find .app bundle"
-            exit 1
-          fi
-          APP_NAME=$(basename "$APP_PATH")
-          echo "Found app: $APP_NAME at $APP_PATH"
-          
-          # Try create-dmg first
-          if command -v create-dmg >/dev/null 2>&1; then
-            echo "Using create-dmg to create DMG..."
-            create-dmg \
-              --volname "Otzaria x64" \
-              --window-pos 200 120 \
-              --window-size 800 400 \
-              --icon-size 100 \
-              --icon "$APP_NAME" 200 190 \
-              --hide-extension "$APP_NAME" \
-              --app-drop-link 600 185 \
-              --no-internet-enable \
-              "otzaria-macos-x64.dmg" \
-              "$APP_PATH" || true
-          fi
-          
-          # Use hdiutil if DMG doesn't exist
-          if [ ! -f "otzaria-macos-x64.dmg" ]; then
-            echo "Using hdiutil to create DMG..."
-            hdiutil create -volname "Otzaria x64" -srcfolder "$APP_PATH" -ov -format UDZO "otzaria-macos-x64.dmg"
-          fi
-          
-          # Verify DMG was created
-          if [ -f "otzaria-macos-x64.dmg" ]; then
-            echo "Successfully created otzaria-macos-x64.dmg"
-            ls -lh otzaria-macos-x64.dmg
-          else
-            echo "Error: Failed to create DMG"
-            exit 1
-          fi
-     
-      - name: Upload macOS ARM64 DMG
+          flutter build macos
+
+      - name: Upload macos build
         uses: actions/upload-artifact@v4
         with:
-          name: otzaria-macos-arm64
-          path: otzaria-macos-arm64.dmg
-
-      - name: Upload macOS x64 DMG
-        uses: actions/upload-artifact@v4
-        with:
-          name: otzaria-macos-x64
-          path: otzaria-macos-x64.dmg
+          name: otzaria-macos.app
+          path: build/macos/Build/Products/Release
 
   create_release:
     if: github.event_name != 'release'
@@ -479,17 +485,17 @@ jobs:
           fi
           
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+            echo "tag=$VERSION" >> $GITHUB_OUTPUT
             echo "prerelease=false" >> $GITHUB_OUTPUT
-            echo "title=Otzaria v$VERSION" >> $GITHUB_OUTPUT
+            echo "title=Otzaria $VERSION" >> $GITHUB_OUTPUT
           else
             # Use proper semver pre-release format with dots instead of hyphens
             BRANCH_NAME="${{ github.ref_name }}"
             # Replace any invalid characters in branch name for semver
             CLEAN_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^A-Za-z0-9.-]/-/g')
-            echo "tag=v$VERSION-$CLEAN_BRANCH.${{ github.run_number }}" >> $GITHUB_OUTPUT
+            echo "tag=$VERSION+${{ github.run_number }}" >> $GITHUB_OUTPUT
             echo "prerelease=true" >> $GITHUB_OUTPUT
-            echo "title=Otzaria v$VERSION (Preview from ${{ github.ref_name }})" >> $GITHUB_OUTPUT
+            echo "title=Otzaria $VERSION (Preview from ${{ github.ref_name }})" >> $GITHUB_OUTPUT
           fi
 
 
@@ -538,14 +544,11 @@ jobs:
             cp artifacts/otzaria-android.apk/*.apk release-files/ || true
           fi
           
-          # macOS ARM64 DMG 
-          if [ -d "artifacts/otzaria-macos-arm64" ]; then
-            cp artifacts/otzaria-macos-arm64/*.dmg release-files/ || true
-          fi
-
-          # macOS x64 DMG 
-          if [ -d "artifacts/otzaria-macos-x64" ]; then
-            cp artifacts/otzaria-macos-x64/*.dmg release-files/ || true
+          # macOS app 
+          if [ -d "artifacts/otzaria-macos.app" ]; then
+          cd artifacts/otzaria-macos.app
+          zip -r ../../release-files/otzaria-macos.zip *
+          cd ../..
           fi
           
           # List files for debugging
@@ -556,27 +559,15 @@ jobs:
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v1
         with:
+          token: ${{ secrets.GH_RELEASE_TOKEN }}
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.title }}
           prerelease: ${{ steps.version.outputs.prerelease }}
           files: release-files/*
           body: |
-            ## Changes in this release
-            Built from commit: ${{ github.sha }} - ${{ steps.commit.outputs.message }}
-            Branch: ${{ github.ref_name }}
-            
-            ### Downloads:
-            - **Windows**: Download the `.exe` installer
-            - **Windows (.msix)**: Download the `.msix` package
-            - **Windows (.zip)**: Download the `.zip` archive
-            - **Linux (Debian/Ubuntu)**: Download the `.deb` package and install with `sudo dpkg -i <filename>.deb`
-            - **Linux (Fedora/RHEL)**: Download the `.rpm` package and install with `sudo dnf localinstall <filename>.rpm`
-            - **Linux (Generic)**: Download the `.zip` file and extract
-            - **Android**: Install the `.apk` file
-            - **macOS (Apple Silicon M1/M2/M3)**: Download the `arm64.dmg` installer
-            - **macOS (Intel)**: Download the `x64.dmg` installer
-            
-            ${{ github.ref_name == 'dev' && '⚠️ **This is a development build** - Use at your own risk!' || '' }}
+            ## שינויים בגרסה זו
+            נבנה מcommit: ${{ github.sha }} - ${{ steps.commit.outputs.message }}
+            ענף: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
@@ -607,8 +598,8 @@ jobs:
           fi
           
           # Use proper semver pre-release format with dots instead of hyphens for PR builds
-          echo "tag=v$VERSION-pr.${{ github.event.number }}.${{ github.run_number }}" >> $GITHUB_OUTPUT
-          echo "title=Otzaria v$VERSION - PR #${{ github.event.number }} Preview" >> $GITHUB_OUTPUT
+          echo "tag=$VERSION+${{ github.event.number }}.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "title=Otzaria $VERSION - PR #${{ github.event.number }} Preview" >> $GITHUB_OUTPUT
 
       - name: Get commit message
         id: commit
@@ -645,14 +636,11 @@ jobs:
             cp artifacts/otzaria-android.apk/*.apk release-files/ || true
           fi
           
-          # macOS ARM64 DMG 
-          if [ -d "artifacts/otzaria-macos-arm64" ]; then
-            cp artifacts/otzaria-macos-arm64/*.dmg release-files/ || true
-          fi
-
-          # macOS x64 DMG 
-          if [ -d "artifacts/otzaria-macos-x64" ]; then
-            cp artifacts/otzaria-macos-x64/*.dmg release-files/ || true
+          # macOS app 
+          if [ -d "artifacts/otzaria-macos.app" ]; then
+          cd artifacts/otzaria-macos.app
+          zip -r ../../release-files/otzaria-macos.zip *
+          cd ../..
           fi
           
           # List files for debugging
@@ -662,38 +650,26 @@ jobs:
       - name: Create PR Pre-release
         uses: softprops/action-gh-release@v1
         with:
+          token: ${{ secrets.GH_RELEASE_TOKEN }}
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.title }}
           prerelease: true
           files: release-files/*
           body: |
-            ## 🔄 PR Preview Build #${{ github.event.number }}
-            **This is a preview build for testing PR changes before merge.**
+            ## 🔄 בניית תצוגה מקדימה ל-PR #${{ github.event.number }}
+            **זו בנייה לבדיקת שינויי PR לפני מיזוג.**
             
-            ### PR Information:
-            - **PR Title**: ${{ github.event.pull_request.title }}
-            - **PR Author**: @${{ github.event.pull_request.user.login }}
-            - **PR Number**: #${{ github.event.number }}
-            - **Branch**: `${{ github.head_ref }}` → `${{ github.base_ref }}`
+            ### מידע על ה-PR:
+            - **כותרת PR**: ${{ github.event.pull_request.title }}
+            - **מחבר PR**: @${{ github.event.pull_request.user.login }}
+            - **מספר PR**: #${{ github.event.number }}
+            - **ענף**: `${{ github.head_ref }}` → `${{ github.base_ref }}`
             
-            ### PR Description:
+            ### תיאור PR:
             ${{ github.event.pull_request.body }}
             
             ---
-            Built from commit: ${{ github.sha }} - ${{ steps.commit.outputs.message }}
-            
-            ### Downloads:
-            - **Windows**: Download the `.exe` installer
-            - **Windows (.msix)**: Download the `.msix` package
-            - **Windows (.zip)**: Download the `.zip` archive
-            - **Linux (Debian/Ubuntu)**: Download the `.deb` package and install with `sudo dpkg -i <filename>.deb`
-            - **Linux (Fedora/RHEL)**: Download the `.rpm` package and install with `sudo dnf localinstall <filename>.rpm`
-            - **Linux (Generic)**: Download the `.zip` file and extract
-            - **Android**: Install the `.apk` file
-            - **macOS (Apple Silicon M1/M2/M3)**: Download the `arm64.dmg` installer
-            - **macOS (Intel)**: Download the `x64.dmg` installer
-            
-            ⚠️ **This is a preview build for testing purposes** - Use at your own risk!
+            נבנה מcommit: ${{ github.sha }} - ${{ steps.commit.outputs.message }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -730,19 +706,19 @@ jobs:
 
           if [ -n "$PREV_TAG" ]; then
             RANGE="$PREV_TAG..$CURRENT_TAG"
-            # צור רשימה של כותרות הקומיטים בטווח
+            # צור רשימה של כותרות הcommits בטווח
             COMMITS=$(git log --pretty=format:'- %s' "$RANGE" || true)
           else
-            # אם אין תג קודם, קח רק את הקומיט של התג הנוכחי
+            # אם אין תג קודם, קח רק את הcommit של התג הנוכחי
             SHA=$(git rev-list -n 1 "$CURRENT_TAG")
             COMMITS=$(git log --pretty=format:'- %s' "${SHA}^..${SHA}" || true)
           fi
 
           if [ -z "${COMMITS// /}" ]; then
-            COMMITS="(לא נמצאו כותרות קומיטים חדשות להצגה)"
+            COMMITS="(לא נמצאו כותרות commits חדשות להצגה)"
           fi
 
-          # העבר את רשימת הקומיטים והתג הקודם לשלבים הבאים
+          # העבר את רשימת הcommits והתג הקודם לשלבים הבאים
           {
             echo "prev_tag=${PREV_TAG}"
             echo "commits<<EOF"
