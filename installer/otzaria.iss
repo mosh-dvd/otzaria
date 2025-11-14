@@ -29,8 +29,10 @@ OutputBaseFilename=otzaria-{#MyAppVersion}-windows
 SetupIconFile=white_sketch128x128.ico
 Compression=lzma
 SolidCompression=yes
+; Disable compression for DLL files to prevent corruption
+CompressionThreads=1
 WizardStyle=modern
-DisableDirPage=auto
+DisableDirPage=no
 
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\default.isar";

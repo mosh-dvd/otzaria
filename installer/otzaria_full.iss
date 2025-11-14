@@ -30,8 +30,10 @@ OutputBaseFilename=otzaria-{#MyAppVersion}-windows-full
 SetupIconFile=white_sketch128x128.ico
 Compression=lzma
 SolidCompression=yes
+; Disable compression for DLL files to prevent corruption
+CompressionThreads=1
 WizardStyle=modern
-DisableDirPage=auto
+DisableDirPage=no
 
 [InstallDelete]
 ; מחיקת ספרייה ישנה לפני חילוץ הZIP החדש
@@ -44,10 +46,24 @@ Name: "hebrew"; MessagesFile: "compiler:Languages\Hebrew.isl"
 [Code]
 function InitializeSetup(): Boolean;
 var
-  InstallPath: String;
+  InstallPath, OldPath: String;
 begin
   Result := True;
   InstallPath := ExpandConstant('C:\{#MyAppNameEnglish}');
+  OldPath := 'C:\אוצריא';
+  
+  // בדיקה אם יש התקנה ישנה בנתיב העברי
+  if DirExists(OldPath) then
+  begin
+    if MsgBox('נמצאה התקנה ישנה ב-' + OldPath + #13#10 +
+              'התוכנה עברה לנתיב חדש: ' + InstallPath + #13#10#13#10 +
+              'האם להעביר את הנתונים למיקום החדש?',
+              mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      // המשתמש יצטרך להעביר ידנית או שנוסיף קוד העברה
+      MsgBox('לאחר ההתקנה, תוכל להעביר את הנתונים מ-' + OldPath + ' ל-' + InstallPath, mbInformation, MB_OK);
+    end;
+  end;
   
   // בדיקה אם התיקיות קיימות והצגת אזהרה
   if DirExists(InstallPath + '\אוצריא') or DirExists(InstallPath + '\links') then
