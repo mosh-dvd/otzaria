@@ -256,7 +256,7 @@ class _PhoneReportTabState extends State<PhoneReportTab> {
 
   Widget _buildErrorTypeSelection(BuildContext context) {
     final isEnabled = _selectedText != null && _selectedText!.isNotEmpty;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -273,35 +273,35 @@ class _PhoneReportTabState extends State<PhoneReportTab> {
           runSpacing: 8, // מרווח אנכי בין השורות
           children: ErrorType.errorTypes.map((errorType) {
             final isSelected = _selectedErrorType?.id == errorType.id;
-            
+
             return FilterChip(
               label: Text(
                 errorType.hebrewLabel,
                 style: TextStyle(
-                  color: isSelected 
+                  color: isSelected
                       ? Theme.of(context).colorScheme.onPrimary
-                      : isEnabled 
+                      : isEnabled
                           ? Theme.of(context).colorScheme.onSurface
                           : Theme.of(context).disabledColor,
                 ),
               ),
               selected: isSelected,
-              onSelected: isEnabled 
+              onSelected: isEnabled
                   ? (bool selected) {
                       setState(() {
                         _selectedErrorType = selected ? errorType : null;
                       });
                     }
                   : null,
-              backgroundColor: isEnabled 
-                  ? null 
+              backgroundColor: isEnabled
+                  ? null
                   : Theme.of(context).disabledColor.withValues(alpha: 0.1),
               selectedColor: Theme.of(context).colorScheme.primary,
               checkmarkColor: Theme.of(context).colorScheme.onPrimary,
               side: BorderSide(
-                color: isSelected 
+                color: isSelected
                     ? Theme.of(context).colorScheme.primary
-                    : isEnabled 
+                    : isEnabled
                         ? Theme.of(context).colorScheme.outline
                         : Theme.of(context).disabledColor,
               ),
@@ -341,18 +341,20 @@ class _PhoneReportTabState extends State<PhoneReportTab> {
                   size: 20,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'אי אפשר להתקדם... עדיין לא מילאתם בטופס...',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onErrorContainer,
-                      ),
-                  textDirection: TextDirection.rtl,
+                Expanded(
+                  child: Text(
+                    'אי אפשר להתקדם... עדיין לא מילאתם בטופס...',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                        ),
+                    textDirection: TextDirection.rtl,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            ...errors.map((error) => Padding(
+            ...errors.take(errors.length - 1).map((error) => Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,6 +380,48 @@ class _PhoneReportTabState extends State<PhoneReportTab> {
                     ],
                   ),
                 )),
+            // השורה האחרונה עם כפתור ביטול בצד שמאל
+            if (errors.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '• ',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        errors.last,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onErrorContainer,
+                            ),
+                        textDirection: TextDirection.rtl,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // כפתור ביטול בצד שמאל של השורה האחרונה
+                    Container(
+                      padding:
+                          const EdgeInsets.all(3), // מרווח לבן מסביב הכפתור
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius:
+                            BorderRadius.circular(20), // עיגול כמו כפתור רגיל
+                      ),
+                      child: TextButton(
+                        onPressed: widget.onCancel,
+                        child: const Text('ביטול הדיווח'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -385,12 +429,19 @@ class _PhoneReportTabState extends State<PhoneReportTab> {
   }
 
   Widget _buildActionButtons(BuildContext context) {
+    // אם יש שגיאות ולידציה, הכפתור ביטול מוצג במלבן השגיאות
+    // אחרת, מציגים כפתור ביטול רגיל
+    final errors = _validationErrors;
+    if (errors.isNotEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         TextButton(
           onPressed: widget.onCancel,
-          child: const Text('ביטול'),
+          child: const Text('ביטול הדיווח'),
         ),
       ],
     );

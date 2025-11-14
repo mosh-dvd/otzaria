@@ -140,7 +140,7 @@ class ReportingNumbersWidget extends StatelessWidget {
             // 1. הכותרת שתוצג בצד ימין
             Text(
               'קו אוצריא:',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
               textDirection: TextDirection.rtl,
@@ -149,24 +149,46 @@ class ReportingNumbersWidget extends StatelessWidget {
             // 2. Spacer שתופס את כל המקום הפנוי ודוחף את שאר הווידג'טים שמאלה
             const Spacer(),
 
-            // 3. מספר הטלפון (כבר לא צריך להיות בתוך Expanded)
-            isMobile
-                ? InkWell(
-                    onTap: () => _makePhoneCall(context),
-                    child: Text(
+            // 3. מספר הטלפון מודגש (כבר לא צריך להיות בתוך Expanded)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.3),
+                  width: 1.5,
+                ),
+              ),
+              child: isMobile
+                  ? InkWell(
+                      onTap: () => _makePhoneCall(context),
+                      child: Text(
+                        _phoneNumber,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
+                              decoration: TextDecoration.underline,
+                              fontWeight: FontWeight.bold,
+                            ),
+                        textDirection: TextDirection.ltr,
+                      ),
+                    )
+                  : SelectableText(
                       _phoneNumber,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).primaryColor,
-                            decoration: TextDecoration.underline,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer,
+                            fontWeight: FontWeight.bold,
                           ),
                       textDirection: TextDirection.ltr,
                     ),
-                  )
-                : SelectableText(
-                    _phoneNumber,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                    textDirection: TextDirection.ltr,
-                  ),
+            ),
             const SizedBox(width: 8),
 
             // 4. כפתור ההעתקה
