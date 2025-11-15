@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:convert';
 import 'dart:async';
-import 'package:csv/csv.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
@@ -36,6 +35,7 @@ import 'package:otzaria/personal_notes/personal_notes_system.dart';
 import 'package:otzaria/models/phone_report_data.dart';
 import 'package:otzaria/services/data_collection_service.dart';
 import 'package:otzaria/services/phone_report_service.dart';
+import 'package:otzaria/services/sources_books_service.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'package:otzaria/widgets/phone_report_tab.dart';
@@ -1104,6 +1104,18 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
           ),
         ),
       ),
+
+      // 8) מקור הספר וזכויות יוצרים
+      ActionButtonData(
+        widget: IconButton(
+          icon: const Icon(FluentIcons.info_24_regular),
+          tooltip: 'מקור הספר וזכויות יוצרים',
+          onPressed: () => _showBookSourceDialog(context, state),
+        ),
+        icon: FluentIcons.info_24_regular,
+        tooltip: 'מקור הספר וזכויות יוצרים',
+        onPressed: () => _showBookSourceDialog(context, state),
+      ),
     ];
   }
 
@@ -1151,7 +1163,9 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
             ToggleSplitView(!state.showSplitView),
           ),
       icon: RotatedBox(
-        quarterTurns: state.showSplitView ? 0 : 3,  // מסובב 270 מעלות (90 נגד כיוון השעון) כשמתחת
+        quarterTurns: state.showSplitView
+            ? 0
+            : 3, // מסובב 270 מעלות (90 נגד כיוון השעון) כשמתחת
         child: const Icon(FluentIcons.panel_left_24_regular),
       ),
       tooltip: state.showSplitView
@@ -1627,7 +1641,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       state.book.tableOfContents,
     );
 
-    final bookDetails = await _getBookDetails(state.book.title);
+    final bookDetails = SourcesBooksService().getBookDetails(state.book.title);
 
     return {'currentRef': currentRef, 'bookDetails': bookDetails};
   }
@@ -1997,67 +2011,6 @@ $detailsSection
     }
   }
 
-  Future<Map<String, String>> _getBookDetails(String bookTitle) async {
-    try {
-      final libraryPath = Settings.getValue('key-library-path');
-      final file = File(
-          '$libraryPath${Platform.pathSeparator}אוצריא${Platform.pathSeparator}אודות התוכנה${Platform.pathSeparator}SourcesBooks.csv');
-      if (!await file.exists()) {
-        return _getDefaultBookDetails();
-      }
-
-      // קריאת הקובץ כ-stream
-      final inputStream = file.openRead();
-      final converter = const CsvToListConverter();
-
-      var isFirstLine = true;
-
-      await for (final line in inputStream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
-        // דילוג על שורת הכותרת
-        if (isFirstLine) {
-          isFirstLine = false;
-          continue;
-        }
-
-        try {
-          // המרת השורה לרשימה
-          final row = converter.convert(line).first;
-
-          if (row.length >= 3) {
-            final fileNameRaw = row[0].toString();
-            final fileName = fileNameRaw.replaceAll('.txt', '');
-
-            if (fileName == bookTitle) {
-              return {
-                'שם הקובץ': fileNameRaw,
-                'נתיב הקובץ': row[1].toString(),
-                'תיקיית המקור': row[2].toString(),
-              };
-            }
-          }
-        } catch (e) {
-          // אם יש שגיאה בפירוק השורה, נמשיך לשורה הבאה
-          debugPrint('Error parsing CSV line: $line, Error: $e');
-          continue;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error reading sourcebooks.csv: $e');
-    }
-
-    return _getDefaultBookDetails();
-  }
-
-  Map<String, String> _getDefaultBookDetails() {
-    return {
-      'שם הקובץ': 'לא ניתן למצוא את הספר',
-      'נתיב הקובץ': 'לא ניתן למצוא את הספר',
-      'תיקיית המקור': 'לא ניתן למצוא את הספר',
-    };
-  }
-
   Widget _buildBody(
     BuildContext context,
     TextBookLoaded state,
@@ -2198,7 +2151,8 @@ $detailsSection
                               .withValues(alpha: 0.6),
                           indicatorColor: Theme.of(context).colorScheme.primary,
                           dividerColor: Colors.transparent,
-                          overlayColor: WidgetStateProperty.all(Colors.transparent),
+                          overlayColor:
+                              WidgetStateProperty.all(Colors.transparent),
                         ),
                       ),
                       if (MediaQuery.of(context).size.width >= 600)
@@ -2212,7 +2166,8 @@ $detailsSection
                                       ),
                           icon: AnimatedRotation(
                             turns: (state.pinLeftPane ||
-                                    (Settings.getValue<bool>('key-pin-sidebar') ??
+                                    (Settings.getValue<bool>(
+                                            'key-pin-sidebar') ??
                                         false))
                                 ? -0.125
                                 : 0.0,
@@ -2581,7 +2536,7 @@ class _RegularReportTabState extends State<_RegularReportTab> {
   /// בדיקה אם כפתור "שלח דיווח" צריך להיות מושבת בדיווח הרגיל
   Future<bool> _isPhoneReportDisabled() async {
     try {
-      final bookDetails = await _getBookDetails(widget.state.book.title);
+      final bookDetails = SourcesBooksService().getBookDetails(widget.state.book.title);
       final sourceFolder = bookDetails['תיקיית המקור'];
 
       if (sourceFolder != null) {
@@ -2596,54 +2551,7 @@ class _RegularReportTabState extends State<_RegularReportTab> {
     }
   }
 
-  /// קבלת פרטי הספר מה-CSV
-  Future<Map<String, String>> _getBookDetails(String bookTitle) async {
-    try {
-      final libraryPath = Settings.getValue('key-library-path');
-      if (libraryPath == null || libraryPath.isEmpty) {
-        return _getDefaultBookDetails();
-      }
 
-      final csvPath =
-          '$libraryPath${Platform.pathSeparator}אוצריא${Platform.pathSeparator}אודות התוכנה${Platform.pathSeparator}SourcesBooks.csv';
-      final file = File(csvPath);
-
-      if (!await file.exists()) {
-        return _getDefaultBookDetails();
-      }
-
-      final csvContent = await file.readAsString(encoding: utf8);
-      final rows = const CsvToListConverter().convert(csvContent);
-
-      if (rows.isEmpty) {
-        return _getDefaultBookDetails();
-      }
-
-      for (final row in rows.skip(1)) {
-        if (row.isNotEmpty && row[0].toString() == bookTitle) {
-          final fileNameRaw = row[0].toString();
-          return {
-            'שם הקובץ': fileNameRaw,
-            'נתיב הקובץ': row[1].toString(),
-            'תיקיית המקור': row[2].toString(),
-          };
-        }
-      }
-
-      return _getDefaultBookDetails();
-    } catch (e) {
-      debugPrint('Error reading book details: $e');
-      return _getDefaultBookDetails();
-    }
-  }
-
-  Map<String, String> _getDefaultBookDetails() {
-    return {
-      'שם הקובץ': 'לא ניתן למצוא את הספר',
-      'נתיב הקובץ': 'לא ניתן למצוא את הספר',
-      'תיקיית המקור': 'לא ניתן למצוא את הספר',
-    };
-  }
 
   @override
   void dispose() {
@@ -2786,7 +2694,7 @@ class _RegularReportTabState extends State<_RegularReportTab> {
                             );
                           }
                         : null,
-                    child: const Text('שליחת דוא"ל'),
+                    child: const Text('המשך'),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -3081,6 +2989,123 @@ Future<void> _addNoteFromKeyboard(
     UiSnack.show('ההערה נשמרה בהצלחה');
   } catch (e) {
     UiSnack.showError('שמירת ההערה נכשלה: $e');
+  }
+}
+
+/// המרת שם המקור לטקסט מתאים עם קישור
+Map<String, String> _getSourceDisplayInfo(String source) {
+  switch (source) {
+    case 'Ben-Yehuda':
+      return {'text': 'פרוייקט בן-יהודה', 'https://benyehuda.org/': ''};
+    case 'Dicta':
+      return {'text': 'ספריית דיקטה', 'url': 'https://library.dicta.org.il/'};
+    case 'OnYourWay':
+      return {'text': 'ובלכתך בדרך', 'url': 'https://mobile.tora.ws/'};
+    case 'Orayta':
+      return {'text': 'אורייתא', 'url': 'https://github.com/MosheWagner/Orayta-Books'};
+    case 'sefaria':
+      return {'text': 'ספריא', 'url': 'https://www.sefaria.org/texts'};
+    case 'MoreBooks':
+      return {'text': 'ספרים פרטיים או מקורות נוספים', 'url': ''};
+    case 'wiki_jewish_books':
+      return {'text': 'אוצר הספרים היהודי השיתופי', 'url': 'https://wiki.jewishbooks.org.il/'};
+    case 'Tashma':
+      return {'text': 'תא שמע', 'url': 'https://tashma.co.il/'};
+    default:
+      return {'text': source, 'url': ''};
+  }
+}
+
+/// הצגת דיאלוג מקור הספר וזכויות יוצרים
+Future<void> _showBookSourceDialog(
+  BuildContext context,
+  TextBookLoaded state,
+) async {
+  try {
+    debugPrint('Opening book source dialog for: "${state.book.title}"');
+
+    // קבלת פרטי הספר מהשירות (נטען כבר בזיכרון)
+    final bookDetails = SourcesBooksService().getBookDetails(state.book.title);
+    final bookSource = bookDetails['תיקיית המקור'] ?? 'לא נמצא מקור';
+
+    // קבלת מידע התצוגה עבור המקור
+    final sourceInfo = _getSourceDisplayInfo(bookSource);
+    final displayText = sourceInfo['text']!;
+    final url = sourceInfo['url']!;
+
+    debugPrint('Book details received: $bookDetails');
+    debugPrint('Book source: $bookSource');
+    debugPrint('Display text: $displayText, URL: $url');
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'מקור הספר וזכויות יוצרים',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'מקור הספר:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              // אם יש URL, הצג כקישור, אחרת הצג כטקסט רגיל
+              url.isNotEmpty
+                  ? InkWell(
+                      onTap: () async {
+                        final uri = Uri.parse(url);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        }
+                      },
+                      child: Text(
+                        displayText,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    )
+                  : SelectableText(
+                      displayText,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+              const SizedBox(height: 20),
+              const Text(
+                'זכויות יוצרים:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const SelectableText(
+                'המידע יוגדר בהמשך',
+                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('סגור'),
+          ),
+        ],
+      ),
+    );
+  } catch (e) {
+    debugPrint('Error showing book source dialog: $e');
+    if (context.mounted) {
+      UiSnack.showError('שגיאה בטעינת מקור הספר: ${e.toString()}');
+    }
   }
 }
 
