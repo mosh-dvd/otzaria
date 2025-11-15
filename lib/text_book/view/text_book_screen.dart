@@ -22,7 +22,6 @@ import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/tabs/models/tab.dart';
 import 'package:otzaria/printing/printing_screen.dart';
-import 'package:otzaria/text_book/view/commentators_list_screen.dart';
 import 'package:otzaria/text_book/view/text_book_scaffold.dart';
 import 'package:otzaria/text_book/view/text_book_search_screen.dart';
 import 'package:otzaria/text_book/view/toc_navigator_screen.dart';
@@ -530,7 +529,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
 
     // יוצרים את בקר הלשוניות עם האינדקס ההתחלתי שקבענו
     tabController = TabController(
-      length: 3, // יש 3 לשוניות
+      length: 2, // יש 2 לשוניות: ניווט וחיפוש
       vsync: this,
       initialIndex: initialIndex,
     );
@@ -2191,7 +2190,6 @@ $detailsSection
                           tabs: const [
                             Tab(text: 'ניווט'),
                             Tab(text: 'חיפוש'),
-                            Tab(text: 'מפרשים'),
                           ],
                           labelColor: Theme.of(context).colorScheme.primary,
                           unselectedLabelColor: Theme.of(context)
@@ -2260,7 +2258,6 @@ $detailsSection
                         },
                         child: _buildSearchView(context, state),
                       ),
-                      _buildCommentaryView(),
                     ],
                   ),
                 ),
@@ -2293,9 +2290,7 @@ $detailsSection
     );
   }
 
-  Widget _buildCommentaryView() {
-    return const CommentatorsListView();
-  }
+
 }
 
 // החלף את כל המחלקה הזו בקובץ text_book_screen.TXT
