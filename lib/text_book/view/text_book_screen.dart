@@ -2647,7 +2647,7 @@ class _RegularReportTabState extends State<_RegularReportTab> {
           Align(
             alignment: Alignment.centerRight,
             child: Text(
-              'פירוט הטעות (חובה לפרט מהי הטעות, בלא פירוט לא נוכל לטפל):',
+              'פירוט הטעות: (חובה לפרט מהי הטעות, בלא פירוט לא נוכל לטפל)',
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
