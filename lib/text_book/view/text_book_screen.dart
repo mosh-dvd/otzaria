@@ -945,6 +945,8 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         },
       ),
 
+
+
       // 5) Zoom In Button
       ActionButtonData(
         widget: _buildZoomInButton(context, state),
@@ -1182,6 +1184,8 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       tooltip: 'הצג או הסתר ניקוד',
     );
   }
+
+
 
   Widget _buildBookmarkButton(BuildContext context, TextBookLoaded state) {
     final shortcut =

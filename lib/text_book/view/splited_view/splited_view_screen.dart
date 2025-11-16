@@ -56,6 +56,11 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
     if (oldWidget.showSplitView != widget.showSplitView) {
       setState(() {
         _currentTabIndex = _getInitialTabIndex();
+        // אם עוברים למצב split view, פותחים את הטור השמאלי אוטומטית
+        if (widget.showSplitView && !_paneOpen) {
+          _paneOpen = true;
+          _updateAreas();
+        }
       });
     }
   }
@@ -99,6 +104,11 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
         _updateAreas();
       });
     }
+  }
+
+  // פונקציה ציבורית לפתיחה/סגירה מבחוץ
+  void togglePane() {
+    _togglePane();
   }
 
   void _openPaneWithSmartTab() {
@@ -232,7 +242,7 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
                       minHeight: 36,
                     ),
                     icon: Icon(
-                      FluentIcons.navigation_24_regular,
+                      FluentIcons.panel_left_contract_24_regular,
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                     onPressed: _togglePane,

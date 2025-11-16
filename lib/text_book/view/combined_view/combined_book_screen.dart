@@ -55,6 +55,8 @@ class _CombinedViewState extends State<CombinedView> {
   // שמירת reference ל-BLoC לשימוש ב-listeners
   late final TextBookBloc _textBookBloc;
 
+  bool _hasScrolledToInitialPosition = false;
+
   @override
   void initState() {
     super.initState();
@@ -65,6 +67,24 @@ class _CombinedViewState extends State<CombinedView> {
     widget.tab.positionsListener.itemPositions.addListener(_onScroll);
     // עדכון האינדקס ב-tab בזמן אמת
     widget.tab.positionsListener.itemPositions.addListener(_updateTabIndex);
+    
+    // האזנה לשינויים ב-state כדי לגלול למיקום הנכון בפעם הראשונה
+    _textBookBloc.stream.listen((state) {
+      if (state is TextBookLoaded && !_hasScrolledToInitialPosition && state.visibleIndices.isNotEmpty) {
+        _hasScrolledToInitialPosition = true;
+        final initialIndex = state.visibleIndices.first;
+        debugPrint('DEBUG: גלילה אוטומטית למיקום שמור: $initialIndex');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && widget.tab.scrollController.isAttached) {
+            widget.tab.scrollController.scrollTo(
+              index: initialIndex,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
+      }
+    });
   }
 
   @override

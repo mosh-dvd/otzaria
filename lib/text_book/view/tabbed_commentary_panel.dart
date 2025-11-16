@@ -117,20 +117,55 @@ class _TabbedCommentaryPanelState extends State<TabbedCommentaryPanel>
                     },
                   ),
                   Expanded(
-                    child: TabBar(
-                      controller: _tabController,
-                      tabs: const [
-                        Tab(text: 'מפרשים'),
-                        Tab(text: 'קישורים'),
-                        Tab(text: 'הערות אישיות'),
-                      ],
-                      labelColor: Theme.of(context).colorScheme.primary,
-                      unselectedLabelColor: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.6),
-                      indicatorColor: Theme.of(context).colorScheme.primary,
-                      dividerColor: Colors.transparent,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // חישוב גודל הטקסט לפי רוחב זמין
+                        final availableWidth = constraints.maxWidth;
+                        final fontSize = availableWidth < 200 ? 11.0 : (availableWidth < 300 ? 13.0 : 14.0);
+                        
+                        return TabBar(
+                          controller: _tabController,
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          padding: EdgeInsets.zero,
+                          labelPadding: EdgeInsets.symmetric(horizontal: availableWidth < 250 ? 8 : 16),
+                          tabs: [
+                            Tab(
+                              child: Text(
+                                'מפרשים',
+                                style: TextStyle(fontSize: fontSize),
+                              ),
+                            ),
+                            Tab(
+                              child: Text(
+                                'קישורים',
+                                style: TextStyle(fontSize: fontSize),
+                              ),
+                            ),
+                            Tab(
+                              child: Text(
+                                'הערות אישיות',
+                                style: TextStyle(fontSize: fontSize),
+                              ),
+                            ),
+                          ],
+                          labelColor: Theme.of(context).colorScheme.primary,
+                          unselectedLabelColor: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                          indicatorColor: Theme.of(context).colorScheme.primary,
+                          dividerColor: Colors.transparent,
+                          onTap: (index) {
+                            // אם לוחצים על טאב מפרשים (0) ואנחנו בכפתור סינון, סוגרים אותו
+                            if (index == 0 && _showFilterTab) {
+                              setState(() {
+                                _showFilterTab = false;
+                              });
+                            }
+                          },
+                        );
+                      },
                     ),
                   ),
                   // לחצן סגירה
