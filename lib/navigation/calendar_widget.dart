@@ -316,35 +316,60 @@ class CalendarWidget extends StatelessWidget {
           width: 2,
         ),
       ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              hebrewDays[state.selectedGregorianDate.weekday % 7],
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+      child: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  hebrewDays[state.selectedGregorianDate.weekday % 7],
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${_formatHebrewDay(state.selectedJewishDate.getJewishDayOfMonth())} ${_getHebrewMonthNameFor(state.selectedJewishDate)}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${state.selectedGregorianDate.day} ${_getGregorianMonthName(state.selectedGregorianDate.month)} ${state.selectedGregorianDate.year}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // כפתור הוספת אירוע
+          Positioned(
+            top: 8,
+            left: 8,
+            child: Tooltip(
+              message: 'צור אירוע',
+              child: IconButton.filled(
+                icon: const Icon(FluentIcons.add_24_regular, size: 16),
+                onPressed: () => _showCreateEventDialog(context, state),
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(24, 24),
+                  backgroundColor:
+                      Theme.of(context).colorScheme.primaryContainer,
+                  foregroundColor:
+                      Theme.of(context).colorScheme.onPrimaryContainer,
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${_formatHebrewDay(state.selectedJewishDate.getJewishDayOfMonth())} ${_getHebrewMonthNameFor(state.selectedJewishDate)}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${state.selectedGregorianDate.day} ${_getGregorianMonthName(state.selectedGregorianDate.month)} ${state.selectedGregorianDate.year}',
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1060,7 +1085,7 @@ class CalendarWidget extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 2.5,
+        childAspectRatio: 2.2,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
