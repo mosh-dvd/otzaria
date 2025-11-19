@@ -5,7 +5,6 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   irondash_engine_context
   isar_flutter_libs
-  permission_handler_windows
   printing
   screen_retriever
   sqlite3_flutter_libs

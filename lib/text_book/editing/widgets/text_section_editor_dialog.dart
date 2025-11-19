@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 import 'package:flutter/material.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -11,6 +12,7 @@ import '../services/preview_renderer.dart';
 import '../models/editor_settings.dart';
 import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
+import 'package:otzaria/widgets/confirmation_dialog.dart';
 import 'markdown_toolbar.dart';
 
 /// Full-screen dialog for editing text sections with split-pane interface
@@ -54,6 +56,7 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
   bool _hasUnsavedChanges = false;
   String _previewContent = '';
   final FocusNode _editorFocusNode = FocusNode();
+  String? _lastSearchText; // לשמירת טקסט החיפוש האחרון עבור F3
 
   // Undo functionality
   final List<String> _undoStack = [];
@@ -232,28 +235,19 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
     Navigator.of(context).pop();
   }
 
-  void _discardChanges() {
+  void _discardChanges() async {
     if (_hasUnsavedChanges) {
-      showDialog(
+      final confirmed = await showConfirmationDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('בטל שינויים'),
-          content: const Text('האם אתה בטוח שברצונך לבטל את השינויים?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('ביטול'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop();
-              },
-              child: const Text('בטל שינויים'),
-            ),
-          ],
-        ),
+        title: 'בטל שינויים',
+        content: 'האם אתה בטוח שברצונך לבטל את השינויים?',
+        confirmText: 'בטל שינויים',
+        isDangerous: true,
       );
+
+      if (confirmed == true && mounted) {
+        Navigator.of(context).pop();
+      }
     } else {
       Navigator.of(context).pop();
     }
@@ -312,13 +306,24 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
             _saveAndClose();
             return true;
           case LogicalKeyboardKey.keyB:
-            _wrapSelection('**', '**');
+            _wrapSelection('<b>', '</b>');
             return true;
           case LogicalKeyboardKey.keyI:
-            _wrapSelection('*', '*');
+            _wrapSelection('<i>', '</i>');
             return true;
           case LogicalKeyboardKey.keyK:
             _showLinkDialog();
+            return true;
+          case LogicalKeyboardKey.keyA:
+            // Select all text
+            _textController.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: _textController.text.length,
+            );
+            return true;
+          case LogicalKeyboardKey.keyF:
+            // Open search dialog
+            _showSearchDialog();
             return true;
         }
       } else if (event.logicalKey == LogicalKeyboardKey.escape) {
@@ -329,6 +334,12 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
         // Prevent Enter in books with links
         UiSnack.show(
             'בספר זה אסור לשנות מבנה שורות כדי לשמור על קישורי פרשנות');
+        return true;
+      } else if (event.logicalKey == LogicalKeyboardKey.f3) {
+        // F3 - Find next
+        if (_lastSearchText != null && _lastSearchText!.isNotEmpty) {
+          _performSearch(_lastSearchText!);
+        }
         return true;
       }
     }
@@ -410,6 +421,9 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
 
   void _performSearch(String searchText) {
     if (searchText.isEmpty) return;
+
+    // שמירת טקסט החיפוש עבור F3
+    _lastSearchText = searchText;
 
     final currentText = _textController.text;
     final currentSelection = _textController.selection;
@@ -495,18 +509,18 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
             style: const TextStyle(fontSize: 16),
           ),
           leading: IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(FluentIcons.dismiss_24_regular),
             onPressed: _discardChanges,
           ),
           actions: [
             TextButton.icon(
               onPressed: _hasUnsavedChanges ? _save : null,
-              icon: const Icon(Icons.save),
+              icon: const Icon(FluentIcons.save_24_regular),
               label: const Text('שמור'),
             ),
             TextButton.icon(
               onPressed: _saveAndClose,
-              icon: const Icon(Icons.save_alt),
+              icon: const Icon(FluentIcons.save_arrow_right_24_regular),
               label: const Text('שמור וצא'),
             ),
           ],
@@ -675,7 +689,7 @@ class _SearchDialogState extends State<_SearchDialog> {
             decoration: const InputDecoration(
               labelText: 'הכנס טקסט לחיפוש',
               hintText: 'מה לחפש...',
-              prefixIcon: Icon(Icons.search),
+              prefixIcon: Icon(FluentIcons.search_24_regular),
             ),
             textDirection: TextDirection.rtl,
             autofocus: true,
@@ -726,43 +740,59 @@ class _LinkInsertDialogState extends State<_LinkInsertDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('הוסף קישור'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _textController,
-            decoration: const InputDecoration(
-              labelText: 'טקסט הקישור',
-              hintText: 'לחץ כאן',
+    return Actions(
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            widget.onInsert(_textController.text, _urlController.text);
+            Navigator.of(context).pop();
+            return null;
+          },
+        ),
+      },
+      child: AlertDialog(
+        title: const Text('הוסף קישור'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _textController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'טקסט הקישור',
+                hintText: 'לחץ כאן',
+              ),
+              textDirection: TextDirection.rtl,
             ),
-            textDirection: TextDirection.rtl,
+            const SizedBox(height: 16),
+            TextField(
+              controller: _urlController,
+              decoration: const InputDecoration(
+                labelText: 'כתובת URL',
+                hintText: 'https://example.com',
+              ),
+              textDirection: TextDirection.ltr,
+              onSubmitted: (_) {
+                widget.onInsert(_textController.text, _urlController.text);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('ביטול'),
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _urlController,
-            decoration: const InputDecoration(
-              labelText: 'כתובת URL',
-              hintText: 'https://example.com',
-            ),
-            textDirection: TextDirection.ltr,
+          TextButton(
+            onPressed: () {
+              widget.onInsert(_textController.text, _urlController.text);
+              Navigator.of(context).pop();
+            },
+            child: const Text('הוסף'),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('ביטול'),
-        ),
-        TextButton(
-          onPressed: () {
-            widget.onInsert(_textController.text, _urlController.text);
-            Navigator.of(context).pop();
-          },
-          child: const Text('הוסף'),
-        ),
-      ],
     );
   }
 }

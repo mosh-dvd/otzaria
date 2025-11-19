@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:otzaria/library/models/library.dart';
+import 'package:otzaria/models/books.dart';
 
 abstract class LibraryEvent extends Equatable {
   const LibraryEvent();
@@ -67,4 +68,13 @@ class SelectTopics extends LibraryEvent {
 
   @override
   List<Object?> get props => [topics];
+}
+
+class SelectBookForPreview extends LibraryEvent {
+  final Book book;
+
+  const SelectBookForPreview(this.book);
+
+  @override
+  List<Object?> get props => [book];
 }

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:html/parser.dart' as html_parser;
@@ -379,26 +380,34 @@ class _TantivySearchResultsState extends State<TantivySearchResults> {
             final availableWidth = constrains.maxWidth - 100.0;
 
             // Create the snippet using the new robust function
+            // שימוש בגופן וגודל של המשתמש מההגדרות
             final snippetSpans = createSnippetSpans(
               rawHtml,
               state.searchQuery,
               TextStyle(
-                fontSize: 16,
+                fontSize: settingsState.fontSize,
+                fontFamily: settingsState.fontFamily,
                 color: Theme.of(context).colorScheme.onSurface,
                 height: 1.5,
               ),
-              const TextStyle(
+              TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 18,
+                fontSize: settingsState.fontSize + 2,
+                fontFamily: settingsState.fontFamily,
+                color: const Color(0xFFD32F2F), // צבע אדום חזק למילות החיפוש
               ),
               availableWidth,
             );
 
-            return Card(
+            return Container(
               margin: const EdgeInsets.only(bottom: 12),
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: InkWell(
                 onTap: () {
                   if (result.isPdf) {
@@ -434,6 +443,14 @@ class _TantivySearchResultsState extends State<TantivySearchResults> {
                   }
                 },
                 borderRadius: BorderRadius.circular(12),
+                hoverColor: Theme.of(context)
+                    .colorScheme
+                    .primaryContainer
+                    .withValues(alpha: 0.3),
+                splashColor: Theme.of(context)
+                    .colorScheme
+                    .primaryContainer
+                    .withValues(alpha: 0.4),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -473,7 +490,7 @@ class _TantivySearchResultsState extends State<TantivySearchResults> {
                                   Padding(
                                     padding: const EdgeInsets.only(left: 8),
                                     child: Icon(
-                                      Icons.picture_as_pdf,
+                                      FluentIcons.document_pdf_24_regular,
                                       size: 16,
                                       color: Theme.of(context)
                                           .colorScheme

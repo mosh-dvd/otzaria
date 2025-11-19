@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:flutter_spinbox/flutter_spinbox.dart';
 import 'package:otzaria/search/bloc/search_bloc.dart';
 import 'package:otzaria/search/bloc/search_event.dart';
@@ -11,10 +12,7 @@ import 'package:search_engine/search_engine.dart';
 import 'package:toggle_switch/toggle_switch.dart';
 
 class SearchModeToggle extends StatelessWidget {
-  const SearchModeToggle({
-    super.key,
-    required this.tab,
-  });
+  const SearchModeToggle({super.key, required this.tab});
 
   final SearchingTab tab;
 
@@ -62,6 +60,12 @@ class SearchModeToggle extends StatelessWidget {
                   newMode = SearchMode.advanced;
               }
               context.read<SearchBloc>().add(SetSearchMode(newMode));
+              final modeString = newMode == SearchMode.advanced
+                  ? 'advanced'
+                  : newMode == SearchMode.fuzzy
+                  ? 'fuzzy'
+                  : 'exact';
+              Settings.setValue<String>('key-last-search-mode', modeString);
             },
           ),
         );
@@ -71,10 +75,7 @@ class SearchModeToggle extends StatelessWidget {
 }
 
 class FuzzyDistance extends StatefulWidget {
-  const FuzzyDistance({
-    super.key,
-    required this.tab,
-  });
+  const FuzzyDistance({super.key, required this.tab});
 
   final SearchingTab tab;
 
@@ -111,28 +112,32 @@ class _FuzzyDistanceState extends State<FuzzyDistance> {
         final isEnabled = !state.fuzzy && !hasCustomSpacing;
 
         return SizedBox(
-          width: 160,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SpinBox(
-              enabled: isEnabled,
-              decoration: InputDecoration(
-                labelText: hasCustomSpacing
-                    ? 'מרווח בין מילים (מושבת)'
-                    : 'מרווח בין מילים',
-                labelStyle: TextStyle(
-                  color: hasCustomSpacing ? Colors.grey : null,
-                ),
+          width: 140,
+          child: SpinBox(
+            enabled: isEnabled,
+            decoration: InputDecoration(
+              labelText: hasCustomSpacing
+                  ? 'מרווח בין מילים (מושבת)'
+                  : 'מרווח בין מילים',
+              labelStyle: TextStyle(
+                color: hasCustomSpacing ? Colors.grey : null,
               ),
-              min: 0,
-              max: 30,
-              value: state.distance.toDouble(),
-              onChanged: isEnabled
-                  ? (value) => context
-                      .read<SearchBloc>()
-                      .add(UpdateDistance(value.toInt()))
-                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 16.0,
+              ),
             ),
+            min: 0,
+            max: 30,
+            value: state.distance.toDouble(),
+            onChanged: isEnabled
+                ? (value) => context.read<SearchBloc>().add(
+                    UpdateDistance(value.toInt()),
+                  )
+                : null,
           ),
         );
       },
@@ -141,10 +146,7 @@ class _FuzzyDistanceState extends State<FuzzyDistance> {
 }
 
 class NumOfResults extends StatelessWidget {
-  const NumOfResults({
-    super.key,
-    required this.tab,
-  });
+  const NumOfResults({super.key, required this.tab});
 
   final SearchingTab tab;
 
@@ -159,15 +161,17 @@ class NumOfResults extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
             child: SpinBox(
               value: state.numResults.toDouble(),
-              onChanged: (value) => context
-                  .read<SearchBloc>()
-                  .add(UpdateNumResults(value.toInt())),
+              onChanged: (value) => context.read<SearchBloc>().add(
+                UpdateNumResults(value.toInt()),
+              ),
               min: 10,
               max: 10000,
               decoration: const InputDecoration(
                 labelText: 'מספר תוצאות',
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12.0,
+                  vertical: 8.0,
+                ),
               ),
             ),
           ),
@@ -178,10 +182,7 @@ class NumOfResults extends StatelessWidget {
 }
 
 class SearchTermsDisplay extends StatefulWidget {
-  const SearchTermsDisplay({
-    super.key,
-    required this.tab,
-  });
+  const SearchTermsDisplay({super.key, required this.tab});
 
   final SearchingTab tab;
 
@@ -275,10 +276,7 @@ class _SearchTermsDisplayState extends State<SearchTermsDisplay> {
     };
 
     // אפשרויות שמופיעות אחרי המילה (סיומות)
-    const Set<String> suffixOptions = {
-      'סיומות',
-      'סיומות דקדוקיות',
-    };
+    const Set<String> suffixOptions = {'סיומות', 'סיומות דקדוקיות'};
 
     for (int i = 0; i < words.length; i++) {
       final word = words[i];
@@ -286,7 +284,8 @@ class _SearchTermsDisplayState extends State<SearchTermsDisplay> {
 
       // בדיקה אם יש אפשרויות למילה הזו
       final wordOptions = widget.tab.searchOptions[wordKey];
-      final selectedOptions = wordOptions?.entries
+      final selectedOptions =
+          wordOptions?.entries
               .where((entry) => entry.value)
               .map((entry) => entry.key)
               .toList() ??
@@ -438,8 +437,9 @@ class _SearchTermsDisplayState extends State<SearchTermsDisplay> {
     _scrollController.dispose();
     widget.tab.queryController.removeListener(_onTextChanged);
     widget.tab.searchOptionsChanged.removeListener(_onSearchOptionsChanged);
-    widget.tab.alternativeWordsChanged
-        .removeListener(_onAlternativeWordsChanged);
+    widget.tab.alternativeWordsChanged.removeListener(
+      _onAlternativeWordsChanged,
+    );
     super.dispose();
   }
 
@@ -470,81 +470,37 @@ class _SearchTermsDisplayState extends State<SearchTermsDisplay> {
   Widget build(BuildContext context) {
     return BlocBuilder<SearchBloc, SearchState>(
       builder: (context, state) {
-        // נציג את הטקסט הנוכחי מהקונטרולר במקום מה-state
-        final displayText = _getDisplayText(widget.tab.queryController.text);
+        // נציג את הטקסט מה-state של החיפוש (לא מה-controller שמשתנה)
+        final displayText = _getDisplayText(state.searchQuery);
+
+        if (displayText.isEmpty) {
+          return const SizedBox.shrink();
+        }
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            const double desiredMinWidth = 150.0;
-            final double maxWidth = constraints.maxWidth - 20;
-            final double minWidth = desiredMinWidth.clamp(0.0, maxWidth);
-
-            final double formattedTextWidth = displayText.isEmpty
-                ? 0.0 // ודא שגם כאן זה double
-                : _calculateFormattedTextWidth(displayText, context);
-
-            double calculatedWidth;
-            if (displayText.isEmpty) {
-              calculatedWidth = minWidth;
-            } else {
-              final textWithPadding = formattedTextWidth + 60;
-
-              // התיקון: מוסיפים .toDouble() כדי להבטיח המרה בטוחה
-              calculatedWidth =
-                  textWithPadding.clamp(minWidth, maxWidth).toDouble();
-            }
-
-            return Align(
-              alignment: Alignment.center, // ממורכז במרכז המסך
-              child: Container(
-                width: calculatedWidth,
-                height: 52, // גובה קבוע כמו שאר הבקרות
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'מילות החיפוש',
-                    border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                  ),
-                  child: displayText.isEmpty
-                      ? const SizedBox(
-                          width: double.infinity,
-                          child: Center(
-                            child: Text(
-                              '',
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        )
-                      : SizedBox(
-                          width: double.infinity,
-                          height: double.infinity,
-                          child: formattedTextWidth <= (calculatedWidth - 60)
-                              ? Center(
-                                  child:
-                                      _buildFormattedText(displayText, context),
-                                )
-                              : Scrollbar(
-                                  controller: _scrollController,
-                                  thumbVisibility: true,
-                                  trackVisibility: true,
-                                  thickness: 3.0, // עובי דק יותר לפס הגלילה
-                                  child: SingleChildScrollView(
-                                    controller: _scrollController,
-                                    scrollDirection: Axis.horizontal,
-                                    child: Align(
-                                      alignment: Alignment.centerRight,
-                                      child: _buildFormattedText(
-                                          displayText, context),
-                                    ),
-                                  ),
-                                ),
-                        ),
-                ),
-              ),
+            final double formattedTextWidth = _calculateFormattedTextWidth(
+              displayText,
+              context,
             );
+
+            // תצוגה פשוטה ללא מסגרת - ללא width קבוע כדי לאפשר מרכוז
+            return formattedTextWidth <= (constraints.maxWidth - 20)
+                ? _buildFormattedText(displayText, context)
+                : SizedBox(
+                    width: double.infinity,
+                    child: Scrollbar(
+                      controller: _scrollController,
+                      thumbVisibility: true,
+                      trackVisibility: true,
+                      thickness: 3.0,
+                      child: SingleChildScrollView(
+                        controller: _scrollController,
+                        scrollDirection: Axis.horizontal,
+                        child: _buildFormattedText(displayText, context),
+                      ),
+                    ),
+                  );
           },
         );
       },
@@ -553,10 +509,7 @@ class _SearchTermsDisplayState extends State<SearchTermsDisplay> {
 }
 
 class OrderOfResults extends StatelessWidget {
-  const OrderOfResults({
-    super.key,
-    required this.widget,
-  });
+  const OrderOfResults({super.key, required this.widget});
 
   final TantivySearchResults widget;
 
@@ -574,8 +527,10 @@ class OrderOfResults extends StatelessWidget {
               decoration: const InputDecoration(
                 labelText: 'מיון',
                 border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12.0,
+                  vertical: 8.0,
+                ),
               ),
               items: const [
                 DropdownMenuItem(

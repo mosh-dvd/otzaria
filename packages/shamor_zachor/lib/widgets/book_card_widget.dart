@@ -4,7 +4,6 @@ import 'package:logging/logging.dart';
 import '../models/book_model.dart';
 import '../models/progress_model.dart';
 import '../providers/shamor_zachor_progress_provider.dart';
-import 'hebrew_utils.dart';
 
 class BookCardWidget extends StatefulWidget {
   static final Logger _logger = Logger('BookCardWidget');
@@ -17,6 +16,7 @@ class BookCardWidget extends StatefulWidget {
   final bool isFromTrackingScreen;
   final String? completionDate;
   final bool isInCompletedListContext;
+  final VoidCallback? onDelete;
 
   const BookCardWidget({
     super.key,
@@ -28,6 +28,7 @@ class BookCardWidget extends StatefulWidget {
     this.isFromTrackingScreen = false,
     this.completionDate,
     this.isInCompletedListContext = false,
+    this.onDelete,
   });
 
   @override
@@ -128,96 +129,105 @@ class _BookCardWidgetState extends State<BookCardWidget> {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _onCardTap(context),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          widget.bookName,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.categoryName,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.7),
-                                  ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.bookName,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.categoryName,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.7),
+                                    ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  if (_isCompleted) ...[
-                    const SizedBox(width: 8),
-                    const Icon(Icons.check_circle,
-                        color: Colors.green, size: 24),
+                    if (_isCompleted) ...[
+                      const SizedBox(width: 8),
+                      const Icon(Icons.check_circle,
+                          color: Colors.green, size: 24),
+                    ],
+                    if (widget.onDelete != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        tooltip: 'הסר ספר',
+                        onPressed: widget.onDelete,
+                      ),
+                    ],
                   ],
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Progress / Completion info
-              (_isCompleted && widget.completionDate != null)
-                  ? _buildCompletionInfo(context, widget.completionDate!)
-                  : _buildProgressInfo(context, _learnProgress),
-              const SizedBox(height: 12),
-              // Additional info
-              Row(
-                children: [
-                  Icon(
-                    widget.bookDetails.isDafType ? Icons.book : Icons.article,
-                    size: 16,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${widget.bookDetails.totalLearnableItems} ${widget.bookDetails.contentType}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
-                        ),
-                  ),
-                  const Spacer(),
-                  if (_completedCycles > 0) ...[
-                    Icon(Icons.repeat,
-                        size: 16, color: Theme.of(context).colorScheme.primary),
+                ),
+                const SizedBox(height: 12),
+                // Progress / Completion info - מחזורים מרובים
+                _buildCyclesProgressInfo(context),
+                const SizedBox(height: 12),
+                // Additional info
+                Row(
+                  children: [
+                    Icon(
+                      widget.bookDetails.isDafType ? Icons.book : Icons.article,
+                      size: 16,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
+                    ),
                     const SizedBox(width: 4),
                     Text(
-                      '$_completedCycles מחזורים',
+                      '${widget.bookDetails.totalLearnableItems} כותרות',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
                           ),
                     ),
+                    const Spacer(),
+                    if (_completedCycles > 0) ...[
+                      Icon(Icons.repeat,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$_completedCycles מחזורים',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -232,39 +242,6 @@ class _BookCardWidgetState extends State<BookCardWidget> {
         'categoryName': widget.categoryName,
         'bookName': widget.bookName,
       },
-    );
-  }
-
-  Widget _buildCompletionInfo(BuildContext context, String isoDate) {
-    final hebrewDate = HebrewUtils.formatHebrewDate(isoDate);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.green.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border:
-            Border.all(color: Colors.green.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Row(children: [
-        const Icon(Icons.celebration, color: Colors.green, size: 20),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('הושלם בהצלחה!',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.green.shade700,
-                      fontWeight: FontWeight.w600)),
-              Text(hebrewDate,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Colors.green.shade600)),
-            ],
-          ),
-        ),
-      ]),
     );
   }
 
@@ -298,22 +275,163 @@ class _BookCardWidgetState extends State<BookCardWidget> {
         ]),
         const SizedBox(height: 8),
         Row(children: [
-          Text('$completedItems מתוך $totalItems',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.7))),
-          const Spacer(),
+          Flexible(
+            child: Text('$completedItems מתוך $totalItems',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.7)),
+                overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 8),
           if (learnProgress > 0)
-            Text(
-              _getProgressStatusText(),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w500),
+            Flexible(
+              child: Text(
+                _getProgressStatusText(),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w500),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
         ]),
       ],
+    );
+  }
+
+  /// בניית תצוגת מחזורים מרובים
+  Widget _buildCyclesProgressInfo(BuildContext context) {
+    if (_progressProvider == null) {
+      return _buildProgressInfo(context, 0.0);
+    }
+
+    // חישוב התקדמות לכל מחזור
+    final cycles = ['learn', 'review1', 'review2', 'review3'];
+    final cycleProgress = <double>[];
+
+    for (final cycle in cycles) {
+      int completed = 0;
+      int total = 0;
+      for (final item in widget.bookDetails.learnableItems) {
+        final progress = _progressProvider!.getProgressForItem(
+          widget.topLevelCategoryKey,
+          widget.bookName,
+          item.absoluteIndex,
+        );
+        total++;
+        if (progress.getProperty(cycle)) completed++;
+      }
+      cycleProgress.add(total > 0 ? completed / total : 0.0);
+    }
+
+    // בניית תצוגה - מציג מחזור אם הוא התחיל או אם המחזור הקודם הושלם
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (int i = 0; i < cycles.length; i++)
+            if (i == 0 || cycleProgress[i] > 0.0 || cycleProgress[i - 1] >= 1.0)
+              Padding(
+                padding: EdgeInsets.only(right: i > 0 ? 5 : 0),
+                child: _buildCycleIndicator(
+                  context,
+                  i + 1,
+                  cycleProgress[i],
+                  cycleProgress[i] >= 1.0,
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  /// בניית אינדיקטור למחזור בודד
+  Widget _buildCycleIndicator(
+    BuildContext context,
+    int cycleNumber,
+    double progress,
+    bool isCompleted,
+  ) {
+    // המרת מספר מחזור לטקסט עברי
+    String getCycleName(int num) {
+      switch (num) {
+        case 1:
+          return 'מחזור ראשון';
+        case 2:
+          return 'מחזור שני';
+        case 3:
+          return 'מחזור שלישי';
+        case 4:
+          return 'מחזור רביעי';
+        default:
+          return 'מחזור $num';
+      }
+    }
+
+    if (isCompleted) {
+      return Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.green, width: 2),
+        ),
+        child: const Icon(Icons.check, color: Colors.green, size: 28),
+      );
+    }
+
+    final totalItems = widget.bookDetails.totalLearnableItems;
+    final completedItems = (progress * totalItems).round();
+    final progressPercentage = (progress * 100).round();
+
+    return Container(
+      width: 100,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            getCycleName(cycleNumber),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              minHeight: 5,
+              value: progress,
+              backgroundColor: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.08),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$progressPercentage% • $completedItems/$totalItems',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontSize: 10,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.7),
+                ),
+          ),
+        ],
+      ),
     );
   }
 

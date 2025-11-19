@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:logging/logging.dart';
 
+import '../models/book_model.dart';
+
 import '../providers/shamor_zachor_data_provider.dart';
 import '../providers/shamor_zachor_progress_provider.dart';
 import '../widgets/hebrew_utils.dart';
@@ -30,9 +32,27 @@ class _BookDetailScreenState extends State<BookDetailScreen>
     with AutomaticKeepAliveClientMixin {
   static final Logger _logger = Logger('BookDetailScreen');
 
+  // ריווח וגאטרים — שומרים יישור עמודות וזהות בין כותרת לשורות.
+  static const double _gridHPad = 8.0; // ריווח אופקי אחיד
+  static const double _chevronReserve = kMinInteractiveDimension;
+  static const double _titleGutter = 6.0; // עוד טיפה מרווח מהחץ
+  static const double _levelIndent = 16.0; // הזחה לכל רמה
+  static const double _rightInset = _gridHPad + _chevronReserve + _titleGutter;
+  static const int _titleFlex = 2;
+  static const int _gridFlex = 10;
+
+  // סגנון אחיד לכל הכותרות (leaf ו-parent)
+  static const TextStyle _headingStyle = TextStyle(
+    fontFamily: 'Heebo',
+    fontSize: 18,
+    fontWeight: FontWeight.w400,
+    height: 1.1,
+  );
+
   @override
   bool get wantKeepAlive => true;
 
+  final Map<String, bool> _expandedSections = {};
   StreamSubscription<CompletionEvent>? _completionSubscription;
 
   final List<Map<String, String>> _columnData = [
@@ -46,11 +66,9 @@ class _BookDetailScreenState extends State<BookDetailScreen>
   void initState() {
     super.initState();
     _logger.info('Initializing BookDetailScreen for ${widget.bookName}');
-
     final progressProvider = context.read<ShamorZachorProgressProvider>();
     _completionSubscription = progressProvider.completionEvents.listen((event) {
       if (!mounted) return;
-
       if (event.type == CompletionEventType.bookCompleted) {
         CompletionAnimationOverlay.show(
             context, "אשריך! תזכה ללמוד ספרים אחרים ולסיימם!");
@@ -94,8 +112,7 @@ class _BookDetailScreenState extends State<BookDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
-
+    super.build(context);
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -112,22 +129,54 @@ class _BookDetailScreenState extends State<BookDetailScreen>
 
                 if (bookDetails == null) return const SizedBox.shrink();
 
-                final isCompleted = progressProvider.isBookCompleted(
-                  widget.topLevelCategoryKey,
-                  widget.bookName,
-                  bookDetails,
-                );
+                // חישוב אחוז ההשלמה
+                final learnableItems = bookDetails.learnableItems;
+                int totalChecks = 0;
+                int completedChecks = 0;
+
+                for (final item in learnableItems) {
+                  final progress = progressProvider.getProgressForItem(
+                    widget.topLevelCategoryKey,
+                    widget.bookName,
+                    item.absoluteIndex,
+                  );
+                  totalChecks += 4; // 4 עמודות לכל פריט
+                  if (progress.learn) completedChecks++;
+                  if (progress.review1) completedChecks++;
+                  if (progress.review2) completedChecks++;
+                  if (progress.review3) completedChecks++;
+                }
+
+                final completionPercentage =
+                    totalChecks > 0 ? completedChecks / totalChecks : 0.0;
 
                 return Padding(
                   padding: const EdgeInsets.all(12.0),
-                  child: Icon(
-                    isCompleted ? Icons.check_circle : Icons.circle_outlined,
-                    color: isCompleted
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.5),
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: completionPercentage,
+                          strokeWidth: 3,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.2),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        if (completionPercentage >= 1.0)
+                          Icon(
+                            Icons.check,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -138,7 +187,6 @@ class _BookDetailScreenState extends State<BookDetailScreen>
           child:
               Consumer2<ShamorZachorDataProvider, ShamorZachorProgressProvider>(
             builder: (context, dataProvider, progressProvider, child) {
-              // Show loading state
               if (dataProvider.isLoading || progressProvider.isLoading) {
                 return const Center(
                   child: Column(
@@ -152,17 +200,13 @@ class _BookDetailScreenState extends State<BookDetailScreen>
                 );
               }
 
-              // Show error state
               if (dataProvider.error != null) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red,
-                      ),
+                      const Icon(Icons.error_outline,
+                          size: 64, color: Colors.red),
                       const SizedBox(height: 16),
                       Text(
                         dataProvider.error!.userFriendlyMessage,
@@ -198,11 +242,8 @@ class _BookDetailScreenState extends State<BookDetailScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.book_outlined,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
+                      const Icon(Icons.book_outlined,
+                          size: 64, color: Colors.grey),
                       const SizedBox(height: 16),
                       Text(
                         'פרטי הספר "${widget.bookName}" לא נמצאו',
@@ -223,31 +264,34 @@ class _BookDetailScreenState extends State<BookDetailScreen>
 
   Widget _buildBookContent(
     BuildContext context,
-    dynamic bookDetails,
+    BookDetails bookDetails,
     ShamorZachorProgressProvider progressProvider,
   ) {
-    final learnableItems = bookDetails.learnableItems ?? [];
+    final learnableItems = bookDetails.learnableItems;
 
     if (learnableItems.isEmpty) {
-      return const Center(
-        child: Text('אין פריטים ללימוד בספר זה'),
-      );
+      return const Center(child: Text('אין פריטים ללימוד בספר זה'));
     }
+
+    final hasNested = bookDetails.sections != null &&
+        bookDetails.sections!.isNotEmpty &&
+        bookDetails.hasNestedSections;
+
+    final sliverList = hasNested
+        ? _buildNestedItemsSliver(context, bookDetails, progressProvider)
+        : _buildFlatItemsSliver(context, bookDetails, progressProvider);
 
     return CustomScrollView(
       slivers: [
-        // Sliver 1: הכותרת. היא לא נגללת, פשוט יושבת למעלה.
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
             child: _buildHeader(context, bookDetails, progressProvider),
           ),
         ),
-
-        // Sliver 2: הרשימה עצמה, עטופה ב-Padding.
         SliverPadding(
           padding: const EdgeInsets.all(12.0),
-          sliver: _buildItemsSliver(context, bookDetails, progressProvider),
+          sliver: sliverList,
         ),
       ],
     );
@@ -266,12 +310,11 @@ class _BookDetailScreenState extends State<BookDetailScreen>
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      padding: EdgeInsets.fromLTRB(
+          _gridHPad, 8, _gridHPad + _chevronReserve + _titleGutter, 8),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(
-            color: theme.dividerColor.withValues(alpha: 0.5),
-          ),
+          bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
         ),
       ),
       child: Row(
@@ -280,18 +323,14 @@ class _BookDetailScreenState extends State<BookDetailScreen>
             flex: 2,
             child: Text(
               bookDetails.contentType ?? 'תוכן',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: theme.colorScheme.onSurface,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               textAlign: TextAlign.right,
             ),
           ),
           Expanded(
             flex: 10,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              // אין spaceEvenly כדי לשמור פריסה זהה בכל עומק
               children: _columnData.map((col) {
                 final columnId = col['id']!;
                 final columnLabel = col['label']!;
@@ -325,9 +364,7 @@ class _BookDetailScreenState extends State<BookDetailScreen>
                         child: Text(
                           columnLabel,
                           style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.onSurface,
-                          ),
+                              fontSize: 11, color: theme.colorScheme.onSurface),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -342,33 +379,31 @@ class _BookDetailScreenState extends State<BookDetailScreen>
     );
   }
 
-  Widget _buildItemsSliver(
+  Widget _buildFlatItemsSliver(
     BuildContext context,
-    dynamic bookDetails,
+    BookDetails bookDetails,
     ShamorZachorProgressProvider progressProvider,
   ) {
     final theme = Theme.of(context);
-    final learnableItems = bookDetails.learnableItems ?? [];
+    final learnableItems = bookDetails.learnableItems;
 
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (ctx, index) {
-          // ... כל הקוד שהיה לך בתוך itemBuilder נשאר זהה לחלוטין ...
           final item = learnableItems[index];
-          final absoluteIndex = item.absoluteIndex ?? index;
-          final partName = item.partName ?? '';
+          final absoluteIndex = item.absoluteIndex;
+          final partName = item.partName;
 
-          bool showHeader = bookDetails.hasMultipleParts == true &&
-              (index == 0 ||
-                  partName != (learnableItems[index - 1].partName ?? ''));
+          final showHeader = bookDetails.hasMultipleParts == true &&
+              (index == 0 || partName != learnableItems[index - 1].partName);
 
           String rowLabel;
           if (bookDetails.isDafType == true) {
             final amudSymbol = (item.amudKey == "b") ? ":" : ".";
             rowLabel =
-                "${HebrewUtils.intToGematria(item.pageNumber ?? 1)}$amudSymbol";
+                "${HebrewUtils.intToGematria(item.pageNumber)}$amudSymbol";
           } else {
-            rowLabel = HebrewUtils.intToGematria(item.pageNumber ?? index + 1);
+            rowLabel = HebrewUtils.intToGematria(item.pageNumber);
           }
 
           final pageProgress = progressProvider.getProgressForItem(
@@ -406,7 +441,7 @@ class _BookDetailScreenState extends State<BookDetailScreen>
                 ),
               Container(
                 color: rowBackgroundColor,
-                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+                padding: EdgeInsets.fromLTRB(_gridHPad, 2, _rightInset, 2),
                 child: Row(
                   children: [
                     Expanded(
@@ -423,12 +458,11 @@ class _BookDetailScreenState extends State<BookDetailScreen>
                     Expanded(
                       flex: 10,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: _columnData.map((col) {
                           final columnName = col['id']!;
                           return Expanded(
                             child: Tooltip(
-                              message: col['label']!,
+                              message: col['label'],
                               child: Checkbox(
                                 visualDensity: VisualDensity.compact,
                                 value: pageProgress.getProperty(columnName),
@@ -453,8 +487,222 @@ class _BookDetailScreenState extends State<BookDetailScreen>
             ],
           );
         },
-        childCount:
-            learnableItems.length, // חשוב להגיד ל-SliverList כמה פריטים יש
+        childCount: learnableItems.length,
+      ),
+    );
+  }
+
+  Widget _buildNestedItemsSliver(
+    BuildContext context,
+    BookDetails bookDetails,
+    ShamorZachorProgressProvider progressProvider,
+  ) {
+    final sections = bookDetails.sections ?? const [];
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (ctx, index) {
+          final section = sections[index];
+          return _buildSectionExpansionTile(
+            context,
+            section,
+            0,
+            bookDetails,
+            progressProvider,
+          );
+        },
+        childCount: sections.length,
+      ),
+    );
+  }
+
+  Widget _buildSectionExpansionTile(
+    BuildContext context,
+    BookSection section,
+    int level,
+    BookDetails bookDetails,
+    ShamorZachorProgressProvider progressProvider,
+  ) {
+    final theme = Theme.of(context);
+    final isExpanded =
+        _expandedSections[section.id] ?? true; // פתוח כברירת־מחדל
+
+    // Leaf
+    if (section.children.isEmpty) {
+      final leafIndices =
+          bookDetails.sectionLeafIndexMap[section.id] ?? const [];
+      if (leafIndices.isEmpty) return const SizedBox.shrink();
+
+      final learnable = bookDetails.learnableItems
+          .firstWhere((item) => item.absoluteIndex == leafIndices.first);
+      final pageProgress = progressProvider.getProgressForItem(
+        widget.topLevelCategoryKey,
+        widget.bookName,
+        leafIndices.first,
+      );
+
+      // מציגים leaf בפורמט של שורה רגילה (כמו ב-flat), עם RTL
+      final theme = Theme.of(context);
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: Container(
+          color: Colors.transparent,
+          padding: EdgeInsets.fromLTRB(_gridHPad, 2, _rightInset, 2),
+          child: Row(
+            children: [
+              Expanded(
+                flex: _titleFlex,
+                child: Text(
+                  learnable.displayLabel ?? learnable.partName,
+                  textAlign: TextAlign.right,
+                  style: _headingStyle.copyWith(
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                ),
+              ),
+              Expanded(
+                flex: _gridFlex,
+                child: Row(
+                  children: _columnData.map((col) {
+                    final columnName = col['id']!;
+                    return Expanded(
+                      child: Tooltip(
+                        message: col['label']!,
+                        child: Checkbox(
+                          visualDensity: VisualDensity.compact,
+                          value: pageProgress.getProperty(columnName),
+                          onChanged: (val) => progressProvider.updateProgress(
+                            widget.topLevelCategoryKey,
+                            widget.bookName,
+                            learnable.absoluteIndex,
+                            columnName,
+                            val ?? false,
+                            bookDetails,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Parent
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Theme(
+        data: theme.copyWith(
+          // צמצום מרווחי ה-ListTile של ה-ExpansionTile
+          listTileTheme: const ListTileThemeData(
+            dense: true,
+            minVerticalPadding: 0,
+            horizontalTitleGap: 0,
+            minLeadingWidth: 0,
+            contentPadding: EdgeInsets.zero,
+          ),
+          // צמצום tap-target של Checkbox
+          checkboxTheme: const CheckboxThemeData(
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity(horizontal: -4, vertical: -4),
+          ),
+          dividerColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+        ),
+        child: ExpansionTile(
+          key: ValueKey(section.id),
+          initiallyExpanded: isExpanded,
+          onExpansionChanged: (expanded) {
+            setState(() => _expandedSections[section.id] = expanded);
+          },
+          tilePadding: const EdgeInsetsDirectional.only(
+            end: _gridHPad + _titleGutter,
+          ),
+          childrenPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.trailing,
+          title: Directionality(
+            textDirection: TextDirection.rtl, // תוכן RTL
+            child: Container(
+              padding: const EdgeInsets.only(
+                  left: _gridHPad, right: _gridHPad, top: 1, bottom: 1),
+              child: Row(
+                children: [
+                  // קודם כותרת, כמו ב־Header
+                  Expanded(
+                    flex: _titleFlex,
+                    child: Padding(
+                      // הזחה ביחס ל־RTL מהימין פנימה - רק לכותרת!
+                      padding: EdgeInsetsDirectional.only(
+                          start: _levelIndent * level),
+                      child: Text(
+                        section.title,
+                        style: _headingStyle.copyWith(
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: _gridFlex,
+                    child: Row(
+                      children: _columnData.map((col) {
+                        final columnId = col['id']!;
+                        final state = progressProvider.getSectionColumnState(
+                          widget.topLevelCategoryKey,
+                          widget.bookName,
+                          bookDetails,
+                          section.id,
+                          columnId,
+                        );
+                        return Expanded(
+                          child: SizedBox(
+                            height: 24,
+                            child: Center(
+                              child: Checkbox(
+                                value: state,
+                                tristate: true,
+                                onChanged: (value) =>
+                                    progressProvider.toggleSectionColumn(
+                                  widget.topLevelCategoryKey,
+                                  widget.bookName,
+                                  bookDetails,
+                                  section.id,
+                                  columnId,
+                                  value == true,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // אין Padding חיצוני; ההזחה מבוקרת רק בכותרת ובעמודת ה־V
+          children: section.children
+              .map((child) => _buildSectionExpansionTile(
+                    context,
+                    child,
+                    level + 1,
+                    bookDetails,
+                    progressProvider,
+                  ))
+              .toList(),
+        ),
       ),
     );
   }

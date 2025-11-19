@@ -56,10 +56,30 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
 
   void _onRemoveTab(RemoveTab event, Emitter<TabsState> emit) async {
     final removedTabIndex = state.tabs.indexOf(event.tab);
+    
+    // ניקוי משאבים של הטאב שנסגר
+    event.tab.dispose();
+    
     final newTabs = List<OpenedTab>.from(state.tabs)..remove(event.tab);
-    final newIndex = removedTabIndex <= state.currentTabIndex
+    
+    // אם אין טאבים נותרים, נשאיר את האינדקס ב-0
+    if (newTabs.isEmpty) {
+      _repository.saveTabs(newTabs, 0);
+      emit(state.copyWith(
+        tabs: newTabs,
+        currentTabIndex: 0,
+      ));
+      return;
+    }
+    
+    // חישוב האינדקס החדש - אם סגרנו טאב לפני או בדיוק על הטאב הפעיל, זזים אינדקס אחד אחורה
+    var newIndex = removedTabIndex <= state.currentTabIndex
         ? max(state.currentTabIndex - 1, 0)
         : state.currentTabIndex;
+    
+    // וידוא שהאינדקס תקין (לא חורג מגבולות הרשימה)
+    newIndex = min(newIndex, newTabs.length - 1);
+    
     _repository.saveTabs(newTabs, newIndex);
     emit(state.copyWith(
       tabs: newTabs,
@@ -81,6 +101,11 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
   }
 
   void _onCloseAllTabs(CloseAllTabs event, Emitter<TabsState> emit) {
+    // ניקוי משאבים של כל הטאבים
+    for (final tab in state.tabs) {
+      tab.dispose();
+    }
+    
     _repository.saveTabs([], 0);
     emit(state.copyWith(
       tabs: [],
@@ -89,6 +114,13 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
   }
 
   void _onCloseOtherTabs(CloseOtherTabs event, Emitter<TabsState> emit) {
+    // ניקוי משאבים של כל הטאבים מלבד זה שנשאר
+    for (final tab in state.tabs) {
+      if (tab != event.keepTab) {
+        tab.dispose();
+      }
+    }
+    
     final newTabs = [event.keepTab];
     _repository.saveTabs(newTabs, 0);
     emit(state.copyWith(

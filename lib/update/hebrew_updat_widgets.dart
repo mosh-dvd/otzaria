@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:updat/updat.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,7 +23,7 @@ Widget hebrewFlatChip({
       final prefs = await SharedPreferences.getInstance();
       final shownKey = 'update_dialog_shown_$latestVersion';
       final alreadyShown = prefs.getBool(shownKey) ?? false;
-      
+
       if (!alreadyShown && context.mounted) {
         // סמן שהדיאלוג הוצג לגרסה זו
         await prefs.setBool(shownKey, true);
@@ -32,7 +34,7 @@ Widget hebrewFlatChip({
       message: 'עדכון לגרסה ${latestVersion!.toString()}',
       child: TextButton.icon(
         onPressed: openDialog,
-        icon: const Icon(Icons.system_update_alt_rounded),
+        icon: const Icon(FluentIcons.arrow_download_24_regular),
         label: const Text('עדכון זמין'),
       ),
     );
@@ -60,7 +62,7 @@ Widget hebrewFlatChip({
       message: 'לחץ להתקנה',
       child: TextButton.icon(
         onPressed: launchInstaller,
-        icon: const Icon(Icons.check_circle),
+        icon: const Icon(FluentIcons.checkmark_circle_24_regular),
         label: const Text('מוכן להתקנה'),
       ),
     );
@@ -71,7 +73,7 @@ Widget hebrewFlatChip({
       message: 'אירעה שגיאה בעדכון. אנא נסה שוב.',
       child: TextButton.icon(
         onPressed: startUpdate,
-        icon: const Icon(Icons.warning),
+        icon: const Icon(FluentIcons.warning_24_regular),
         label: const Text('שגיאה. נסה שוב.'),
       ),
     );
@@ -172,7 +174,7 @@ Widget hebrewFloatingExtendedChipWithSilentDownload({
                 const SizedBox(width: 10),
                 ElevatedButton.icon(
                   onPressed: startUpdate,
-                  icon: const Icon(Icons.install_desktop_rounded),
+                  icon: const Icon(FluentIcons.desktop_arrow_down_24_regular),
                   label: const Text('התקן כעת'),
                 ),
               ],
@@ -207,7 +209,7 @@ void hebrewDefaultDialog({
         direction:
             Theme.of(context).useMaterial3 ? Axis.vertical : Axis.horizontal,
         children: const [
-          Icon(Icons.update),
+          Icon(FluentIcons.arrow_sync_24_regular),
           Text('עדכון זמין'),
         ],
       ),
@@ -228,7 +230,7 @@ void hebrewDefaultDialog({
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(changelog!),
+              child: Markdown(data: changelog!),
             ),
           ],
         ],

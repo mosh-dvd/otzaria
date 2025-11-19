@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
@@ -21,7 +22,7 @@ class ReportingNumbersWidget extends StatelessWidget {
     this.showPhoneNumber = true,
   });
 
-  static const String _phoneNumber = '077-4636-198';
+  static const String _phoneNumber = '(+972) 077-4636-198';
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +34,7 @@ class ReportingNumbersWidget extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'מספרי הדיווח:',
+              'נתוני הדיווח:',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -41,61 +42,34 @@ class ReportingNumbersWidget extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // IntrinsicHeight חיוני כדי שה-VerticalDivider יידע מה הגובה שלו
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // טור ימין
-                  Expanded(
-                    child: Column(
-                      children: [
-                        _buildNumberRow(
-                          context,
-                          'מספר גירסה',
-                          libraryVersion,
-                        ),
-                        const SizedBox(height: 8),
-                        _buildNumberRow(
-                          context,
-                          'מספר ספר',
-                          bookId?.toString() ?? 'לא זמין',
-                          enabled: bookId != null,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // קו מפריד אנכי בין הטורים
-                  const VerticalDivider(
-                    width: 20, // הרוחב הכולל שהמפריד תופס
-                    thickness: 1, // עובי הקו
-                    indent: 5, // ריפוד עליון
-                    endIndent: 5, // ריפוד תחתון
-                    color: Colors.grey, // צבע הקו (אופציונלי)
-                  ),
-
-                  // טור שמאל
-                  Expanded(
-                    child: Column(
-                      children: [
-                        _buildNumberRow(
-                          context,
-                          'מספר שורה',
-                          lineNumber.toString(),
-                        ),
-                        const SizedBox(height: 8),
-                        _buildNumberRow(
-                          context,
-                          'מספר שגיאה',
-                          errorId?.toString() ?? 'לא נבחר',
-                          enabled: errorId != null,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            // Wrap מאפשר לנתונים להיות באותה שורה ולעבור לשורה הבאה אם אין מקום
+            Wrap(
+              spacing: 16, // מרווח אופקי בין הפריטים
+              runSpacing: 8, // מרווח אנכי בין השורות
+              children: [
+                _buildCompactNumberItem(
+                  context,
+                  'מספר גירסה',
+                  libraryVersion,
+                ),
+                _buildCompactNumberItem(
+                  context,
+                  'מספר ספר',
+                  bookId?.toString() ?? 'לא זמין',
+                  enabled: bookId != null,
+                ),
+                _buildCompactNumberItem(
+                  context,
+                  'מספר שורה',
+                  lineNumber.toString(),
+                ),
+                _buildCompactNumberItem(
+                  context,
+                  'מספר שגיאה',
+                  errorId?.toString() ?? 'לא נבחר',
+                  enabled: errorId != null,
+                ),
+              ],
             ),
 
             if (showPhoneNumber) ...[
@@ -110,31 +84,48 @@ class ReportingNumbersWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildNumberRow(
+  Widget _buildCompactNumberItem(
     BuildContext context,
     String label,
     String value, {
     bool enabled = true,
   }) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Theme.of(context).dividerColor,
+          width: 1,
+        ),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
             '$label: $value',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: enabled ? null : Theme.of(context).disabledColor,
                 ),
             textDirection: TextDirection.rtl,
           ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          onPressed: enabled ? () => _copyToClipboard(context, value) : null,
-          icon: const Icon(Icons.copy, size: 18),
-          tooltip: 'העתק',
-          visualDensity: VisualDensity.compact,
-        ),
-      ],
+          const SizedBox(width: 6),
+          InkWell(
+            onTap: enabled ? () => _copyToClipboard(context, value) : null,
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: Icon(
+                FluentIcons.copy_24_regular,
+                size: 16,
+                color: enabled
+                    ? Theme.of(context).iconTheme.color
+                    : Theme.of(context).disabledColor,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -149,7 +140,7 @@ class ReportingNumbersWidget extends StatelessWidget {
             // 1. הכותרת שתוצג בצד ימין
             Text(
               'קו אוצריא:',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
               textDirection: TextDirection.rtl,
@@ -158,30 +149,52 @@ class ReportingNumbersWidget extends StatelessWidget {
             // 2. Spacer שתופס את כל המקום הפנוי ודוחף את שאר הווידג'טים שמאלה
             const Spacer(),
 
-            // 3. מספר הטלפון (כבר לא צריך להיות בתוך Expanded)
-            isMobile
-                ? InkWell(
-                    onTap: () => _makePhoneCall(context),
-                    child: Text(
+            // 3. מספר הטלפון מודגש (כבר לא צריך להיות בתוך Expanded)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.3),
+                  width: 1.5,
+                ),
+              ),
+              child: isMobile
+                  ? InkWell(
+                      onTap: () => _makePhoneCall(context),
+                      child: Text(
+                        _phoneNumber,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
+                              decoration: TextDecoration.underline,
+                              fontWeight: FontWeight.bold,
+                            ),
+                        textDirection: TextDirection.ltr,
+                      ),
+                    )
+                  : SelectableText(
                       _phoneNumber,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).primaryColor,
-                            decoration: TextDecoration.underline,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer,
+                            fontWeight: FontWeight.bold,
                           ),
                       textDirection: TextDirection.ltr,
                     ),
-                  )
-                : SelectableText(
-                    _phoneNumber,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                    textDirection: TextDirection.ltr,
-                  ),
+            ),
             const SizedBox(width: 8),
 
             // 4. כפתור ההעתקה
             IconButton(
               onPressed: () => _copyToClipboard(context, _phoneNumber),
-              icon: const Icon(Icons.copy, size: 18),
+              icon: const Icon(FluentIcons.copy_24_regular, size: 18),
               tooltip: 'העתק מספר טלפון',
               visualDensity: VisualDensity.compact,
             ),
@@ -191,7 +204,7 @@ class ReportingNumbersWidget extends StatelessWidget {
               const SizedBox(width: 4),
               IconButton(
                 onPressed: () => _makePhoneCall(context),
-                icon: const Icon(Icons.phone, size: 18),
+                icon: const Icon(FluentIcons.phone_24_regular, size: 18),
                 tooltip: 'התקשר',
                 visualDensity: VisualDensity.compact,
               ),

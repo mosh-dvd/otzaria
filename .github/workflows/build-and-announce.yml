@@ -31,7 +31,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.35.7'
           cache: true
 
       # - name: Install Rust (stable)
@@ -100,26 +100,86 @@ jobs:
         run: |
           dart run msix:create --install-certificate false
 
-      - name: Download library for full installer (main branch only)
-        if: github.ref == 'refs/heads/main'
+      - name: Check if commit message is a version tag
+        id: check_version
         shell: pwsh
         run: |
-          Write-Host "Downloading library for full installer..."
-          Invoke-WebRequest -Uri "https://github.com/Y-PLONI/otzaria-library/releases/download/latest/otzaria_latest.zip" -OutFile "otzaria_library.zip"
-          Write-Host "Extracting library to otzaria-library directory..."
-          Expand-Archive -Path "otzaria_library.zip" -DestinationPath "otzaria-library" -Force
-          Write-Host "Library downloaded and extracted successfully to otzaria-library/"
-          Write-Host "Library contents:"
-          Get-ChildItem -Path "otzaria-library" -Recurse | Select-Object -First 10
+          $commitMessage = "${{ github.event.head_commit.message }}"
+          $commitMessage = $commitMessage.Split([Environment]::NewLine)[0].Trim()
+          Write-Host "Commit message: $commitMessage"
+          
+          # בדיקה אם ההודעה היא גרסה במבנה X.Y.Z (מספרים בלבד עם נקודות)
+          if ($commitMessage -match '^\d+\.\d+\.\d+$') {
+            Write-Host "✓ Commit message is a version tag: $commitMessage"
+            echo "is_version=true" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "✗ Commit message is not a version tag"
+            echo "is_version=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Download and extract library for full installer (version tags only)
+        if: steps.check_version.outputs.is_version == 'true'
+        shell: pwsh
+        run: |
+          Write-Host "Downloading library ZIP for full installer from Y-PLONI/otzaria-library..."
+          $ErrorActionPreference = "Stop"
+          
+          try {
+            $downloadUrl = "https://github.com/Y-PLONI/otzaria-library/releases/download/latest/otzaria_latest.zip"
+            Write-Host "Downloading from: $downloadUrl"
+            
+            Invoke-WebRequest -Uri $downloadUrl -OutFile "otzaria_latest.zip" -UseBasicParsing
+            
+            $fileSize = (Get-Item "otzaria_latest.zip").Length
+            Write-Host "Library ZIP downloaded successfully. Size: $([math]::Round($fileSize / 1MB, 2)) MB"
+            
+            # Extract the library to installer/library_files directory
+            Write-Host "Extracting library files..."
+            $extractPath = "installer\library_files"
+            if (Test-Path $extractPath) {
+              Remove-Item -Recurse -Force $extractPath
+            }
+            New-Item -ItemType Directory -Path $extractPath -Force | Out-Null
+            Expand-Archive -Path "otzaria_latest.zip" -DestinationPath $extractPath -Force
+            
+            # Remove the ZIP file as we don't need it anymore
+            Remove-Item "otzaria_latest.zip"
+            
+            Write-Host "Library extracted successfully to $extractPath"
+            $extractedSize = (Get-ChildItem -Path $extractPath -Recurse | Measure-Object -Property Length -Sum).Sum
+            Write-Host "Extracted size: $([math]::Round($extractedSize / 1MB, 2)) MB"
+          }
+          catch {
+            Write-Host "::error::Failed to download or extract library: $_"
+            exit 1
+          }
+
+      - name: Download Visual C++ Redistributable for full installer (version tags only)
+        if: steps.check_version.outputs.is_version == 'true'
+        shell: pwsh
+        run: |
+          Write-Host "Downloading Visual C++ Redistributable for full installer..."
+          $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/abbodi1406/vcredist/releases/latest"
+          $asset = $latestRelease.assets | Where-Object { $_.name -eq "VisualCppRedist_AIO_x86_x64.exe" }
+          if (-not $asset) {
+            Write-Host "::error::Could not find VisualCppRedist_AIO_x86_x64.exe in latest release"
+            exit 1
+          }
+          Write-Host "Downloading from: $($asset.browser_download_url)"
+          Write-Host "Size: $([math]::Round($asset.size / 1MB, 2)) MB"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "installer\VisualCppRedist_AIO_x86_x64.exe"
+          Write-Host "Visual C++ Redistributable downloaded successfully"
 
       - name: Build Inno Setup installer
         shell: pwsh
         run: |
-          if ("${{ github.ref }}" -eq "refs/heads/main") {
-            Write-Host "Building full installer with library for main branch..."
+          if ("${{ steps.check_version.outputs.is_version }}" -eq "true") {
+            Write-Host "Building FULL installer with library and VC++ Redistributable (version tag detected)..."
             & "$env:ISCC" installer\otzaria_full.iss
+            Write-Host "Building REGULAR installer (without VC++ Redistributable)..."
+            & "$env:ISCC" installer\otzaria.iss
           } else {
-            Write-Host "Building regular installer for non-main branch..."
+            Write-Host "Building regular installer only (not a version tag)..."
             & "$env:ISCC" installer\otzaria.iss
           }
 
@@ -127,7 +187,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: otzaria-windows-installer
-          path: installer/otzaria-*-windows.exe
+          path: installer/otzaria-*-windows*.exe
 
       - name: Upload Windows ZIP
         uses: actions/upload-artifact@v4
@@ -154,7 +214,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.35.7'
           cache: true
 
       - name: Install Rust (stable) with rustup
@@ -332,7 +392,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.35.7'
           cache: true
       
       - run: sudo apt install ninja-build
@@ -362,7 +422,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version: '3.35.7'
           cache: true
 
       # התקנת Rust יציבה לפני flutter build

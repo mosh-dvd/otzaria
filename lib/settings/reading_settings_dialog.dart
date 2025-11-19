@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
@@ -48,9 +49,9 @@ void showReadingSettingsDialog(BuildContext context) {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // גודל גופן - 3/4
+                        // גודל גופן - 2/4
                         Expanded(
-                          flex: 3,
+                          flex: 2,
                           child: StatefulBuilder(
                             builder: (context, setState) {
                               double currentFontSize =
@@ -60,7 +61,8 @@ void showReadingSettingsDialog(BuildContext context) {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.format_size),
+                                      const Icon(FluentIcons
+                                          .text_font_size_24_regular),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
@@ -100,8 +102,8 @@ void showReadingSettingsDialog(BuildContext context) {
                             },
                           ),
                         ),
-                        const SizedBox(width: 24),
-                        // גופן - 1/4
+                        const SizedBox(width: 16),
+                        // גופן טקסט ראשי - 1/4
                         Expanded(
                           flex: 1,
                           child: StatefulBuilder(
@@ -111,11 +113,12 @@ void showReadingSettingsDialog(BuildContext context) {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.font_download_outlined),
+                                      const Icon(
+                                          FluentIcons.text_font_24_regular),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
-                                          'גופן',
+                                          'גופן טקסט',
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleMedium,
@@ -142,42 +145,130 @@ void showReadingSettingsDialog(BuildContext context) {
                                     items: const [
                                       DropdownMenuItem(
                                           value: 'TaameyDavidCLM',
-                                          child: Text('דוד')),
+                                          child: Text('דוד', style: TextStyle(fontFamily: 'TaameyDavidCLM'))),
                                       DropdownMenuItem(
                                           value: 'FrankRuhlCLM',
-                                          child: Text('פרנק-רוהל')),
+                                          child: Text('פרנק-רוהל', style: TextStyle(fontFamily: 'FrankRuhlCLM'))),
                                       DropdownMenuItem(
                                           value: 'TaameyAshkenaz',
-                                          child: Text('טעמי אשכנז')),
+                                          child: Text('טעמי אשכנז', style: TextStyle(fontFamily: 'TaameyAshkenaz'))),
                                       DropdownMenuItem(
-                                          value: 'KeterYG', child: Text('כתר')),
+                                          value: 'KeterYG', child: Text('כתר', style: TextStyle(fontFamily: 'KeterYG'))),
                                       DropdownMenuItem(
-                                          value: 'Shofar', child: Text('שופר')),
+                                          value: 'Shofar', child: Text('שופר', style: TextStyle(fontFamily: 'Shofar'))),
                                       DropdownMenuItem(
                                           value: 'NotoSerifHebrew',
-                                          child: Text('נוטו')),
+                                          child: Text('נוטו', style: TextStyle(fontFamily: 'NotoSerifHebrew'))),
                                       DropdownMenuItem(
-                                          value: 'Tinos', child: Text('טינוס')),
+                                          value: 'Tinos', child: Text('טינוס', style: TextStyle(fontFamily: 'Tinos'))),
                                       DropdownMenuItem(
                                           value: 'NotoRashiHebrew',
-                                          child: Text('רש"י')),
+                                          child: Text('רש"י', style: TextStyle(fontFamily: 'NotoRashiHebrew'))),
                                       DropdownMenuItem(
                                           value: 'Candara',
-                                          child: Text('קנדרה')),
+                                          child: Text('קנדרה', style: TextStyle(fontFamily: 'Candara'))),
                                       DropdownMenuItem(
                                           value: 'roboto',
-                                          child: Text('רובוטו')),
+                                          child: Text('רובוטו', style: TextStyle(fontFamily: 'roboto'))),
                                       DropdownMenuItem(
                                           value: 'Calibri',
-                                          child: Text('קליברי')),
+                                          child: Text('קליברי', style: TextStyle(fontFamily: 'Calibri'))),
                                       DropdownMenuItem(
-                                          value: 'Arial', child: Text('אריאל')),
+                                          value: 'Arial', child: Text('אריאל', style: TextStyle(fontFamily: 'Arial'))),
                                     ],
                                     onChanged: (value) {
                                       if (value != null) {
                                         context
                                             .read<SettingsBloc>()
                                             .add(UpdateFontFamily(value));
+                                        setState(() {});
+                                      }
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        // גופן מפרשים - 1/4
+                        Expanded(
+                          flex: 1,
+                          child: StatefulBuilder(
+                            builder: (context, setState) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                          FluentIcons.book_24_regular),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'גופן מפרשים',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  DropdownButtonFormField<String>(
+                                    initialValue: settingsState.commentatorsFontFamily,
+                                    decoration: InputDecoration(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    dropdownColor:
+                                        Theme.of(context).colorScheme.surface,
+                                    isExpanded: true,
+                                    items: const [
+                                      DropdownMenuItem(
+                                          value: 'TaameyDavidCLM',
+                                          child: Text('דוד', style: TextStyle(fontFamily: 'TaameyDavidCLM'))),
+                                      DropdownMenuItem(
+                                          value: 'FrankRuhlCLM',
+                                          child: Text('פרנק-רוהל', style: TextStyle(fontFamily: 'FrankRuhlCLM'))),
+                                      DropdownMenuItem(
+                                          value: 'TaameyAshkenaz',
+                                          child: Text('טעמי אשכנז', style: TextStyle(fontFamily: 'TaameyAshkenaz'))),
+                                      DropdownMenuItem(
+                                          value: 'KeterYG', child: Text('כתר', style: TextStyle(fontFamily: 'KeterYG'))),
+                                      DropdownMenuItem(
+                                          value: 'Shofar', child: Text('שופר', style: TextStyle(fontFamily: 'Shofar'))),
+                                      DropdownMenuItem(
+                                          value: 'NotoSerifHebrew',
+                                          child: Text('נוטו', style: TextStyle(fontFamily: 'NotoSerifHebrew'))),
+                                      DropdownMenuItem(
+                                          value: 'Tinos', child: Text('טינוס', style: TextStyle(fontFamily: 'Tinos'))),
+                                      DropdownMenuItem(
+                                          value: 'NotoRashiHebrew',
+                                          child: Text('רש"י', style: TextStyle(fontFamily: 'NotoRashiHebrew'))),
+                                      DropdownMenuItem(
+                                          value: 'Candara',
+                                          child: Text('קנדרה', style: TextStyle(fontFamily: 'Candara'))),
+                                      DropdownMenuItem(
+                                          value: 'roboto',
+                                          child: Text('רובוטו', style: TextStyle(fontFamily: 'roboto'))),
+                                      DropdownMenuItem(
+                                          value: 'Calibri',
+                                          child: Text('קליברי', style: TextStyle(fontFamily: 'Calibri'))),
+                                      DropdownMenuItem(
+                                          value: 'Arial', child: Text('אריאל', style: TextStyle(fontFamily: 'Arial'))),
+                                    ],
+                                    onChanged: (value) {
+                                      if (value != null) {
+                                        context
+                                            .read<SettingsBloc>()
+                                            .add(UpdateCommentatorsFontFamily(value));
                                         setState(() {});
                                       }
                                     },
@@ -199,7 +290,8 @@ void showReadingSettingsDialog(BuildContext context) {
                       return Column(
                         children: [
                           ListTile(
-                            leading: const Icon(Icons.horizontal_distribute),
+                            leading: const Icon(
+                                FluentIcons.text_align_justify_24_regular),
                             title: const Text('רוחב השוליים בצידי הטקסט'),
                             trailing: Text(
                               currentPadding.toStringAsFixed(0),
@@ -396,7 +488,7 @@ void showReadingSettingsDialog(BuildContext context) {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.content_copy),
+                                      const Icon(FluentIcons.copy_24_regular),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
@@ -454,7 +546,8 @@ void showReadingSettingsDialog(BuildContext context) {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.format_align_right),
+                                      const Icon(FluentIcons
+                                          .text_align_right_24_regular),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
@@ -468,7 +561,8 @@ void showReadingSettingsDialog(BuildContext context) {
                                   ),
                                   const SizedBox(height: 8),
                                   DropdownButtonFormField<String>(
-                                    initialValue: settingsState.copyHeaderFormat,
+                                    initialValue:
+                                        settingsState.copyHeaderFormat,
                                     decoration: InputDecoration(
                                       contentPadding:
                                           const EdgeInsets.symmetric(
@@ -564,7 +658,7 @@ void showReadingSettingsDialog(BuildContext context) {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.timer_outlined),
+                                    const Icon(FluentIcons.timer_24_regular),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
@@ -608,7 +702,8 @@ void showReadingSettingsDialog(BuildContext context) {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.delete_sweep_outlined),
+                                    const Icon(
+                                        FluentIcons.delete_dismiss_24_regular),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
@@ -652,7 +747,7 @@ void showReadingSettingsDialog(BuildContext context) {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.storage_outlined),
+                                    const Icon(FluentIcons.database_24_regular),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(

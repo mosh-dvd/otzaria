@@ -42,17 +42,25 @@ import 'package:path_provider/path_provider.dart';
 import 'package:otzaria/app_bloc_observer.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/data/data_providers/hive_data_provider.dart';
-import 'package:otzaria/notes/data/database_schema.dart';
-import 'package:otzaria/notes/bloc/notes_bloc.dart';
+import 'package:otzaria/personal_notes/bloc/personal_notes_bloc.dart';
+import 'package:otzaria/personal_notes/bloc/personal_notes_event.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:search_engine/search_engine.dart';
 import 'package:otzaria/core/app_paths.dart';
 import 'package:otzaria/core/window_listener.dart';
 import 'package:shamor_zachor/providers/shamor_zachor_data_provider.dart';
 import 'package:shamor_zachor/providers/shamor_zachor_progress_provider.dart';
+import 'package:shamor_zachor/services/shamor_zachor_service_factory.dart';
+import 'package:shamor_zachor/services/dynamic_data_loader_service.dart';
+import 'package:otzaria/utils/toc_parser.dart';
+import 'package:otzaria/settings/backup_service.dart';
+import 'package:otzaria/services/sources_books_service.dart';
 
 // Global reference to window listener for cleanup
 AppWindowListener? _appWindowListener;
+
+// Global reference to the dynamic data loader service for Shamor Zachor
+DynamicDataLoaderService? _shamorZachorDataLoader;
 
 /// Application entry point that initializes necessary components and launches the app.
 ///
@@ -97,7 +105,11 @@ void main() async {
   // Initialize bloc observer for debugging
   Bloc.observer = AppBlocObserver();
 
+  // Remove legacy debug log setup
+
   await initialize();
+
+  // No-op: removed verbose debug printing
 
   final historyRepository = HistoryRepository();
 
@@ -138,8 +150,9 @@ void main() async {
               create: (context) => FindRefBloc(
                   findRefRepository: FindRefRepository(
                       dataRepository: DataRepository.instance))),
-          BlocProvider<NotesBloc>(
-            create: (context) => NotesBloc(),
+          BlocProvider<PersonalNotesBloc>(
+            create: (context) =>
+                PersonalNotesBloc()..add(const ConvertLegacyNotes()),
           ),
           BlocProvider<BookmarkBloc>(
             create: (context) => BookmarkBloc(BookmarkRepository()),
@@ -151,7 +164,15 @@ void main() async {
             )..add(LoadWorkspaces()),
           ),
           ChangeNotifierProvider<ShamorZachorDataProvider>(
-            create: (context) => ShamorZachorDataProvider(),
+            lazy: true, // Create only when needed
+            create: (context) {
+              // Create provider based on current state of loader
+              final provider = _shamorZachorDataLoader != null
+                  ? ShamorZachorDataProvider.dynamic(_shamorZachorDataLoader!)
+                  : ShamorZachorDataProvider(); // Start with legacy
+
+              return provider;
+            },
           ),
           ChangeNotifierProvider<ShamorZachorProgressProvider>(
             create: (context) => ShamorZachorProgressProvider(),
@@ -171,6 +192,7 @@ void main() async {
 /// 3. Rust library initialization
 /// 4. Hive storage boxes setup
 /// 5. Required directory structure creation
+/// 6. Shamor Zachor dynamic data loader initialization
 Future<void> initialize() async {
   // Initialize SQLite FFI for desktop platforms
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
@@ -200,14 +222,39 @@ Future<void> initialize() async {
   await createDirs();
   await loadCerts();
 
-  // Initialize notes database
+  // Initialize Shamor Zachor dynamic data loader
   try {
-    await DatabaseSchema.initializeDatabase();
+    final libraryBasePath = await AppPaths.getLibraryPath();
+
+    _shamorZachorDataLoader = await ShamorZachorServiceFactory.getDynamicLoader(
+      libraryBasePath: libraryBasePath,
+      // Use the shared TOC parser utility so SZ and navigator share logic
+      getTocFunction: TocParser.parseFlatFromFile,
+    );
+  } catch (e) {
+    // Continue without Shamor Zachor functionality if initialization fails
+  }
+
+  // Check and perform automatic backup if needed
+  try {
+    if (await BackupService.shouldPerformAutoBackup()) {
+      await BackupService.performAutoBackup();
+    }
   } catch (e) {
     if (kDebugMode) {
-      debugPrint('Failed to initialize notes database: $e');
+      debugPrint('Failed to perform automatic backup: $e');
     }
-    // Continue without notes functionality if database fails
+    // Continue without backup if it fails
+  }
+
+  // Load SourcesBooks.csv data into memory
+  try {
+    await SourcesBooksService().loadSourcesBooks();
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('Failed to load SourcesBooks.csv: $e');
+    }
+    // Continue without sources data if it fails
   }
 }
 
@@ -249,4 +296,9 @@ Future<void> loadCerts() async {
 /// Clean up resources when the app is closing
 void cleanup() {
   _appWindowListener?.dispose();
+  
+  // Clear SourcesBooks data from memory
+  SourcesBooksService().clearData();
 }
+
+// Note: TOC parsing helper moved to lib/utils/toc_parser.dart for reuse

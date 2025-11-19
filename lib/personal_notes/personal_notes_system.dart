@@ -1,0 +1,11 @@
+export 'bloc/personal_notes_bloc.dart';
+export 'bloc/personal_notes_event.dart';
+export 'bloc/personal_notes_state.dart';
+export 'models/personal_note.dart';
+export 'services/personal_notes_service.dart';
+export 'repository/personal_notes_repository.dart';
+export 'migration/legacy_notes_converter.dart';
+export 'storage/personal_notes_storage.dart';
+export 'utils/note_text_utils.dart';
+export 'view/personal_notes_screen.dart';
+export 'widgets/personal_note_editor_dialog.dart';

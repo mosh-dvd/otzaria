@@ -1,15 +1,11 @@
 /* represents links between two books in the library*/
 
 import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
-import 'package:otzaria/data/repository/data_repository.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 
 /// Represents a link between two books in the library.
 class Link {
-  /// The [Data] object used for file system operations.
-  final DataRepository data = DataRepository.instance;
-
   /// The Hebrew reference of the link.
   final String heRef;
 
@@ -25,6 +21,12 @@ class Link {
   /// The type of the connection in the link.
   final String connectionType;
 
+  /// The start character position of the link in the text (optional, for character-based links).
+  final int? start;
+
+  /// The end character position of the link in the text (optional, for character-based links).
+  final int? end;
+
   /// Creates a new instance of [Link] with the provided parameters.
   Link({
     required this.heRef,
@@ -32,6 +34,8 @@ class Link {
     required this.path2,
     required this.index2,
     required this.connectionType,
+    this.start,
+    this.end,
   });
 
   /// Returns the content of the link as a [Future] of [String].
@@ -45,12 +49,16 @@ class Link {
   /// - 'path_2': The path of the second book in the link.
   /// - 'line_index_2': The index of the second book in the link.
   /// - 'Conection Type': The type of the connection in the link.
+  /// - 'start': (optional) The start character position of the link.
+  /// - 'end': (optional) The end character position of the link.
   Link.fromJson(Map<String, dynamic> json)
       : heRef = json['heRef_2'].toString(),
         index1 = int.parse(json['line_index_1'].toString().split('.').first),
         path2 = json['path_2'].toString(),
         index2 = int.parse(json['line_index_2'].toString().split('.').first),
-        connectionType = json['Conection Type'].toString();
+        connectionType = json['Conection Type'].toString(),
+        start = json['start'] != null ? int.tryParse(json['start'].toString()) : null,
+        end = json['end'] != null ? int.tryParse(json['end'].toString()) : null;
 }
 
 /// Retrieves a list of [Link] objects for the given list of [indexes] and the [links] to be processed.

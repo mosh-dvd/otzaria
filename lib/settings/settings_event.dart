@@ -55,6 +55,15 @@ class UpdateFontFamily extends SettingsEvent {
   List<Object?> get props => [fontFamily];
 }
 
+class UpdateCommentatorsFontFamily extends SettingsEvent {
+  final String commentatorsFontFamily;
+
+  const UpdateCommentatorsFontFamily(this.commentatorsFontFamily);
+
+  @override
+  List<Object?> get props => [commentatorsFontFamily];
+}
+
 class UpdateShowOtzarHachochma extends SettingsEvent {
   final bool showOtzarHachochma;
 
@@ -188,4 +197,50 @@ class UpdateCopyHeaderFormat extends SettingsEvent {
 
   @override
   List<Object?> get props => [copyHeaderFormat];
+}
+
+class UpdateIsFullscreen extends SettingsEvent {
+  final bool isFullscreen;
+
+  const UpdateIsFullscreen(this.isFullscreen);
+
+  @override
+  List<Object?> get props => [isFullscreen];
+}
+
+class UpdateLibraryViewMode extends SettingsEvent {
+  final String libraryViewMode;
+
+  const UpdateLibraryViewMode(this.libraryViewMode);
+
+  @override
+  List<Object?> get props => [libraryViewMode];
+}
+
+class UpdateLibraryShowPreview extends SettingsEvent {
+  final bool libraryShowPreview;
+
+  const UpdateLibraryShowPreview(this.libraryShowPreview);
+
+  @override
+  List<Object?> get props => [libraryShowPreview];
+}
+
+class RefreshShortcuts extends SettingsEvent {
+  const RefreshShortcuts();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class ResetShortcuts extends SettingsEvent {}
+
+class UpdateShortcut extends SettingsEvent {
+  final String key;
+  final String value;
+
+  const UpdateShortcut(this.key, this.value);
+
+  @override
+  List<Object?> get props => [key, value];
 }

@@ -23,6 +23,7 @@ class CalendarState extends Equatable {
   final String eventSearchQuery;
   final bool searchInDescriptions;
   final bool inIsrael;
+  final bool showAllEvents;
 
   const CalendarState({
     required this.selectedJewishDate,
@@ -37,6 +38,7 @@ class CalendarState extends Equatable {
     this.events = const [],
     this.eventSearchQuery = '',
     this.searchInDescriptions = false,
+    this.showAllEvents = false,
   });
 
   factory CalendarState.initial() {
@@ -54,6 +56,7 @@ class CalendarState extends Equatable {
       calendarView: CalendarView.month,
       searchInDescriptions: false,
       inIsrael: true,
+      showAllEvents: false,
     );
   }
 
@@ -70,6 +73,7 @@ class CalendarState extends Equatable {
     String? eventSearchQuery,
     bool? searchInDescriptions,
     bool? inIsrael,
+    bool? showAllEvents,
   }) {
     return CalendarState(
       selectedJewishDate: selectedJewishDate ?? this.selectedJewishDate,
@@ -85,6 +89,7 @@ class CalendarState extends Equatable {
       eventSearchQuery: eventSearchQuery ?? this.eventSearchQuery,
       searchInDescriptions: searchInDescriptions ?? this.searchInDescriptions,
       inIsrael: inIsrael ?? this.inIsrael,
+      showAllEvents: showAllEvents ?? this.showAllEvents,
     );
   }
 
@@ -112,6 +117,7 @@ class CalendarState extends Equatable {
         calendarType,
         calendarView,
         inIsrael,
+        showAllEvents,
       ];
 }
 
@@ -160,14 +166,19 @@ class CalendarCubit extends Cubit<CalendarState> {
 
   void selectDate(JewishDate jewishDate, DateTime gregorianDate) {
     final newTimes = _calculateDailyTimes(gregorianDate, state.selectedCity);
+    // When in month view, selecting a cell should also update the month header anchors
+    final bool updateMonthAnchors = state.calendarView == CalendarView.month;
     emit(state.copyWith(
       selectedJewishDate: jewishDate,
       selectedGregorianDate: gregorianDate,
       dailyTimes: newTimes,
+      currentJewishDate: updateMonthAnchors ? jewishDate : state.currentJewishDate,
+      currentGregorianDate:
+          updateMonthAnchors ? gregorianDate : state.currentGregorianDate,
     ));
   }
 
-  void changeCity(String newCity) {
+  Future<void> changeCity(String newCity) async {
     final newTimes = _calculateDailyTimes(state.selectedGregorianDate, newCity);
     final bool inIsrael = _isCityInIsrael(newCity);
     emit(state.copyWith(
@@ -176,7 +187,18 @@ class CalendarCubit extends Cubit<CalendarState> {
       inIsrael: inIsrael,
     ));
     // שמור את הבחירה בהגדרות
-    _settingsRepository.updateSelectedCity(newCity);
+    await _settingsRepository.updateSelectedCity(newCity);
+  }
+
+  Future<void> changeCalendarType(CalendarType type) async {
+    emit(state.copyWith(calendarType: type));
+    // שמור את הבחירה בהגדרות
+    await _settingsRepository.updateCalendarType(_calendarTypeToString(type));
+  }
+
+  /// טעינה מחדש של הגדרות מהאחסון
+  Future<void> reloadSettings() async {
+    await _initializeCalendar();
   }
 
   void _previousMonth() {
@@ -190,34 +212,18 @@ class CalendarCubit extends Cubit<CalendarState> {
         currentGregorianDate: newDate,
         selectedGregorianDate: newDate,
         selectedJewishDate: JewishDate.fromDateTime(newDate),
+        currentJewishDate: JewishDate.fromDateTime(newDate),
         dailyTimes: newTimes,
       ));
     } else {
+      // Hebrew or combined calendar navigation based on Jewish month numbering (Nissan=1 ... Adar=12 / Adar II=13)
       final current = state.currentJewishDate;
-      final newJewishDate = JewishDate();
-      if (current.getJewishMonth() == 1) {
-        newJewishDate.setJewishDate(
-          current.getJewishYear(),
-          12,
-          1,
-        );
-      } else if (current.getJewishMonth() == 7) {
-        newJewishDate.setJewishDate(
-          current.getJewishYear() - 1,
-          6,
-          1,
-        );
-      } else {
-        newJewishDate.setJewishDate(
-          current.getJewishYear(),
-          current.getJewishMonth() - 1,
-          1,
-        );
-      }
+      final newJewishDate = _computePreviousJewishMonth(current);
       final newGregorian = newJewishDate.getGregorianCalendar();
       final newTimes = _calculateDailyTimes(newGregorian, state.selectedCity);
       emit(state.copyWith(
         currentJewishDate: newJewishDate,
+        currentGregorianDate: newGregorian, // keep gregorian in sync for headers
         selectedGregorianDate: newGregorian,
         selectedJewishDate: newJewishDate,
         dailyTimes: newTimes,
@@ -236,34 +242,18 @@ class CalendarCubit extends Cubit<CalendarState> {
         currentGregorianDate: newDate,
         selectedGregorianDate: newDate,
         selectedJewishDate: JewishDate.fromDateTime(newDate),
+        currentJewishDate: JewishDate.fromDateTime(newDate),
         dailyTimes: newTimes,
       ));
     } else {
+      // Hebrew or combined
       final current = state.currentJewishDate;
-      final newJewishDate = JewishDate();
-      if (current.getJewishMonth() == 12) {
-        newJewishDate.setJewishDate(
-          current.getJewishYear(),
-          1,
-          1,
-        );
-      } else if (current.getJewishMonth() == 6) {
-        newJewishDate.setJewishDate(
-          current.getJewishYear() + 1,
-          7,
-          1,
-        );
-      } else {
-        newJewishDate.setJewishDate(
-          current.getJewishYear(),
-          current.getJewishMonth() + 1,
-          1,
-        );
-      }
+      final newJewishDate = _computeNextJewishMonth(current);
       final newGregorian = newJewishDate.getGregorianCalendar();
       final newTimes = _calculateDailyTimes(newGregorian, state.selectedCity);
       emit(state.copyWith(
         currentJewishDate: newJewishDate,
+        currentGregorianDate: newGregorian,
         selectedGregorianDate: newGregorian,
         selectedJewishDate: newJewishDate,
         dailyTimes: newTimes,
@@ -313,12 +303,6 @@ class CalendarCubit extends Cubit<CalendarState> {
       selectedJewishDate: newJewishDate,
       dailyTimes: newTimes,
     ));
-  }
-
-  void changeCalendarType(CalendarType type) {
-    emit(state.copyWith(calendarType: type));
-    // שמור את הבחירה בהגדרות
-    _settingsRepository.updateCalendarType(_calendarTypeToString(type));
   }
 
   void changeCalendarView(CalendarView view) {
@@ -386,6 +370,10 @@ class CalendarCubit extends Cubit<CalendarState> {
 
   void toggleSearchInDescriptions(bool value) {
     emit(state.copyWith(searchInDescriptions: value));
+  }
+
+  void toggleShowAllEvents(bool value) {
+    emit(state.copyWith(showAllEvents: value));
   }
 
   Map<String, String> shortTimesFor(DateTime date) {
@@ -508,6 +496,60 @@ class CalendarCubit extends Cubit<CalendarState> {
   }
 }
 
+// --- Helper logic for robust Jewish month navigation ---
+
+/// Computes the next Jewish month preserving correct leap year Adar I/II logic
+/// Year changes ONLY when moving from Elul (6) -> Tishrei (7)
+JewishDate _computeNextJewishMonth(JewishDate current) {
+  final y = current.getJewishYear();
+  final m = current.getJewishMonth();
+  final leap = current.isJewishLeapYear();
+  final JewishDate next = JewishDate();
+
+  if (m == 6) {
+    // Elul -> Tishrei, year increments
+    next.setJewishDate(y + 1, 7, 1);
+  } else if (leap && m == 12) {
+    // Adar I -> Adar II (same year)
+    next.setJewishDate(y, 13, 1);
+  } else if ((!leap && m == 12) || m == 13) {
+    // Adar (non-leap) or Adar II (leap) -> Nissan (same year)
+    next.setJewishDate(y, 1, 1);
+  } else {
+    next.setJewishDate(y, m + 1, 1);
+  }
+  return next;
+}
+
+/// Computes the previous Jewish month with proper year boundary handling
+/// Year changes ONLY when moving from Tishrei (7) -> Elul (6)
+JewishDate _computePreviousJewishMonth(JewishDate current) {
+  final y = current.getJewishYear();
+  final m = current.getJewishMonth();
+  final leap = current.isJewishLeapYear();
+  final JewishDate prev = JewishDate();
+
+  if (m == 7) {
+    // Tishrei -> Elul, year decrements
+    prev.setJewishDate(y - 1, 6, 1);
+  } else if (leap && m == 13) {
+    // Adar II -> Adar I (same year)
+    prev.setJewishDate(y, 12, 1);
+  } else if (m == 1) {
+    // Nissan -> Adar (same year, depending on leap)
+    final lastMonthThisYear = leap ? 13 : 12;
+    prev.setJewishDate(y, lastMonthThisYear, 1);
+  } else {
+    prev.setJewishDate(y, m - 1, 1);
+  }
+  return prev;
+}
+
+// Public wrappers (for testing)
+JewishDate computeNextJewishMonth(JewishDate current) => _computeNextJewishMonth(current);
+JewishDate computePreviousJewishMonth(JewishDate current) => _computePreviousJewishMonth(current);
+
+
 // Simple event model kept here for scope
 class CustomEvent extends Equatable {
   final String id; // מזהה ייחודי
@@ -621,6 +663,7 @@ const Map<String, Map<String, Map<String, double>>> cityCoordinates = {
   'ארץ ישראל': {
     'אופקים': {'lat': 31.3111, 'lng': 34.6214, 'elevation': 140.0},
     'אילת': {'lat': 29.5581, 'lng': 34.9482, 'elevation': 12.0},
+    'אלעד': {'lat': 32.0519, 'lng': 34.9517, 'elevation': 75.0},
     'אריאל': {'lat': 32.1069, 'lng': 35.1897, 'elevation': 650.0},
     'אשדוד': {'lat': 31.8044, 'lng': 34.6553, 'elevation': 50.0},
     'אשקלון': {'lat': 31.6688, 'lng': 34.5742, 'elevation': 50.0},

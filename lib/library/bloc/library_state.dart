@@ -10,6 +10,7 @@ class LibraryState extends Equatable {
   final List<Book>? searchResults;
   final String? searchQuery;
   final List<String>? selectedTopics;
+  final Book? previewBook;
 
   const LibraryState({
     this.library,
@@ -19,10 +20,42 @@ class LibraryState extends Equatable {
     this.searchResults,
     this.searchQuery,
     this.selectedTopics,
+    this.previewBook,
   });
 
   factory LibraryState.initial() {
-    return const LibraryState(isLoading: true);
+    // יצירת ספרייה ראשונית עם כל הקטגוריות הידועות
+    final placeholderCategories = [
+      Category(title: 'אודות התוכנה', description: '', shortDescription: '', order: 1, subCategories: [], books: [], parent: null),
+      Category(title: 'בית שני', description: '', shortDescription: '', order: 2, subCategories: [], books: [], parent: null),
+      Category(title: 'הודעה חשובה', description: '', shortDescription: '', order: 3, subCategories: [], books: [], parent: null),
+      Category(title: 'הלכה', description: '', shortDescription: '', order: 4, subCategories: [], books: [], parent: null),
+      Category(title: 'הערות', description: '', shortDescription: '', order: 5, subCategories: [], books: [], parent: null),
+      Category(title: 'הערות אישיות', description: '', shortDescription: '', order: 6, subCategories: [], books: [], parent: null),
+      Category(title: 'חסידות', description: '', shortDescription: '', order: 7, subCategories: [], books: [], parent: null),
+      Category(title: 'ירושלמי', description: '', shortDescription: '', order: 8, subCategories: [], books: [], parent: null),
+      Category(title: 'לימוד יומי', description: '', shortDescription: '', order: 9, subCategories: [], books: [], parent: null),
+      Category(title: 'מחשבת ישראל', description: '', shortDescription: '', order: 10, subCategories: [], books: [], parent: null),
+      Category(title: 'מילונים וספרי יעץ', description: '', shortDescription: '', order: 11, subCategories: [], books: [], parent: null),
+      Category(title: 'משנה', description: '', shortDescription: '', order: 12, subCategories: [], books: [], parent: null),
+      Category(title: 'סדר התפילה', description: '', shortDescription: '', order: 13, subCategories: [], books: [], parent: null),
+      Category(title: 'ספרות עזר', description: '', shortDescription: '', order: 14, subCategories: [], books: [], parent: null),
+      Category(title: 'ספרי מוסר', description: '', shortDescription: '', order: 15, subCategories: [], books: [], parent: null),
+      Category(title: 'קבלה', description: '', shortDescription: '', order: 16, subCategories: [], books: [], parent: null),
+      Category(title: 'שות', description: '', shortDescription: '', order: 17, subCategories: [], books: [], parent: null),
+      Category(title: 'תוספתא', description: '', shortDescription: '', order: 18, subCategories: [], books: [], parent: null),
+      Category(title: 'תלמוד בבלי', description: '', shortDescription: '', order: 19, subCategories: [], books: [], parent: null),
+      Category(title: 'תלמוד ירושלמי', description: '', shortDescription: '', order: 20, subCategories: [], books: [], parent: null),
+      Category(title: 'תנך', description: '', shortDescription: '', order: 21, subCategories: [], books: [], parent: null),
+    ];
+    
+    final placeholderLibrary = Library(categories: placeholderCategories);
+    
+    return LibraryState(
+      library: placeholderLibrary,
+      currentCategory: placeholderLibrary,
+      isLoading: true,
+    );
   }
 
   LibraryState copyWith({
@@ -33,6 +66,7 @@ class LibraryState extends Equatable {
     List<Book>? searchResults,
     String? searchQuery,
     List<String>? selectedTopics,
+    Book? previewBook,
   }) {
     return LibraryState(
       library: library ?? this.library,
@@ -42,6 +76,7 @@ class LibraryState extends Equatable {
       searchResults: searchResults,
       searchQuery: searchQuery ?? this.searchQuery,
       selectedTopics: selectedTopics ?? this.selectedTopics,
+      previewBook: previewBook ?? this.previewBook,
     );
   }
 
@@ -54,5 +89,6 @@ class LibraryState extends Equatable {
         searchResults,
         searchQuery,
         selectedTopics,
+        previewBook,
       ];
 }

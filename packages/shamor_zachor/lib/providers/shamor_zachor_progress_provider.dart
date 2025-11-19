@@ -6,6 +6,7 @@ import '../models/progress_model.dart';
 import '../models/book_model.dart';
 import '../models/error_model.dart';
 import '../services/progress_service.dart';
+import '../utils/message_utils.dart';
 
 /// Events emitted when significant progress milestones are reached
 enum CompletionEventType {
@@ -149,6 +150,42 @@ class ShamorZachorProgressProvider with ChangeNotifier {
     try {
       final itemIndexKey = absoluteIndex.toString();
 
+      // בדיקה: אם מנסים לסמן חזרה, צריך שהלימוד הקודם יהיה מסומן
+      if (value && !isBulkUpdate) {
+        final currentProgress =
+            getProgressForItem(categoryName, bookName, absoluteIndex);
+
+        // אם מנסים לסמן review1, צריך שlearn יהיה מסומן
+        if (columnName == 'review1' && !currentProgress.learn) {
+          UiSnack.show('יש לסמן תחילה את הלימוד הראשוני');
+          return;
+        }
+        // אם מנסים לסמן review2, צריך שlearn ו-review1 יהיו מסומנים
+        else if (columnName == 'review2' &&
+            (!currentProgress.learn || !currentProgress.review1)) {
+          if (!currentProgress.learn) {
+            UiSnack.show('יש לסמן תחילה את הלימוד הראשוני');
+          } else {
+            UiSnack.show('יש לסמן תחילה את החזרה הראשונה');
+          }
+          return;
+        }
+        // אם מנסים לסמן review3, צריך שכל המחזורים הקודמים יהיו מסומנים
+        else if (columnName == 'review3' &&
+            (!currentProgress.learn ||
+                !currentProgress.review1 ||
+                !currentProgress.review2)) {
+          if (!currentProgress.learn) {
+            UiSnack.show('יש לסמן תחילה את הלימוד הראשוני');
+          } else if (!currentProgress.review1) {
+            UiSnack.show('יש לסמן תחילה את החזרה הראשונה');
+          } else {
+            UiSnack.show('יש לסמן תחילה את החזרה השנייה');
+          }
+          return;
+        }
+      }
+
       // Save to storage (with debouncing)
       await _progressService.saveProgress(
         categoryName,
@@ -188,7 +225,9 @@ class ShamorZachorProgressProvider with ChangeNotifier {
             categoryName, bookName, columnName, bookDetails);
       }
 
-      notifyListeners();
+      if (!isBulkUpdate) {
+        notifyListeners();
+      }
     } catch (e, stackTrace) {
       _error = ShamorZachorError.fromException(
         e,
@@ -320,9 +359,134 @@ class ShamorZachorProgressProvider with ChangeNotifier {
     }
   }
 
+  /// Toggle selection for a specific section (group of items)
+  Future<void> toggleSectionColumn(
+    String categoryName,
+    String bookName,
+    BookDetails bookDetails,
+    String sectionId,
+    String columnName,
+    bool select,
+  ) async {
+    final indices = bookDetails.sectionLeafIndexMap[sectionId] ?? const [];
+    if (indices.isEmpty) {
+      _logger.fine('No leaf indices found for section $sectionId');
+      return;
+    }
+
+    try {
+      for (final index in indices) {
+        await updateProgress(
+          categoryName,
+          bookName,
+          index,
+          columnName,
+          select,
+          bookDetails,
+          isBulkUpdate: true,
+        );
+      }
+
+      if (select && columnName == learnColumn) {
+        final wasAlreadyCompleted =
+            getCompletionDateSync(categoryName, bookName) != null;
+        final isNowComplete =
+            isBookCompleted(categoryName, bookName, bookDetails);
+
+        if (isNowComplete && !wasAlreadyCompleted) {
+          await _progressService.saveCompletionDate(categoryName, bookName);
+          _completionDates = await _progressService.loadCompletionDates();
+        }
+      }
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      _error = ShamorZachorError.fromException(
+        e,
+        stackTrace: stackTrace,
+        customMessage: 'Failed to update section progress',
+      );
+      _logger.severe(
+          'Error updating section: ${_error!.message}', e, stackTrace);
+      notifyListeners();
+    }
+  }
+
   /// Get completion date for a book (synchronous)
   String? getCompletionDateSync(String categoryName, String bookName) {
     return _completionDates[categoryName]?[bookName];
+  }
+
+  /// Clear all progress for a specific book
+  Future<void> clearBookProgress(
+    String categoryName,
+    String bookName,
+    BookDetails bookDetails,
+  ) async {
+    try {
+      await _progressService.saveAllBookAsLearned(
+        categoryName,
+        bookName,
+        bookDetails,
+        false,
+      );
+
+      _fullProgress[categoryName]?.remove(bookName);
+      if (_fullProgress[categoryName]?.isEmpty ?? false) {
+        _fullProgress.remove(categoryName);
+      }
+
+      _completionDates[categoryName]?.remove(bookName);
+      if (_completionDates[categoryName]?.isEmpty ?? false) {
+        _completionDates.remove(categoryName);
+      }
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      _error = ShamorZachorError.fromException(
+        e,
+        stackTrace: stackTrace,
+        customMessage: 'Failed to clear book progress',
+      );
+      _logger.severe(
+          'Error clearing progress: ${_error!.message}', e, stackTrace);
+      notifyListeners();
+    }
+  }
+
+  /// Get tristate selection state for a section and column
+  bool? getSectionColumnState(
+    String categoryName,
+    String bookName,
+    BookDetails bookDetails,
+    String sectionId,
+    String columnName,
+  ) {
+    final indices = bookDetails.sectionLeafIndexMap[sectionId] ?? const [];
+    if (indices.isEmpty) {
+      return false;
+    }
+
+    bool anySelected = false;
+    bool anyUnselected = false;
+
+    for (final index in indices) {
+      final progress = getProgressForItem(categoryName, bookName, index);
+      final value = progress.getProperty(columnName);
+      if (value) {
+        anySelected = true;
+      } else {
+        anyUnselected = true;
+      }
+      if (anySelected && anyUnselected) {
+        return null; // partial
+      }
+    }
+
+    if (anySelected) {
+      return true;
+    }
+    return false;
   }
 
   /// Check if a book is completed (all items learned)

@@ -153,6 +153,10 @@ class MyUpdatWidget extends StatelessWidget {
                   resp = await http.get(Uri.parse(
                       "https://api.github.com/repos/$repo/otzaria/releases/tags/v$version"));
                 }
+                // וידוא שה-release נמצא
+                if (resp.statusCode >= 400) {
+                  throw Exception('Release "$version" not found (status ${resp.statusCode})');
+                }
                 release = jsonDecode(resp.body);
               }
 
@@ -163,7 +167,10 @@ class MyUpdatWidget extends StatelessWidget {
               String? assetUrl;
 
               // פונקציה לבחירת קובץ Windows לפי סדר עדיפות
-              String? pickWindows(List<String> extsInOrder) {
+              // חשוב: לא לבחור קובץ -full.exe כי הוא מכיל את הספרייה המלאה
+              // ומיועד רק למשתמשים חדשים, לא לעדכונים
+              // allowZipFallback: האם לאפשר נפילה ל-ZIP אם לא נמצא התאמה
+              String? pickWindows(List<String> extsInOrder, {bool allowZipFallback = true}) {
                 String? foundZip;
                 for (final a in assets) {
                   final name = (a["name"] as String).toLowerCase();
@@ -176,27 +183,34 @@ class MyUpdatWidget extends StatelessWidget {
                       name.endsWith('.appinstaller');
                   if (!isWin) continue;
 
+                  // דלג על קובץ full - מיועד להתקנה ראשונית בלבד
+                  if (name.contains('-full.exe') || name.contains('_full.exe')) {
+                    continue;
+                  }
+
                   for (final ext in extsInOrder) {
                     if (name.endsWith(ext)) return url;
                   }
-                  if (name.endsWith('.zip') && foundZip == null) foundZip = url;
+                  // רק אם מותר fallback ל-ZIP
+                  if (allowZipFallback && name.endsWith('.zip') && foundZip == null) foundZip = url;
                 }
                 return foundZip;
               }
 
               if (platform == 'windows') {
                 // בחירת סדר עדיפות לפי סוג ההתקנה
+                // חשוב: משתמש MSIX חייב לקבל MSIX, לא EXE!
                 final pref = _preferredWindowsFormat();
                 final order = switch (pref) {
                   'msix' => [
+                      '.appinstaller', // מנהל עדכונים אוטומטיים
                       '.msixbundle',
                       '.msix',
-                      '.appinstaller',
-                      '.exe',
-                      '.zip'
+                      // בכוונה לא כולל .exe ו-.zip למשתמשי MSIX
                     ],
                   'exe' => [
                       '.exe',
+                      // אפשר fallback ל-MSIX אם אין EXE
                       '.msixbundle',
                       '.msix',
                       '.appinstaller',
@@ -217,7 +231,13 @@ class MyUpdatWidget extends StatelessWidget {
                       '.zip'
                     ],
                 };
-                assetUrl = pickWindows(order);
+                // משתמשי MSIX לא יכולים להשתמש ב-ZIP כ-fallback
+                assetUrl = pickWindows(order, allowZipFallback: pref != 'msix');
+                
+                // אם זיהינו MSIX אבל לא מצאנו קובץ MSIX - זרוק שגיאה ברורה
+                if (pref == 'msix' && assetUrl == null) {
+                  throw Exception('MSIX installation detected but no MSIX asset found in this release');
+                }
               } else if (platform == 'macos') {
                 // macOS - חיפוש קובץ zip
                 for (final a in assets) {

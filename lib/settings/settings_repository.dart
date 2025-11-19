@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:otzaria/utils/color_utils.dart';
+import 'package:otzaria/utils/shortcut_validator.dart';
 import 'package:otzaria/utils/settings_wrapper.dart';
 
 class SettingsRepository {
@@ -8,6 +9,8 @@ class SettingsRepository {
   static const String keyPaddingSize = 'key-padding-size';
   static const String keyFontSize = 'key-font-size';
   static const String keyFontFamily = 'key-font-family';
+  static const String keyCommentatorsFontFamily =
+      'key-commentators-font-family';
   static const String keyShowOtzarHachochma = 'key-show-otzar-hachochma';
   static const String keyShowHebrewBooks = 'key-show-hebrew-books';
   static const String keyShowExternalBooks = 'key-show-external-books';
@@ -26,6 +29,9 @@ class SettingsRepository {
   static const String keyCalendarEvents = 'key-calendar-events';
   static const String keyCopyWithHeaders = 'key-copy-with-headers';
   static const String keyCopyHeaderFormat = 'key-copy-header-format';
+  static const String keyIsFullscreen = 'key-is-fullscreen';
+  static const String keyLibraryViewMode = 'key-library-view-mode';
+  static const String keyLibraryShowPreview = 'key-library-show-preview';
 
   final SettingsWrapper _settings;
 
@@ -47,6 +53,10 @@ class SettingsRepository {
       'fontFamily': _settings.getValue<String>(
         keyFontFamily,
         defaultValue: 'FrankRuhlCLM',
+      ),
+      'commentatorsFontFamily': _settings.getValue<String>(
+        keyCommentatorsFontFamily,
+        defaultValue: 'NotoRashiHebrew',
       ),
       'showOtzarHachochma': _settings.getValue<bool>(
         keyShowOtzarHachochma,
@@ -116,6 +126,19 @@ class SettingsRepository {
         keyCopyHeaderFormat,
         defaultValue: 'same_line_after_brackets',
       ),
+      'isFullscreen': _settings.getValue<bool>(
+        keyIsFullscreen,
+        defaultValue: false,
+      ),
+      'libraryViewMode': _settings.getValue<String>(
+        keyLibraryViewMode,
+        defaultValue: 'grid',
+      ),
+      'libraryShowPreview': _settings.getValue<bool>(
+        keyLibraryShowPreview,
+        defaultValue: true,
+      ),
+      'shortcuts': await getShortcuts(),
     };
   }
 
@@ -137,6 +160,10 @@ class SettingsRepository {
 
   Future<void> updateFontFamily(String value) async {
     await _settings.setValue(keyFontFamily, value);
+  }
+
+  Future<void> updateCommentatorsFontFamily(String value) async {
+    await _settings.setValue(keyCommentatorsFontFamily, value);
   }
 
   Future<void> updateShowOtzarHachochma(bool value) async {
@@ -211,6 +238,62 @@ class SettingsRepository {
     await _settings.setValue(keyCopyHeaderFormat, value);
   }
 
+  Future<void> updateIsFullscreen(bool value) async {
+    await _settings.setValue(keyIsFullscreen, value);
+  }
+
+  Future<void> updateLibraryViewMode(String value) async {
+    await _settings.setValue(keyLibraryViewMode, value);
+  }
+
+  Future<void> updateLibraryShowPreview(bool value) async {
+    await _settings.setValue(keyLibraryShowPreview, value);
+  }
+
+  Future<Map<String, String>> getShortcuts() async {
+    // Start with the default shortcuts
+    final shortcuts =
+        Map<String, String>.from(ShortcutValidator.defaultShortcuts);
+
+    // Load the central 'shortcuts' map which contains overrides
+    final Map<String, dynamic> savedShortcutsMap =
+        _settings.getValue('shortcuts', defaultValue: {});
+    shortcuts.addAll(savedShortcutsMap.cast<String, String>());
+
+    // Load individual shortcut keys, which take the highest precedence
+    // This is important for custom shortcuts set via the dialog
+    for (final key in ShortcutValidator.shortcutKeys) {
+      final value = _settings.getValue<String?>(key, defaultValue: null);
+      if (value != null) {
+        shortcuts[key] = value;
+      }
+    }
+
+    return Map<String, String>.unmodifiable(shortcuts);
+  }
+
+  Future<void> resetShortcuts() async {
+    // Remove all individual shortcut settings
+    for (final key in ShortcutValidator.shortcutKeys) {
+      await _settings.remove(key);
+    }
+    // Set the main shortcuts map back to the default values
+    await _settings.setValue('shortcuts', ShortcutValidator.defaultShortcuts);
+  }
+
+  Future<void> updateShortcut(String key, String value) async {
+    // Update the individual setting key for the UI
+    await _settings.setValue(key, value);
+    // Update the central shortcuts map for the application logic
+    final Map<String, dynamic> storedShortcuts =
+        _settings.getValue('shortcuts', defaultValue: {});
+    final updatedShortcuts = Map<String, String>.from(
+      storedShortcuts.cast<String, String>(),
+    );
+    updatedShortcuts[key] = value;
+    await _settings.setValue('shortcuts', updatedShortcuts);
+  }
+
   /// Initialize default settings to disk if this is the first app launch
   Future<void> _initializeDefaultsIfNeeded() async {
     if (await _checkIfDefaultsNeeded()) {
@@ -250,6 +333,9 @@ class SettingsRepository {
     await _settings.setValue(keyCalendarEvents, '[]');
     await _settings.setValue(keyCopyWithHeaders, 'none');
     await _settings.setValue(keyCopyHeaderFormat, 'same_line_after_brackets');
+    await _settings.setValue(keyIsFullscreen, false);
+    await _settings.setValue(keyLibraryViewMode, 'grid');
+    await _settings.setValue(keyLibraryShowPreview, true);
 
     // Mark as initialized
     await _settings.setValue('settings_initialized', true);

@@ -65,6 +65,7 @@ class TextBookLoaded extends TextBookState {
   final String? selectedTextForNote;
   final int? selectedTextStart;
   final int? selectedTextEnd;
+  final int? highlightedLine;
 
   // Editor state
   final bool isEditorOpen;
@@ -101,6 +102,7 @@ class TextBookLoaded extends TextBookState {
     this.selectedTextForNote,
     this.selectedTextStart,
     this.selectedTextEnd,
+    this.highlightedLine,
     this.isEditorOpen = false,
     this.editorIndex,
     this.editorSectionId,
@@ -137,6 +139,7 @@ class TextBookLoaded extends TextBookState {
       selectedTextForNote: null,
       selectedTextStart: null,
       selectedTextEnd: null,
+      highlightedLine: null,
       isEditorOpen: false,
       editorIndex: null,
       editorSectionId: null,
@@ -169,6 +172,8 @@ class TextBookLoaded extends TextBookState {
     String? selectedTextForNote,
     int? selectedTextStart,
     int? selectedTextEnd,
+    int? highlightedLine,
+    bool clearHighlight = false,
     bool? isEditorOpen,
     int? editorIndex,
     String? editorSectionId,
@@ -200,6 +205,8 @@ class TextBookLoaded extends TextBookState {
       selectedTextForNote: selectedTextForNote ?? this.selectedTextForNote,
       selectedTextStart: selectedTextStart ?? this.selectedTextStart,
       selectedTextEnd: selectedTextEnd ?? this.selectedTextEnd,
+      highlightedLine:
+          clearHighlight ? null : (highlightedLine ?? this.highlightedLine),
       isEditorOpen: isEditorOpen ?? this.isEditorOpen,
       editorIndex: editorIndex ?? this.editorIndex,
       editorSectionId: editorSectionId ?? this.editorSectionId,
@@ -231,6 +238,7 @@ class TextBookLoaded extends TextBookState {
         selectedTextForNote,
         selectedTextStart,
         selectedTextEnd,
+        highlightedLine,
         isEditorOpen,
         editorIndex,
         editorSectionId,

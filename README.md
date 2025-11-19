@@ -117,13 +117,28 @@ Also, it is a multiplatform framework.
 ## Getting Started
 
 ### windows
-#### Prerequisites
-Make sure that Visual C++ Redistributable is installed on your computer. if not, download it from [Here](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) and install it.
-
 #### Installation
-Download the latest build for windows from [releases](https://github.com/Sivan22/otzaria/releases). 
-The library is included in the .exe file.
+
+**Choose your installer:**
+
+1. **Full Installer (Recommended)** - `otzaria-x.x.x-windows-full.exe`
+   - Includes all required dependencies (Visual C++ Redistributable)
+   - Automatically installs missing components
+   - Best choice for most users
+   - Larger download size (~100MB more)
+
+2. **Regular Installer** - `otzaria-x.x.x-windows.exe`
+   - Smaller download size
+   - Requires Visual C++ Redistributable to be pre-installed
+   - For users who know they already have the required dependencies
+
+Download the latest build for Windows from [releases](https://github.com/Sivan22/otzaria/releases). 
+
+**Note:** The library is included in the .exe file.
 In case you need only the app itself (for upgrading) you can download the .msix file.
+
+#### Prerequisites (for Regular Installer only)
+If using the regular installer, make sure that Visual C++ Redistributable is installed on your computer. If not, download it from [here](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) and install it.
 
 ### linux
 #### Prerequisites
@@ -232,6 +247,7 @@ and Dicta association, by which many important books were added.
 <a href="https://github.com/MosheWagner/Orayta-Books" title="אורייתא" target="_blank"><img src="images/Orayta.png" alt="אורייתא" width="200" height="80"/></a>
 <a href="http://mobile.tora.ws" title="ובלכתך בדרך" target="_blank"><img src="images/OnYourWay_logo.jpg" alt="ובלכתך בדרך" width="80" height="80"/></a>
 <a href="http://www.toratemetfreeware.com/index.html?downloads;1;" title="תורת אמת" target="_blank"><img src="images/toratemet.png" alt="תורת אמת" width="80" height="80"/></a>
+<a href="https://wiki.jewishbooks.org.il/mediawiki/wiki/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99" title="אוצר הספרים היהודי" target="_blank"><img src="images/JewishBook-logo-שקוף.png" alt="אוצר הספרים היהודי" width="200" height="80"/></a>
 <!--a href="https://github.com/projectbenyehuda/public_domain_dump" title="פרוייקט בן יהודה" target="_blank"><img src="images/Project Ben-Yehuda logo.jpg" alt="פרוייקט בן יהודה" width="80" height="80"/></a -->
 
 The PDF viewer is powered by [pdfrx](https://pub.dev/packages/pdfrx).

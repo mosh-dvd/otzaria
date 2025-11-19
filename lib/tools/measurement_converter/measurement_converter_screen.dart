@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
-import 'dart:math' as math;
 import 'measurement_data.dart';
 
 // START OF ADDITIONS - MODERN UNITS
@@ -462,165 +462,490 @@ class _MeasurementConverterScreenState
         },
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildCategorySelector(),
-                const SizedBox(height: 20),
-                _buildUnitSelectors(),
-                const SizedBox(height: 20),
-                if (_opinions.containsKey(_selectedCategory) &&
-                    _opinions[_selectedCategory]!.isNotEmpty) ...[
-                  _buildOpinionSelector(),
-                  const SizedBox(height: 20),
-                ],
-                _buildInputField(),
-                if (_showResultField) ...[
-                  const SizedBox(height: 20),
-                  _buildResultDisplay(),
-                ],
-              ],
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildCategorySelector(),
+              const SizedBox(height: 20),
+              Expanded(
+                child: _buildMainContent(),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case 'אורך':
+        return FluentIcons.ruler_24_regular;
+      case 'שטח':
+        return FluentIcons.square_24_regular;
+      case 'נפח':
+        return FluentIcons.cube_24_regular;
+      case 'משקל':
+        return FluentIcons.scales_24_regular;
+      case 'זמן':
+        return FluentIcons.clock_24_regular;
+      default:
+        return FluentIcons.apps_24_regular;
+    }
+  }
+
   Widget _buildCategorySelector() {
     final categories = ['אורך', 'שטח', 'נפח', 'משקל', 'זמן'];
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Calculate if all buttons can fit in one row
-          const double minButtonWidth =
-              80.0; // Minimum width to ensure text fits in one line
-          const double spacing = 12.0;
-          final double totalSpacing = spacing * (categories.length - 1);
-          final double availableWidth = constraints.maxWidth - totalSpacing;
-          final double buttonWidth = availableWidth / categories.length;
-
-          // If buttons would be too small, use Wrap for multiple rows
-          if (buttonWidth < minButtonWidth) {
-            return Wrap(
-              spacing: spacing,
+      child: isSmallScreen
+          ? SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: categories
+                    .map((category) => Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: _buildCategoryCard(category, 110.0),
+                        ))
+                    .toList(),
+              ),
+            )
+          : Wrap(
+              spacing: 12.0,
               runSpacing: 12.0,
+              alignment: WrapAlignment.center,
               children: categories
-                  .map((category) =>
-                      _buildCategoryButton(category, minButtonWidth))
+                  .map((category) => _buildCategoryCard(category, 140.0))
                   .toList(),
-            );
-          }
-
-          // Otherwise, use Row with equal-width buttons
-          return Row(
-            children: categories.asMap().entries.map((entry) {
-              final index = entry.key;
-              final category = entry.value;
-              return Expanded(
-                child: Container(
-                  margin: EdgeInsets.only(
-                    left: index < categories.length - 1 ? spacing / 2 : 0,
-                    right: index > 0 ? spacing / 2 : 0,
-                  ),
-                  child: _buildCategoryButton(category, null),
-                ),
-              );
-            }).toList(),
-          );
-        },
-      ),
+            ),
     );
   }
 
-  Widget _buildCategoryButton(String category, double? minWidth) {
+  Widget _buildCategoryCard(String category, double width) {
     final isSelected = _selectedCategory == category;
+    final icon = _getCategoryIcon(category);
 
     return GestureDetector(
       onTap: () {
         if (category != _selectedCategory) {
-          _saveCurrentSelections(); // Save current selections before changing category
+          _saveCurrentSelections();
           setState(() {
             _selectedCategory = category;
             _resetDropdowns();
           });
-          // Restore focus to the screen after category change
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _screenFocusNode.requestFocus();
           });
         }
       },
       child: Container(
-        width: minWidth,
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        width: width,
+        padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
           color: isSelected
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12.0),
+          border: Border.all(
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+            width: isSelected ? 2.0 : 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 40,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              category,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isSelected
+                    ? Theme.of(context).colorScheme.onPrimaryContainer
+                    : Theme.of(context).colorScheme.onSurface,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 16.0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 800;
+
+    if (isSmallScreen) {
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildOpinionDropdown(),
+            const SizedBox(height: 16),
+            _buildInputField(),
+            if (_showResultField) ...[
+              const SizedBox(height: 16),
+              _buildResultDisplay(),
+            ],
+            const SizedBox(height: 24),
+            _buildUnitColumnsSmall(),
+          ],
+        ),
+      );
+    }
+
+    final fieldWidth = (screenWidth * 0.2).clamp(250.0, 450.0);
+
+    return Center(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildUnitColumns(),
+          SizedBox(width: (screenWidth * 0.03).clamp(30.0, 60.0)),
+          SizedBox(
+            width: fieldWidth,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildOpinionDropdown(),
+                SizedBox(height: (screenWidth * 0.015).clamp(16.0, 24.0)),
+                _buildInputField(),
+                if (_showResultField) ...[
+                  SizedBox(height: (screenWidth * 0.015).clamp(16.0, 24.0)),
+                  _buildResultDisplay(),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _shouldShowOpinionSelector() {
+    if (!_opinions.containsKey(_selectedCategory) ||
+        _opinions[_selectedCategory]!.isEmpty) {
+      return false;
+    }
+
+    final moderns = _modernUnits[_selectedCategory] ?? [];
+    final bool isFromModern = moderns.contains(_selectedFromUnit);
+    final bool isToModern = moderns.contains(_selectedToUnit);
+
+    return (isFromModern || isToModern) && !(isFromModern && isToModern);
+  }
+
+  Widget _buildUnitColumnsSmall() {
+    final units = _units[_selectedCategory]!;
+    final modernUnits = _getModernUnitsForCategory(_selectedCategory);
+    final ancientUnits =
+        units.where((unit) => !modernUnits.contains(unit)).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // From unit
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border: Border.all(
+              color:
+                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    FluentIcons.arrow_up_24_regular,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'המר מ:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildHorizontalUnitList(
+                  ancientUnits, modernUnits, _selectedFromUnit, (val) {
+                setState(() => _selectedFromUnit = val);
+                _rememberedFromUnits[_selectedCategory] = val!;
+                _convert();
+              }),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Center(
+            child: IconButton(
+              icon: const Icon(FluentIcons.arrow_swap_24_regular),
+              iconSize: 28,
+              onPressed: () {
+                setState(() {
+                  final temp = _selectedFromUnit;
+                  _selectedFromUnit = _selectedToUnit;
+                  _selectedToUnit = temp;
+                  _convert();
+                });
+              },
+              tooltip: 'החלף יחידות',
+              style: IconButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                foregroundColor:
+                    Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+        ),
+        // To unit
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border: Border.all(
+              color:
+                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    FluentIcons.arrow_down_24_regular,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'המר ל:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildHorizontalUnitList(
+                  ancientUnits, modernUnits, _selectedToUnit, (val) {
+                setState(() => _selectedToUnit = val);
+                _rememberedToUnits[_selectedCategory] = val!;
+                _convert();
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHorizontalUnitList(
+    List<String> ancientUnits,
+    List<String> modernUnits,
+    String? selectedValue,
+    ValueChanged<String?> onChanged,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (ancientUnits.isNotEmpty) ...[
+          Text(
+            'חז"ל',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: ancientUnits
+                .map((unit) => _buildHorizontalUnitButton(
+                    unit, selectedValue == unit, onChanged))
+                .toList(),
+          ),
+          if (modernUnits.isNotEmpty) const SizedBox(height: 12),
+        ],
+        if (modernUnits.isNotEmpty) ...[
+          Text(
+            'מודרני',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: modernUnits
+                .map((unit) => _buildHorizontalUnitButton(
+                    unit, selectedValue == unit, onChanged))
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildHorizontalUnitButton(
+    String unit,
+    bool isSelected,
+    ValueChanged<String?> onChanged,
+  ) {
+    return GestureDetector(
+      onTap: () => onChanged(unit),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(
-            color: Theme.of(context).colorScheme.primary,
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
             width: isSelected ? 2.0 : 1.0,
           ),
         ),
         child: Text(
-          category,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          unit,
           style: TextStyle(
             color: isSelected
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(context).colorScheme.primary,
+                ? Theme.of(context).colorScheme.onPrimaryContainer
+                : Theme.of(context).colorScheme.onSurface,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 16.0,
+            fontSize: 13,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildUnitSelectors() {
+  Widget _buildUnitColumns() {
+    final units = _units[_selectedCategory]!;
+    final modernUnits = _getModernUnitsForCategory(_selectedCategory);
+    final ancientUnits =
+        units.where((unit) => !modernUnits.contains(unit)).toList();
+
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final columnHeight = (screenHeight * 0.65).clamp(450.0, 900.0);
+    final columnWidth = (screenWidth * 0.18).clamp(240.0, 450.0);
+    final iconSize = (screenWidth * 0.025).clamp(32.0, 48.0);
+
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Expanded(
-          child: _buildUnitGrid('מ', _selectedFromUnit, (val) {
+        Container(
+          width: columnWidth,
+          height: columnHeight,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color:
+                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: _buildVerticalUnitList(
+              ancientUnits, modernUnits, _selectedFromUnit, (val) {
             setState(() => _selectedFromUnit = val);
             _rememberedFromUnits[_selectedCategory] = val!;
             _convert();
-            // Restore focus to the screen after unit change
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _screenFocusNode.requestFocus();
             });
           }),
         ),
-        const SizedBox(width: 10),
-        IconButton(
-          icon: const Icon(Icons.swap_horiz),
-          onPressed: () {
-            setState(() {
-              final temp = _selectedFromUnit;
-              _selectedFromUnit = _selectedToUnit;
-              _selectedToUnit = temp;
-              _convert();
-            });
-            // Restore focus to the screen after swap
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _screenFocusNode.requestFocus();
-            });
-          },
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          child: IconButton(
+            iconSize: iconSize,
+            icon: const Icon(FluentIcons.arrow_swap_24_regular),
+            onPressed: () {
+              setState(() {
+                final temp = _selectedFromUnit;
+                _selectedFromUnit = _selectedToUnit;
+                _selectedToUnit = temp;
+                _convert();
+              });
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _screenFocusNode.requestFocus();
+              });
+            },
+            tooltip: 'החלף יחידות',
+          ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildUnitGrid('אל', _selectedToUnit, (val) {
+        Container(
+          width: columnWidth,
+          height: columnHeight,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color:
+                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: _buildVerticalUnitList(
+              ancientUnits, modernUnits, _selectedToUnit, (val) {
             setState(() => _selectedToUnit = val);
             _rememberedToUnits[_selectedCategory] = val!;
             _convert();
-            // Restore focus to the screen after unit change
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _screenFocusNode.requestFocus();
             });
@@ -630,75 +955,125 @@ class _MeasurementConverterScreenState
     );
   }
 
-  Widget _buildUnitGrid(
-      String label, String? selectedValue, ValueChanged<String?> onChanged) {
-    final units = _units[_selectedCategory]!;
-
-    // Special handling for time category
-    if (_selectedCategory == 'זמן') {
-      final modernUnits = _getModernUnitsForCategory(_selectedCategory);
-
-      // Filter units that exist in our data
-      final availableBasicUnits =
-          basicAncientTimeUnits.where((unit) => units.contains(unit)).toList();
-      final availableComplexUnits = complexAncientTimeUnits
-          .where((unit) => units.contains(unit))
-          .toList();
-
-      return InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle:
-              const TextStyle(fontSize: 19.0, fontWeight: FontWeight.w500),
-          border: const OutlineInputBorder(),
-          contentPadding: const EdgeInsets.fromLTRB(12.0, 26.0, 12.0, 12.0),
-        ),
-        child: Column(
+  Widget _buildVerticalUnitList(
+    List<String> ancientUnits,
+    List<String> modernUnits,
+    String? selectedValue,
+    ValueChanged<String?> onChanged,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(8.0),
+      child: IntrinsicHeight(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Basic ancient time units (first row)
-            if (availableBasicUnits.isNotEmpty) ...[
-              _buildUnitsWrap(availableBasicUnits, selectedValue, onChanged),
-              const SizedBox(height: 12.0),
-            ],
-            // Complex ancient time units (second row)
-            if (availableComplexUnits.isNotEmpty) ...[
-              _buildUnitsWrap(availableComplexUnits, selectedValue, onChanged),
-              if (modernUnits.isNotEmpty) const SizedBox(height: 12.0),
-            ],
-            // Modern units (third row)
-            if (modernUnits.isNotEmpty)
-              _buildUnitsWrap(modernUnits, selectedValue, onChanged),
+            Expanded(
+              flex: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (ancientUnits.isNotEmpty) ...[
+                    Text(
+                      'חז"ל',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.7),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    ...ancientUnits.map((unit) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4.0),
+                          child: _buildVerticalUnitButton(
+                              unit, selectedValue == unit, onChanged),
+                        )),
+                  ],
+                ],
+              ),
+            ),
+            if (ancientUnits.isNotEmpty && modernUnits.isNotEmpty)
+              Container(
+                width: 1,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                color: Theme.of(context)
+                    .colorScheme
+                    .outline
+                    .withValues(alpha: 0.2),
+              ),
+            Expanded(
+              flex: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (modernUnits.isNotEmpty) ...[
+                    Text(
+                      'מודרני',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.7),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    ...modernUnits.map((unit) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4.0),
+                          child: _buildVerticalUnitButton(
+                              unit, selectedValue == unit, onChanged),
+                        )),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
-      );
-    }
-
-    // Default handling for other categories
-    final modernUnits = _getModernUnitsForCategory(_selectedCategory);
-    final ancientUnits =
-        units.where((unit) => !modernUnits.contains(unit)).toList();
-
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle:
-            const TextStyle(fontSize: 19.0, fontWeight: FontWeight.w500),
-        border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.fromLTRB(12.0, 26.0, 12.0, 12.0),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Ancient units rows
-          if (ancientUnits.isNotEmpty) ...[
-            _buildUnitsWrap(ancientUnits, selectedValue, onChanged),
-            if (modernUnits.isNotEmpty) const SizedBox(height: 12.0),
-          ],
-          // Modern units rows (if any)
-          if (modernUnits.isNotEmpty)
-            _buildUnitsWrap(modernUnits, selectedValue, onChanged),
-        ],
+    );
+  }
+
+  Widget _buildVerticalUnitButton(
+    String unit,
+    bool isSelected,
+    ValueChanged<String?> onChanged,
+  ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final fontSize = (screenWidth * 0.009).clamp(13.0, 16.0);
+    final padding = (screenWidth * 0.006).clamp(8.0, 12.0);
+
+    return GestureDetector(
+      onTap: () => onChanged(unit),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: padding, vertical: padding),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(8.0),
+          border: Border.all(
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+            width: isSelected ? 2.0 : 1.0,
+          ),
+        ),
+        child: Text(
+          unit,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isSelected
+                ? Theme.of(context).colorScheme.onPrimaryContainer
+                : Theme.of(context).colorScheme.onSurface,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: fontSize,
+          ),
+        ),
       ),
     );
   }
@@ -720,67 +1095,6 @@ class _MeasurementConverterScreenState
     }
   }
 
-  Widget _buildUnitsWrap(List<String> units, String? selectedValue,
-      ValueChanged<String?> onChanged) {
-    // Calculate the maximum width needed for any unit in this category
-    double maxWidth = 0;
-    for (String unit in units) {
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: unit,
-          style: const TextStyle(fontSize: 14.0, fontWeight: FontWeight.bold),
-        ),
-        textDirection: TextDirection.rtl,
-      );
-      textPainter.layout();
-      maxWidth = math.max(maxWidth, textPainter.width + 32.0); // Add padding
-    }
-
-    return Wrap(
-      spacing: 8.0,
-      runSpacing: 8.0,
-      children: units.map((unit) {
-        return _buildUnitButton(
-            unit, selectedValue == unit, onChanged, maxWidth);
-      }).toList(),
-    );
-  }
-
-  Widget _buildUnitButton(String unit, bool isSelected,
-      ValueChanged<String?> onChanged, double? fixedWidth) {
-    return GestureDetector(
-      onTap: () => onChanged(unit),
-      child: Container(
-        width: fixedWidth,
-        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(6.0),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.primary,
-            width: isSelected ? 1.5 : 0.5,
-          ),
-        ),
-        child: Text(
-          unit,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: isSelected
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(context).colorScheme.primary,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 14.0,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // A map to easily check if a unit is modern
   final Map<String, List<String>> _modernUnits = {
     'אורך': modernLengthUnits,
     'שטח': modernAreaUnits,
@@ -789,170 +1103,43 @@ class _MeasurementConverterScreenState
     'זמן': modernTimeUnits,
   };
 
-  Widget _buildOpinionSelector() {
-    // Check if opinion selector should be shown
-    final moderns = _modernUnits[_selectedCategory] ?? [];
-    final bool isFromModern = moderns.contains(_selectedFromUnit);
-    final bool isToModern = moderns.contains(_selectedToUnit);
-
-    // Show opinion selector ONLY if:
-    // 1. At least one unit is modern AND
-    // 2. NOT both units are modern (modern-to-modern doesn't need opinion)
-    bool isOpinionEnabled =
-        (isFromModern || isToModern) && !(isFromModern && isToModern);
-
-    // If not enabled, don't show the selector at all
-    if (!isOpinionEnabled) {
-      return const SizedBox.shrink();
-    }
-
+  Widget _buildOpinionDropdown() {
     final opinions = _opinions[_selectedCategory]!;
+    final isEnabled = _shouldShowOpinionSelector();
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0, right: 4.0),
-            child: Text(
-              'שיטה',
-              style: TextStyle(
-                fontSize: 16.0,
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-          ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              const double spacing = 12.0;
-              const double padding = 16.0;
-
-              // Calculate the natural width needed for each opinion text
-              List<double> textWidths = opinions.map((opinion) {
-                final textPainter = TextPainter(
-                  text: TextSpan(
-                    text: opinion,
-                    style: const TextStyle(
-                        fontSize: 14.0, fontWeight: FontWeight.bold),
-                  ),
-                  textDirection:
-                      TextDirection.ltr, // Changed to LTR to fix Hebrew display
-                );
-                textPainter.layout();
-                return textPainter.width +
-                    (padding * 2); // Add horizontal padding
-              }).toList();
-
-              final double maxTextWidth =
-                  textWidths.reduce((a, b) => a > b ? a : b);
-              final double totalSpacing = spacing * (opinions.length - 1);
-              final double totalEqualWidth =
-                  (maxTextWidth * opinions.length) + totalSpacing;
-
-              // First preference: Try equal-width buttons if they fit
-              if (totalEqualWidth <= constraints.maxWidth) {
-                return Row(
-                  children: opinions.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final opinion = entry.value;
-
-                    return Expanded(
-                      child: Container(
-                        margin: EdgeInsets.only(
-                          left: index < opinions.length - 1 ? spacing / 2 : 0,
-                          right: index > 0 ? spacing / 2 : 0,
-                        ),
-                        child: _buildOpinionButton(opinion, null),
-                      ),
-                    );
-                  }).toList(),
-                );
-              }
-
-              // Second preference: Try proportional widths if natural sizes fit
-              final double totalNaturalWidth =
-                  textWidths.reduce((a, b) => a + b) + totalSpacing;
-              if (totalNaturalWidth <= constraints.maxWidth) {
-                final double totalFlex = textWidths.reduce((a, b) => a + b);
-
-                return Row(
-                  children: opinions.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final opinion = entry.value;
-                    final flex = (textWidths[index] / totalFlex * 1000).round();
-
-                    return Expanded(
-                      flex: flex,
-                      child: Container(
-                        margin: EdgeInsets.only(
-                          left: index < opinions.length - 1 ? spacing / 2 : 0,
-                          right: index > 0 ? spacing / 2 : 0,
-                        ),
-                        child: _buildOpinionButton(opinion, null),
-                      ),
-                    );
-                  }).toList(),
-                );
-              }
-
-              // Last resort: Use Wrap for multiple rows
-              return Wrap(
-                spacing: spacing,
-                runSpacing: 12.0,
-                children: opinions
-                    .map((opinion) => _buildOpinionButton(opinion, null))
-                    .toList(),
-              );
-            },
-          ),
-        ],
+    return DropdownButtonFormField<String>(
+      initialValue: _selectedOpinion,
+      decoration: InputDecoration(
+        labelText: 'שיטה',
+        border: const OutlineInputBorder(),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
+        enabled: isEnabled,
       ),
-    );
-  }
-
-  Widget _buildOpinionButton(String opinion, double? minWidth) {
-    final isSelected = _selectedOpinion == opinion;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedOpinion = opinion;
-          _rememberedOpinions[_selectedCategory] = opinion;
-          _convert();
-        });
-        // Restore focus to the screen after opinion change
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _screenFocusNode.requestFocus();
-        });
-      },
-      child: Container(
-        width: minWidth,
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8.0),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.primary,
-            width: isSelected ? 2.0 : 1.0,
+      isExpanded: true,
+      items: opinions.map((opinion) {
+        return DropdownMenuItem<String>(
+          value: opinion,
+          child: Text(
+            opinion,
+            style: const TextStyle(fontSize: 14.0),
           ),
-        ),
-        child: Text(
-          opinion,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          style: TextStyle(
-            color: isSelected
-                ? Theme.of(context).colorScheme.onPrimary
-                : Theme.of(context).colorScheme.primary,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 14.0,
-          ),
-        ),
-      ),
+        );
+      }).toList(),
+      onChanged: isEnabled
+          ? (value) {
+              setState(() {
+                _selectedOpinion = value;
+                if (value != null) {
+                  _rememberedOpinions[_selectedCategory] = value;
+                }
+                _convert();
+              });
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _screenFocusNode.requestFocus();
+              });
+            }
+          : null,
     );
   }
 
@@ -960,12 +1147,15 @@ class _MeasurementConverterScreenState
     return TextField(
       controller: _inputController,
       focusNode: _inputFocusNode,
+      style: const TextStyle(fontSize: 16.0),
       decoration: InputDecoration(
         labelText: 'ערך להמרה',
         border: const OutlineInputBorder(),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
         suffixIcon: _inputController.text.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.clear),
+                icon: const Icon(FluentIcons.dismiss_24_regular),
                 onPressed: () {
                   setState(() {
                     _inputController.clear();
@@ -1011,6 +1201,7 @@ class _MeasurementConverterScreenState
       decoration: const InputDecoration(
         labelText: 'תוצאה',
         border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
       ),
       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       textDirection: TextDirection.ltr,

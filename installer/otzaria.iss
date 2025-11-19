@@ -2,9 +2,9 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "אוצריא"
-#define MyAppVersion "0.9.65"
+#define MyAppVersion "0.9.71"
 #define MyAppPublisher "sivan22"
-#define MyAppURL "https://github.com/Sivan22/otzaria"
+#define MyAppURL "https://github.com/Y-PLONI/otzaria"
 #define MyAppExeName "otzaria.exe"
 
 [Setup]
@@ -28,8 +28,10 @@ OutputBaseFilename=otzaria-{#MyAppVersion}-windows
 SetupIconFile=white_sketch128x128.ico
 Compression=lzma
 SolidCompression=yes
+; Disable compression for DLL files to prevent corruption
+CompressionThreads=1
 WizardStyle=modern
-DisableDirPage=auto
+DisableDirPage=no
 
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\default.isar";
@@ -42,7 +44,8 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"; WorkingDir: "{app}"; Parameters: " -sta -WindowStyle Hidden -noprofile -executionpolicy bypass -file uninstall_msix.ps1"; 
+Filename: "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"; WorkingDir: "{app}"; Parameters: " -sta -WindowStyle Hidden -noprofile -executionpolicy bypass -file uninstall_msix.ps1"; Flags: runhidden waituntilterminated
+Filename: "{app}\{#MyAppExeName}"; Description: "הפעל את {#MyAppName}"; Flags: nowait postinstall skipifsilent 
 
 [Languages]
 Name: "hebrew"; MessagesFile: "compiler:Languages\Hebrew.isl"

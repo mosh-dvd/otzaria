@@ -161,27 +161,48 @@ class BookProgressSummary {
   /// Check if the book has any progress
   bool get hasProgress => completedItems > 0 || inProgressItems > 0;
 
-  /// Get status text for display
-  String get statusText {
+  /// Get status text for display based on current cycle
+  String getStatusText(int currentCycle) {
     if (totalItems <= 0) {
       return 'לימוד פעיל';
     }
-    if (isActiveReview) return 'בחזרה';
+
     final progress = progressPercentage;
-    if (progress >= 1.0) {
-      return 'מוכן לחזרה';
+
+    // הודעות לפי אחוז ההשלמה
+    if (progress == 0.0) {
+      return 'עדיין לא התחלת!';
+    } else if (progress < 0.15) {
+      return 'התחלה מצוינת!';
+    } else if (progress < 0.30) {
+      return 'התחלה מצוינת!';
+    } else if (progress < 0.50) {
+      return 'שליש הדרך כבר הושלם!';
+    } else if (progress < 0.60) {
+      return 'חצי הדרך מאחוריך!';
+    } else if (progress < 0.75) {
+      return 'רוב הדרך כבר מאחוריך!';
+    } else if (progress < 1.0) {
+      return 'הסוף כבר באופק!';
+    } else {
+      // 100% - הודעה לפי מחזור
+      switch (currentCycle) {
+        case 1:
+          return 'סיימת מחזור ראשון בהצלחה!';
+        case 2:
+          return 'סיימת מחזור שני בהצלחה!';
+        case 3:
+          return 'סיימת מחזור שלישי בהצלחה!';
+        case 4:
+          return 'סיימת מחזור רביעי בהצלחה!';
+        default:
+          return 'הושלם בהצלחה!';
+      }
     }
-    if (progress > 0.8) {
-      return 'כמעט סיום';
-    }
-    if (progress > 0.5) {
-      return 'באמצע הדרך';
-    }
-    if (progress > 0) {
-      return 'בתחילת הדרך';
-    }
-    return 'לא התחיל';
   }
+
+  /// Get status text for display (backward compatibility)
+  String get statusText => getStatusText(1);
 
   /// Create a modified copy of this summary.
   BookProgressSummary copyWith({

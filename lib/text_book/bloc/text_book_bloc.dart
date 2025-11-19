@@ -38,6 +38,8 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     on<ToggleNikud>(_onToggleNikud);
     on<UpdateVisibleIndecies>(_onUpdateVisibleIndecies);
     on<UpdateSelectedIndex>(_onUpdateSelectedIndex);
+    on<HighlightLine>(_onHighlightLine);
+    on<ClearHighlightedLine>(_onClearHighlightedLine);
     on<TogglePinLeftPane>(_onTogglePinLeftPane);
     on<UpdateSearchText>(_onUpdateSearchText);
     on<CreateNoteFromToolbar>(_onCreateNoteFromToolbar);
@@ -109,10 +111,17 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
         }
       }
 
-      final availableCommentators =
-          await _repository.getAvailableCommentators(links);
-      //
-      final eras = await utils.splitByEra(availableCommentators);
+      // טעינת מפרשים רק אם נדרש
+      final List<String> availableCommentators;
+      final Map<String, List<String>> eras;
+      if (event.loadCommentators) {
+        availableCommentators =
+            await _repository.getAvailableCommentators(links);
+        eras = await utils.splitByEra(availableCommentators);
+      } else {
+        availableCommentators = [];
+        eras = {};
+      }
 
       final defaultRemoveNikud =
           Settings.getValue<bool>('key-default-nikud') ?? false;
@@ -155,7 +164,9 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
         showLeftPane: showLeftPane || searchText.isNotEmpty,
         showSplitView: event.showSplitView,
         activeCommentators: commentators,
-        commentatorGroups: _buildCommentatorGroups(eras, availableCommentators),
+        commentatorGroups: event.loadCommentators 
+            ? _buildCommentatorGroups(eras, availableCommentators)
+            : [],
         removeNikud: removeNikud,
         visibleIndices: visibleIndices,
         pinLeftPane: Settings.getValue<bool>('key-pin-sidebar') ?? false,
@@ -225,6 +236,8 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
   ) {
     if (state is TextBookLoaded) {
       final currentState = state as TextBookLoaded;
+      // שמירת ההגדרה ב-Settings כדי שתישמר כברירת מחדל
+      Settings.setValue<bool>('key-splited-view', event.show);
       emit(currentState.copyWith(
         showSplitView: event.show,
         selectedIndex: currentState.selectedIndex,
@@ -239,21 +252,10 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     if (state is TextBookLoaded) {
       final currentState = state as TextBookLoaded;
 
-      // אם אין מפרשים פעילים וחלונית הצד פתוחה, סוגר אותה
-      final shouldCloseSplitView =
-          event.commentators.isEmpty && currentState.showSplitView;
-
-      // אם יש מפרשים חדשים ואין חלונית פתוחה, פותח אותה
-      final shouldOpenSplitView = event.commentators.isNotEmpty &&
-          currentState.activeCommentators.isEmpty &&
-          !currentState.showSplitView;
-
+      // עדכון המפרשים הפעילים בלבד, ללא שינוי של סוג התצוגה
       emit(currentState.copyWith(
         activeCommentators: event.commentators,
         selectedIndex: currentState.selectedIndex,
-        showSplitView: shouldCloseSplitView
-            ? false
-            : (shouldOpenSplitView ? true : currentState.showSplitView),
       ));
     }
   }
@@ -295,8 +297,20 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       }
 
       int? index = currentState.selectedIndex;
-      if (!event.visibleIndecies.contains(index)) {
-        index = null;
+      // איפוס selectedIndex רק אם היתה גלילה משמעותית (יותר מ-3 שורות)
+      // כדי למנוע איפוס כשפשוט עוברים בין tabs
+      if (index != null && !event.visibleIndecies.contains(index)) {
+        final oldFirst = currentState.visibleIndices.isNotEmpty 
+            ? currentState.visibleIndices.first 
+            : 0;
+        final newFirst = event.visibleIndecies.isNotEmpty 
+            ? event.visibleIndecies.first 
+            : 0;
+        
+        // רק אם גללנו יותר מ-3 שורות, נאפס את הבחירה
+        if ((oldFirst - newFirst).abs() > 3) {
+          index = null;
+        }
       }
       final visibleLinks = _getVisibleLinks(
         links: currentState.links,
@@ -338,6 +352,34 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
         visibleLinks: visibleLinks,
       ));
     }
+  }
+
+  void _onHighlightLine(
+    HighlightLine event,
+    Emitter<TextBookState> emit,
+  ) {
+    if (state is! TextBookLoaded) return;
+    final currentState = state as TextBookLoaded;
+    emit(currentState.copyWith(highlightedLine: event.lineIndex));
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!isClosed) {
+        add(ClearHighlightedLine(event.lineIndex));
+      }
+    });
+  }
+
+  void _onClearHighlightedLine(
+    ClearHighlightedLine event,
+    Emitter<TextBookState> emit,
+  ) {
+    if (state is! TextBookLoaded) return;
+    final currentState = state as TextBookLoaded;
+    if (currentState.highlightedLine == null) return;
+    if (event.lineIndex != null && currentState.highlightedLine != event.lineIndex) {
+      return;
+    }
+    emit(currentState.copyWith(clearHighlight: true));
   }
 
   void _onTogglePinLeftPane(
@@ -404,7 +446,10 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
             (link) =>
                 link.index1 == index + 1 &&
                 link.connectionType != 'commentary' &&
-                link.connectionType != 'targum',
+                link.connectionType != 'targum' &&
+                // מסנן קישורים מבוססי תווים (inline links) - הם אמורים להופיע רק בתוך הטקסט
+                link.start == null &&
+                link.end == null,
           )
           .toList();
       visibleLinks.addAll(indexLinks);

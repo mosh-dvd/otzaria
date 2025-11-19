@@ -15,6 +15,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdatePaddingSize>(_onUpdatePaddingSize);
     on<UpdateFontSize>(_onUpdateFontSize);
     on<UpdateFontFamily>(_onUpdateFontFamily);
+    on<UpdateCommentatorsFontFamily>(_onUpdateCommentatorsFontFamily);
     on<UpdateShowOtzarHachochma>(_onUpdateShowOtzarHachochma);
     on<UpdateShowHebrewBooks>(_onUpdateShowHebrewBooks);
     on<UpdateShowExternalBooks>(_onUpdateShowExternalBooks);
@@ -30,6 +31,12 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdateFacetFilteringWidth>(_onUpdateFacetFilteringWidth);
     on<UpdateCopyWithHeaders>(_onUpdateCopyWithHeaders);
     on<UpdateCopyHeaderFormat>(_onUpdateCopyHeaderFormat);
+    on<UpdateIsFullscreen>(_onUpdateIsFullscreen);
+    on<UpdateLibraryViewMode>(_onUpdateLibraryViewMode);
+    on<UpdateLibraryShowPreview>(_onUpdateLibraryShowPreview);
+    on<RefreshShortcuts>(_onRefreshShortcuts);
+    on<ResetShortcuts>(_onResetShortcuts);
+    on<UpdateShortcut>(_onUpdateShortcut);
   }
 
   Future<void> _onLoadSettings(
@@ -37,12 +44,13 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     Emitter<SettingsState> emit,
   ) async {
     final settings = await _repository.loadSettings();
-    emit(SettingsState(
+  emit(SettingsState(
       isDarkMode: settings['isDarkMode'],
       seedColor: settings['seedColor'],
       paddingSize: settings['paddingSize'],
       fontSize: settings['fontSize'],
       fontFamily: settings['fontFamily'],
+      commentatorsFontFamily: settings['commentatorsFontFamily'],
       showOtzarHachochma: settings['showOtzarHachochma'],
       showHebrewBooks: settings['showHebrewBooks'],
       showExternalBooks: settings['showExternalBooks'],
@@ -58,6 +66,12 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       facetFilteringWidth: settings['facetFilteringWidth'],
       copyWithHeaders: settings['copyWithHeaders'],
       copyHeaderFormat: settings['copyHeaderFormat'],
+      isFullscreen: settings['isFullscreen'],
+      libraryViewMode: settings['libraryViewMode'],
+      libraryShowPreview: settings['libraryShowPreview'],
+      shortcuts: Map<String, String>.unmodifiable(
+        Map<String, String>.from(settings['shortcuts'] as Map),
+      ),
     ));
   }
 
@@ -99,6 +113,15 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     await _repository.updateFontFamily(event.fontFamily);
     emit(state.copyWith(fontFamily: event.fontFamily));
+  }
+
+  Future<void> _onUpdateCommentatorsFontFamily(
+    UpdateCommentatorsFontFamily event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository
+        .updateCommentatorsFontFamily(event.commentatorsFontFamily);
+    emit(state.copyWith(commentatorsFontFamily: event.commentatorsFontFamily));
   }
 
   Future<void> _onUpdateShowOtzarHachochma(
@@ -219,5 +242,66 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     await _repository.updateCopyHeaderFormat(event.copyHeaderFormat);
     emit(state.copyWith(copyHeaderFormat: event.copyHeaderFormat));
+  }
+
+  Future<void> _onUpdateIsFullscreen(
+    UpdateIsFullscreen event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateIsFullscreen(event.isFullscreen);
+    emit(state.copyWith(isFullscreen: event.isFullscreen));
+  }
+
+  Future<void> _onUpdateLibraryViewMode(
+    UpdateLibraryViewMode event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateLibraryViewMode(event.libraryViewMode);
+    emit(state.copyWith(libraryViewMode: event.libraryViewMode));
+  }
+
+  Future<void> _onUpdateLibraryShowPreview(
+    UpdateLibraryShowPreview event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateLibraryShowPreview(event.libraryShowPreview);
+    emit(state.copyWith(libraryShowPreview: event.libraryShowPreview));
+  }
+
+  Future<void> _onRefreshShortcuts(
+    RefreshShortcuts event,
+    Emitter<SettingsState> emit,
+  ) async {
+    // Toggle a value and back to force a state change
+    // This is a workaround to trigger UI rebuild when shortcuts change
+    emit(state.copyWith(isFullscreen: !state.isFullscreen));
+    await Future.delayed(const Duration(milliseconds: 1));
+    emit(state.copyWith(isFullscreen: state.isFullscreen));
+  }
+
+  Future<void> _onResetShortcuts(
+    ResetShortcuts event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.resetShortcuts();
+    final shortcuts = await _repository.getShortcuts();
+    emit(
+      state.copyWith(
+        shortcuts: Map<String, String>.unmodifiable(shortcuts),
+      ),
+    );
+  }
+
+  Future<void> _onUpdateShortcut(
+    UpdateShortcut event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateShortcut(event.key, event.value);
+    final shortcuts = await _repository.getShortcuts();
+    emit(
+      state.copyWith(
+        shortcuts: Map<String, String>.unmodifiable(shortcuts),
+      ),
+    );
   }
 }
