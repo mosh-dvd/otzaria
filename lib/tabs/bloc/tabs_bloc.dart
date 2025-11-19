@@ -26,6 +26,7 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
     on<NavigateToPreviousTab>(_onNavigateToPreviousTab);
     on<CloseCurrentTab>(_onCloseCurrentTab);
     on<SaveTabs>(_onSaveTabs);
+    on<TogglePinTab>(_onTogglePinTab);
   }
 
   void _onLoadTabs(LoadTabs event, Emitter<TabsState> emit) {
@@ -56,12 +57,12 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
 
   void _onRemoveTab(RemoveTab event, Emitter<TabsState> emit) async {
     final removedTabIndex = state.tabs.indexOf(event.tab);
-    
+
     // ניקוי משאבים של הטאב שנסגר
     event.tab.dispose();
-    
+
     final newTabs = List<OpenedTab>.from(state.tabs)..remove(event.tab);
-    
+
     // אם אין טאבים נותרים, נשאיר את האינדקס ב-0
     if (newTabs.isEmpty) {
       _repository.saveTabs(newTabs, 0);
@@ -71,15 +72,15 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
       ));
       return;
     }
-    
+
     // חישוב האינדקס החדש - אם סגרנו טאב לפני או בדיוק על הטאב הפעיל, זזים אינדקס אחד אחורה
     var newIndex = removedTabIndex <= state.currentTabIndex
         ? max(state.currentTabIndex - 1, 0)
         : state.currentTabIndex;
-    
+
     // וידוא שהאינדקס תקין (לא חורג מגבולות הרשימה)
     newIndex = min(newIndex, newTabs.length - 1);
-    
+
     _repository.saveTabs(newTabs, newIndex);
     emit(state.copyWith(
       tabs: newTabs,
@@ -101,15 +102,22 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
   }
 
   void _onCloseAllTabs(CloseAllTabs event, Emitter<TabsState> emit) {
-    // ניקוי משאבים של כל הטאבים
+    // שמירת טאבים מוצמדים בלבד
+    final pinnedTabs = state.tabs.where((tab) => tab.isPinned).toList();
+
+    // ניקוי משאבים של כל הטאבים שאינם מוצמדים
     for (final tab in state.tabs) {
-      tab.dispose();
+      if (!tab.isPinned) {
+        tab.dispose();
+      }
     }
-    
-    _repository.saveTabs([], 0);
+
+    // אם יש טאבים מוצמדים, נשאיר אותם
+    final newIndex = pinnedTabs.isNotEmpty ? 0 : 0;
+    _repository.saveTabs(pinnedTabs, newIndex);
     emit(state.copyWith(
-      tabs: [],
-      currentTabIndex: 0,
+      tabs: pinnedTabs,
+      currentTabIndex: newIndex,
     ));
   }
 
@@ -120,7 +128,7 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
         tab.dispose();
       }
     }
-    
+
     final newTabs = [event.keepTab];
     _repository.saveTabs(newTabs, 0);
     emit(state.copyWith(
@@ -159,5 +167,29 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
       _repository.saveTabs(state.tabs, newIndex);
       emit(state.copyWith(currentTabIndex: newIndex));
     }
+  }
+
+  void _onTogglePinTab(TogglePinTab event, Emitter<TabsState> emit) {
+    final tabIndex = state.tabs.indexOf(event.tab);
+    if (tabIndex == -1) return;
+
+    // החלפת מצב ההצמדה
+    event.tab.isPinned = !event.tab.isPinned;
+
+    debugPrint(
+        'DEBUG: הצמדת טאב ${event.tab.title} - isPinned: ${event.tab.isPinned}');
+
+    // יצירת רשימה חדשה לחלוטין כדי לגרום ל-Equatable לזהות שינוי
+    final newTabs = List<OpenedTab>.from(state.tabs);
+
+    // שמירת השינויים
+    _repository.saveTabs(newTabs, state.currentTabIndex);
+
+    // עדכון ה-state כדי לגרום ל-rebuild - עם forceUpdate
+    emit(state.copyWith(
+      tabs: newTabs,
+      currentTabIndex: state.currentTabIndex,
+      forceUpdate: true,
+    ));
   }
 }

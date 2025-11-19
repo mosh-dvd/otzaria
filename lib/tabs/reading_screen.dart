@@ -422,6 +422,10 @@ class _ReadingScreenState extends State<ReadingScreen>
       child: ContextMenuRegion(
         contextMenu: ContextMenu(
           entries: [
+            MenuItem(
+              label: tab.isPinned ? 'בטל הצמדת כרטיסיה' : 'הצמד כרטיסיה',
+              onSelected: () => context.read<TabsBloc>().add(TogglePinTab(tab)),
+            ),
             MenuItem(label: 'סגור', onSelected: () => closeTab(tab, context)),
             MenuItem(
                 label: 'סגור הכל',
@@ -513,6 +517,15 @@ class _ReadingScreenState extends State<ReadingScreen>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            // אינדיקטור הצמדה
+                            if (tab.isPinned)
+                              const Padding(
+                                padding: EdgeInsets.only(left: 4.0),
+                                child: Icon(
+                                  FluentIcons.pin_24_filled,
+                                  size: 14,
+                                ),
+                              ),
                             if (tab is SearchingTab)
                               ValueListenableBuilder(
                                 valueListenable: tab.queryController,

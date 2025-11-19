@@ -84,3 +84,12 @@ class NavigateToNextTab extends TabsEvent {}
 class NavigateToPreviousTab extends TabsEvent {}
 
 class LoadTabs extends TabsEvent {}
+
+class TogglePinTab extends TabsEvent {
+  final OpenedTab tab;
+
+  const TogglePinTab(this.tab);
+
+  @override
+  List<Object?> get props => [tab];
+}

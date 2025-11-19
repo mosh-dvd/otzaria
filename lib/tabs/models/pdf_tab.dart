@@ -64,7 +64,8 @@ class PdfBookTab extends OpenedTab {
     this.searchText = '',
     this.pdfSearchMatches,
     this.pdfSearchCurrentMatchIndex,
-  }) : super(book.title) {
+    bool isPinned = false,
+  }) : super(book.title, isPinned: isPinned) {
     showLeftPane = ValueNotifier<bool>(openLeftPane);
     searchController.text = searchText;
     pinLeftPane.value = Settings.getValue<bool>('key-pin-sidebar') ?? false;
@@ -81,7 +82,8 @@ class PdfBookTab extends OpenedTab {
         book:
             PdfBook(title: getTitleFromPath(json['path']), path: json['path']),
         pageNumber: json['pageNumber'],
-        openLeftPane: shouldOpenLeftPane);
+        openLeftPane: shouldOpenLeftPane,
+        isPinned: json['isPinned'] ?? false);
   }
 
   /// Converts the [PdfBookTab] instance into a JSON map.
@@ -93,6 +95,7 @@ class PdfBookTab extends OpenedTab {
       'path': book.path,
       'pageNumber':
           (pdfViewerController.isReady ? pdfViewerController.pageNumber : 1),
+      'isPinned': isPinned,
       'type': 'PdfBookTab'
     };
   }

@@ -38,7 +38,7 @@ class TextBookTab extends OpenedTab {
   final ScrollOffsetController auxOffsetController = ScrollOffsetController();
 
   List<String>? commentators;
-  
+
   // StreamSubscription לניהול ה-listener
   StreamSubscription<TextBookState>? _stateSubscription;
 
@@ -55,7 +55,8 @@ class TextBookTab extends OpenedTab {
     this.commentators,
     bool openLeftPane = false,
     bool splitedView = true,
-  }) : super(book.title) {
+    bool isPinned = false,
+  }) : super(book.title, isPinned: isPinned) {
     debugPrint('DEBUG: TextBookTab נוצר עם אינדקס: $index לספר: ${book.title}');
     // Initialize the bloc with initial state
     bloc = TextBookBloc(
@@ -73,7 +74,7 @@ class TextBookTab extends OpenedTab {
       scrollController: scrollController,
       positionsListener: positionsListener,
     );
-    
+
     // הוספת listener לעדכון האינדקס כשה-state משתנה
     _stateSubscription = bloc.stream.listen((state) {
       if (state is TextBookLoaded && state.visibleIndices.isNotEmpty) {
@@ -82,7 +83,7 @@ class TextBookTab extends OpenedTab {
       }
     });
   }
-  
+
   /// Cleanup when the tab is disposed
   @override
   void dispose() {
@@ -108,6 +109,7 @@ class TextBookTab extends OpenedTab {
       commentators: List<String>.from(json['commentators']),
       splitedView: json['splitedView'],
       openLeftPane: shouldOpenLeftPane,
+      isPinned: json['isPinned'] ?? false,
     );
   }
 
@@ -120,7 +122,7 @@ class TextBookTab extends OpenedTab {
     List<String> commentators = [];
     bool splitedView = false;
     int currentIndex = index; // שמירת האינדקס הנוכחי כברירת מחדל
-    
+
     if (bloc.state is TextBookLoaded) {
       final loadedState = bloc.state as TextBookLoaded;
       commentators = loadedState.activeCommentators;
@@ -130,12 +132,15 @@ class TextBookTab extends OpenedTab {
         currentIndex = loadedState.visibleIndices.first;
         // עדכון גם את ה-index של הטאב עצמו כדי שישמר
         index = currentIndex;
-        debugPrint('DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (מתוך visibleIndices)');
+        debugPrint(
+            'DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (מתוך visibleIndices)');
       } else {
-        debugPrint('DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (ברירת מחדל)');
+        debugPrint(
+            'DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (ברירת מחדל)');
       }
     } else {
-      debugPrint('DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (state לא loaded)');
+      debugPrint(
+          'DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (state לא loaded)');
     }
 
     return {
@@ -143,6 +148,7 @@ class TextBookTab extends OpenedTab {
       'initalIndex': currentIndex,
       'commentators': commentators,
       'splitedView': splitedView,
+      'isPinned': isPinned,
       'type': 'TextBookTab'
     };
   }

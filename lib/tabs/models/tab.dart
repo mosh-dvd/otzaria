@@ -8,7 +8,8 @@ import 'package:otzaria/models/books.dart';
 
 abstract class OpenedTab {
   String title;
-  OpenedTab(this.title);
+  bool isPinned;
+  OpenedTab(this.title, {this.isPinned = false});
 
   /// Called when the tab is being disposed.
   /// Override this method to perform cleanup.
@@ -21,11 +22,13 @@ abstract class OpenedTab {
         book: tab.book,
         searchText: tab.searchText,
         commentators: tab.commentators,
+        isPinned: tab.isPinned,
       );
     } else if (tab is PdfBookTab) {
       return PdfBookTab(
         book: tab.book,
         pageNumber: tab.pageNumber,
+        isPinned: tab.isPinned,
       );
     }
     return tab;
@@ -34,13 +37,15 @@ abstract class OpenedTab {
   factory OpenedTab.fromBook(Book book, int index,
       {String searchText = '',
       List<String>? commentators,
-      bool openLeftPane = false}) {
+      bool openLeftPane = false,
+      bool isPinned = false}) {
     if (book is PdfBook) {
       return PdfBookTab(
         book: book,
         pageNumber: index,
         openLeftPane: openLeftPane,
         searchText: searchText,
+        isPinned: isPinned,
       );
     } else if (book is TextBook) {
       return TextBookTab(
@@ -49,6 +54,7 @@ abstract class OpenedTab {
         searchText: searchText,
         commentators: commentators,
         openLeftPane: openLeftPane,
+        isPinned: isPinned,
       );
     }
     throw UnsupportedError("Unsupported book type: ${book.runtimeType}");
