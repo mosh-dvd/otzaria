@@ -71,12 +71,7 @@ dependencies:
   flutter_svg: ^2.0.10+1  
   fluentui_system_icons: ^1.1.273
   file_picker: ^10.2.1
-<<<<<<< HEAD
-  permission_handler: ^11.3.0
-  flutter_launcher_icons: ^0.14.4
-=======
   flutter_launcher_icons: "^0.13.1"
->>>>>>> cc53aca8e02dca5982a242a09495b30cfe91a2cc
   provider: ^6.1.5
   docx_to_text: ^1.0.1
   expandable: ^5.0.1

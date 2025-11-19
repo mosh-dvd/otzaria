@@ -484,7 +484,6 @@ packages:
       path: "."
       ref: HEAD
       resolved-ref: ad44eb2b90d075ef4828926d3c431e1ec153b63a
-      resolved-ref: ad44eb2b90d075ef4828926d3c431e1ec153b63a
       url: "https://github.com/Y-PLONI/flutter_context_menu"
     source: git
     version: "0.2.4"
