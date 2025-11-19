@@ -106,7 +106,7 @@ class TextBookSearchViewState extends State<TextBookSearchView>
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
-          
+
           // אם זו כותרת קבוצה
           if (item.isHeader) {
             return BlocBuilder<SettingsBloc, SettingsState>(
@@ -147,13 +147,13 @@ class TextBookSearchViewState extends State<TextBookSearchView>
               },
             );
           }
-          
+
           // אם זו תוצאה רגילה
           final result = item.result!;
           return BlocBuilder<SettingsBloc, SettingsState>(
             builder: (context, settingsState) {
               String snippet = result.snippet;
-              
+
               if (settingsState.replaceHolyNames) {
                 snippet = utils.replaceHolyNames(snippet);
               }
@@ -167,13 +167,16 @@ class TextBookSearchViewState extends State<TextBookSearchView>
               );
 
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outline
+                        .withValues(alpha: 0.3),
                     width: 1,
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: InkWell(
                   onTap: () {
@@ -186,7 +189,7 @@ class TextBookSearchViewState extends State<TextBookSearchView>
                       widget.closeLeftPaneCallback();
                     }
                   },
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                   hoverColor: Theme.of(context)
                       .colorScheme
                       .primaryContainer
@@ -196,9 +199,10 @@ class TextBookSearchViewState extends State<TextBookSearchView>
                       .primaryContainer
                       .withValues(alpha: 0.4),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
                     child: RichText(
-                      textAlign: TextAlign.right,
+                      textAlign: TextAlign.justify,
                       text: TextSpan(
                         style: TextStyle(
                           fontSize: 16,
@@ -216,7 +220,8 @@ class TextBookSearchViewState extends State<TextBookSearchView>
           );
         },
       ),
-      isNoResults: searchResults.isEmpty && searchTextController.text.isNotEmpty,
+      isNoResults:
+          searchResults.isEmpty && searchTextController.text.isNotEmpty,
       onSearchTextChanged: (value) {
         context.read<TextBookBloc>().add(UpdateSearchText(value));
         _searchTextUpdated();
@@ -239,7 +244,7 @@ class TextBookSearchViewState extends State<TextBookSearchView>
 
     final List<InlineSpan> spans = [];
     final searchTerms = query.trim().split(RegExp(r'\s+'));
-    
+
     final highlightRegex = RegExp(
       searchTerms.map(RegExp.escape).join('|'),
       caseSensitive: false,
