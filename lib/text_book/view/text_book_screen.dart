@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:math';
-import 'dart:convert';
 import 'dart:async';
 import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:flutter/material.dart';
@@ -28,37 +27,20 @@ import 'package:otzaria/utils/open_book.dart';
 import 'package:otzaria/utils/page_converter.dart';
 import 'package:otzaria/utils/ref_helper.dart';
 import 'package:otzaria/text_book/editing/widgets/text_section_editor_dialog.dart';
+import 'package:otzaria/text_book/view/book_source_dialog.dart';
 import 'package:otzaria/text_book/editing/helpers/editor_settings_helper.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
-import 'package:url_launcher/url_launcher.dart';
 import 'package:otzaria/personal_notes/personal_notes_system.dart';
 import 'package:otzaria/models/phone_report_data.dart';
-import 'package:otzaria/services/data_collection_service.dart';
 import 'package:otzaria/services/phone_report_service.dart';
 import 'package:otzaria/services/sources_books_service.dart';
 import 'package:window_manager/window_manager.dart';
 
-import 'package:otzaria/widgets/phone_report_tab.dart';
 import 'package:otzaria/widgets/responsive_action_bar.dart';
 import 'package:shamor_zachor/providers/shamor_zachor_data_provider.dart';
 import 'package:shamor_zachor/providers/shamor_zachor_progress_provider.dart';
 import 'package:shamor_zachor/models/book_model.dart';
-
-/// נתוני הדיווח שנאספו מתיבת סימון הטקסט + פירוט הטעות שהמשתמש הקליד.
-class ReportedErrorData {
-  final String selectedText; // הטקסט שסומן ע"י המשתמש
-  final String errorDetails; // פירוט הטעות (שדה טקסט נוסף)
-  const ReportedErrorData(
-      {required this.selectedText, required this.errorDetails});
-}
-
-/// פעולה שנבחרה בדיאלוג האישור.
-enum ReportAction {
-  cancel,
-  sendEmail,
-  saveForLater,
-  phone,
-}
+import 'package:otzaria/text_book/view/error_report_dialog.dart';
 
 class TextBookViewerBloc extends StatefulWidget {
   final void Function(OpenedTab) openBookCallback;
@@ -74,14 +56,6 @@ class TextBookViewerBloc extends StatefulWidget {
   State<TextBookViewerBloc> createState() => _TextBookViewerBlocState();
 }
 
-/// מחלקה עזר להחזרת תוצאה מהדיאלוג (פעולה + נתונים)
-class ReportDialogResult {
-  final ReportAction action;
-  final dynamic data; // ReportedErrorData OR PhoneReportData
-
-  ReportDialogResult(this.action, this.data);
-}
-
 class _TextBookViewerBlocState extends State<TextBookViewerBloc>
     with TickerProviderStateMixin {
   final FocusNode textSearchFocusNode = FocusNode();
@@ -90,24 +64,11 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
   late final ValueNotifier<double> _sidebarWidth;
   late final StreamSubscription<SettingsState> _settingsSub;
   int? _sidebarTabIndex; // אינדקס הכרטיסייה בסרגל הצדי
-  static const String _reportFileName = 'דיווח שגיאות בספרים.txt';
-  static const String _reportSeparator = '==============================';
-  static const String _reportSeparator2 = '------------------------------';
-  static const String _fallbackMail = 'otzaria.200@gmail.com';
   bool _isInitialFocusDone = false;
 
   // משתנים לשמירת נתונים כבדים שנטענים ברקע
   Future<Map<String, dynamic>>? _preloadedHeavyData;
   bool _isLoadingHeavyData = false;
-
-  String? encodeQueryParameters(Map<String, String> params) {
-    return params.entries
-        .map(
-          (MapEntry<String, String> e) =>
-              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}',
-        )
-        .join('&');
-  }
 
   /// Check if book is already being tracked in Shamor Zachor
   bool _isBookTrackedInShamorZachor(String bookTitle) {
@@ -468,61 +429,6 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       debugPrint('Error getting current line number: $e');
       return 1;
     }
-  }
-
-  // Build 4+4 words context around a selection range within fullText
-  String _buildContextAroundSelection(
-    String fullText,
-    int selectionStart,
-    int selectionEnd, {
-    int wordsBefore = 4,
-    int wordsAfter = 4,
-  }) {
-    if (selectionStart < 0 || selectionEnd <= selectionStart) {
-      return fullText;
-    }
-    final wordRegex = RegExp("\\S+", multiLine: true);
-    final matches = wordRegex.allMatches(fullText).toList();
-    if (matches.isEmpty) return fullText;
-
-    int startWordIndex = 0;
-    int endWordIndex = matches.length - 1;
-
-    for (int i = 0; i < matches.length; i++) {
-      final m = matches[i];
-      if (selectionStart >= m.start && selectionStart < m.end) {
-        startWordIndex = i;
-        break;
-      }
-      if (selectionStart < m.start) {
-        startWordIndex = i;
-        break;
-      }
-    }
-
-    for (int i = matches.length - 1; i >= 0; i--) {
-      final m = matches[i];
-      final selEndMinusOne = selectionEnd - 1;
-      if (selEndMinusOne >= m.start && selEndMinusOne < m.end) {
-        endWordIndex = i;
-        break;
-      }
-      if (selEndMinusOne > m.end) {
-        endWordIndex = i;
-        break;
-      }
-    }
-
-    final ctxStart =
-        (startWordIndex - wordsBefore) < 0 ? 0 : (startWordIndex - wordsBefore);
-    final ctxEnd = (endWordIndex + wordsAfter) >= matches.length
-        ? matches.length - 1
-        : (endWordIndex + wordsAfter);
-
-    final from = matches[ctxStart].start;
-    final to = matches[ctxEnd].end;
-    if (from < 0 || to <= from || to > fullText.length) return fullText;
-    return fullText.substring(from, to);
   }
 
   @override
@@ -1120,11 +1026,11 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         widget: IconButton(
           icon: const Icon(FluentIcons.info_24_regular),
           tooltip: 'מקור הספר וזכויות יוצרים',
-          onPressed: () => _showBookSourceDialog(context, state),
+          onPressed: () => showBookSourceDialog(context, state),
         ),
         icon: FluentIcons.info_24_regular,
         tooltip: 'מקור הספר וזכויות יוצרים',
-        onPressed: () => _showBookSourceDialog(context, state),
+        onPressed: () => showBookSourceDialog(context, state),
       ),
     ];
   }
@@ -1608,7 +1514,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         }
         final safeStart = selectionStart >= 0 ? selectionStart : 0;
         final safeEnd = safeStart + errorData.selectedText.length;
-        final contextText = _buildContextAroundSelection(
+        final contextText = ErrorReportHelper.buildContextAroundSelection(
           visibleText,
           safeStart,
           safeEnd,
@@ -1617,12 +1523,14 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         );
 
         // ביצוע הפעולה שנבחרה בדיאלוג (ללא דיאלוג נוסף!)
-        if (result.action == ReportAction.sendEmail ||
-            result.action == ReportAction.saveForLater) {
-          await _handleRegularReportAction(
+        if (result.action == ErrorReportAction.sendEmail ||
+            result.action == ErrorReportAction.saveForLater) {
+          if (!context.mounted) return;
+          await ErrorReportHelper.handleRegularReportAction(
+            context,
             result.action,
             errorData,
-            state,
+            state.book.title,
             heavyData['currentRef'],
             heavyData['bookDetails'],
             computedLineNumber,
@@ -1670,33 +1578,6 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
     _isLoadingHeavyData = false;
   }
 
-  Future<dynamic> _showTabbedReportDialog(
-    BuildContext context,
-    String text,
-    double fontSize,
-    String bookTitle,
-    TextBookLoaded state,
-  ) async {
-    // קבל את מספר השורה ההתחלתי לפני פתיחת הדיאלוג
-    final currentLineNumber = _getCurrentLineNumber();
-
-    // התחל לטעון נתונים כבדים ברקע מיד אחרי פתיחת הדיאלוג
-    _startLoadingHeavyDataInBackground(state);
-
-    return showDialog<dynamic>(
-      context: context,
-      builder: (BuildContext context) {
-        return _TabbedReportDialog(
-          visibleText: text,
-          fontSize: fontSize,
-          bookTitle: bookTitle,
-          currentLineNumber: currentLineNumber,
-          state: state, // העבר את ה-state לדיאלוג
-        );
-      },
-    );
-  }
-
   /// Start loading heavy data in background immediately after dialog opens
   void _startLoadingHeavyDataInBackground(TextBookLoaded state) {
     if (_isLoadingHeavyData) return; // כבר טוען
@@ -1713,95 +1594,31 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
     });
   }
 
-  String _buildEmailBody(
+  Future<dynamic> _showTabbedReportDialog(
+    BuildContext context,
+    String text,
+    double fontSize,
     String bookTitle,
-    String currentRef,
-    Map<String, String> bookDetails,
-    String selectedText,
-    String errorDetails,
-    int lineNumber,
-    String contextText,
-  ) {
-    final detailsSection = (() {
-      final base = errorDetails.isEmpty ? '' : '\n$errorDetails';
-      final extra = '''
-      
-    מספר שורה: $lineNumber
-    הקשר (4 מילים לפני ואחרי):
-    $contextText''';
-      return '$base$extra';
-    })();
-
-    return '''
-שם הספר: $bookTitle
-מיקום: $currentRef
-שם הקובץ: ${bookDetails['שם הקובץ']}
-נתיב הקובץ: ${bookDetails['נתיב הקובץ']}
-תיקיית המקור: ${bookDetails['תיקיית המקור']}
-
-הטקסט שבו נמצאה הטעות:
-$selectedText
-
-פירוט הטעות:
-$detailsSection
-''';
-  }
-
-  /// Handle regular report action (email or save)
-  Future<void> _handleRegularReportAction(
-    ReportAction action,
-    ReportedErrorData reportData,
     TextBookLoaded state,
-    String currentRef,
-    Map<String, String> bookDetails,
-    int lineNumber,
-    String contextText,
   ) async {
-    final emailBody = _buildEmailBody(
-      state.book.title,
-      currentRef,
-      bookDetails,
-      reportData.selectedText,
-      reportData.errorDetails,
-      lineNumber,
-      contextText,
+    // קבל את מספר השורה ההתחלתי לפני פתיחת הדיאלוג
+    final currentLineNumber = _getCurrentLineNumber();
+
+    // התחל לטעון נתונים כבדים ברקע מיד אחרי פתיחת הדיאלוג
+    _startLoadingHeavyDataInBackground(state);
+
+    return showDialog<dynamic>(
+      context: context,
+      builder: (BuildContext context) {
+        return TabbedReportDialog(
+          visibleText: text,
+          fontSize: fontSize,
+          bookTitle: bookTitle,
+          currentLineNumber: currentLineNumber,
+          state: state, // העבר את ה-state לדיאלוג
+        );
+      },
     );
-
-    if (action == ReportAction.sendEmail) {
-      final String? sourceFolder = bookDetails['תיקיית המקור'];
-      final emailAddress = sourceFolder?.contains('sefaria') == true ||
-              sourceFolder?.contains('sefariaToOtzaria') == true
-          ? 'corrections@sefaria.org'
-          : sourceFolder?.contains('wiki_jewish_books') == true
-              ? 'WikiJewishBooks@gmail.com'
-              : _fallbackMail;
-
-      final emailUri = Uri(
-        scheme: 'mailto',
-        path: emailAddress,
-        query: encodeQueryParameters(<String, String>{
-          'subject': 'דיווח על טעות: ${state.book.title}',
-          'body': emailBody,
-        }),
-      );
-
-      try {
-        if (!await launchUrl(emailUri, mode: LaunchMode.externalApplication)) {
-          _showSimpleSnack('לא ניתן לפתוח את תוכנת הדואר');
-        }
-      } catch (_) {
-        _showSimpleSnack('לא ניתן לפתוח את תוכנת הדואר');
-      }
-    } else if (action == ReportAction.saveForLater) {
-      final saved = await _saveReportToFile(emailBody);
-      if (!saved) {
-        _showSimpleSnack('שמירת הדיווח נכשלה.');
-        return;
-      }
-
-      final count = await _countReportsInFile();
-      _showSavedSnack(count);
-    }
   }
 
   /// Handle phone report submission
@@ -1828,7 +1645,7 @@ $detailsSection
       if (result.isSuccess) {
         _showPhoneReportSuccessDialog();
       } else {
-        _showSimpleSnack(result.message);
+        ErrorReportHelper.showSimpleSnack(context, result.message);
       }
     } catch (e) {
       // Hide loading indicator
@@ -1837,7 +1654,8 @@ $detailsSection
       }
 
       debugPrint('Phone report error: $e');
-      _showSimpleSnack('שגיאה בשליחת הדיווח: ${e.toString()}');
+      ErrorReportHelper.showSimpleSnack(
+          context, 'שגיאה בשליחת הדיווח: ${e.toString()}');
     }
   }
 
@@ -1845,189 +1663,17 @@ $detailsSection
   void _showPhoneReportSuccessDialog() {
     if (!mounted) return;
 
-    // שמירת ה-State הנוכחי כדי להשתמש בו בפתיחה החוזרת
-    // אנו משתמשים בזה כי ה-Context של הדיאלוג יהרס ברגע שנסגור אותו
     final currentTextBookState = context.read<TextBookBloc>().state;
-
-    // שומרים רפרנס לקונטקסט של המסך הראשי (Parent Widget)
     final parentContext = context;
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('דיווח נשלח בהצלחה'),
-        content: const Text('הדיווח נשלח בהצלחה לצוות אוצריא. תודה על הדיווח!'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('סגור'),
-          ),
-          TextButton(
-            onPressed: () {
-              // 1. סגירת הדיאלוג הנוכחי
-              Navigator.of(dialogContext).pop();
-
-              // 2. פתיחת דיאלוג הדיווח מחדש
-              // אנו בודקים שעדיין ניתן להציג (mounted) ומשתמשים ב-State ששמרנו
-              if (parentContext.mounted &&
-                  currentTextBookState is TextBookLoaded) {
-                _showReportBugDialog(parentContext, currentTextBookState);
-              }
-            },
-            child: const Text('פתח דוח שגיאות אחר'),
-          ),
-        ],
-      ),
+    ErrorReportHelper.showPhoneReportSuccessDialog(
+      context,
+      () {
+        if (parentContext.mounted && currentTextBookState is TextBookLoaded) {
+          _showReportBugDialog(parentContext, currentTextBookState);
+        }
+      },
     );
-  }
-
-  /// שמירת דיווח לקובץ בתיקייה הראשית של הספרייה (libraryPath).
-  Future<bool> _saveReportToFile(String reportContent) async {
-    try {
-      final libraryPath = Settings.getValue('key-library-path');
-
-      if (libraryPath == null || libraryPath.isEmpty) {
-        debugPrint('libraryPath not set; cannot save report.');
-        return false;
-      }
-
-      final filePath = '$libraryPath${Platform.pathSeparator}$_reportFileName';
-      final file = File(filePath);
-
-      final exists = await file.exists();
-
-      final sink = file.openWrite(
-        mode: exists ? FileMode.append : FileMode.write,
-        encoding: utf8,
-      );
-
-      // אם זה קובץ חדש, כתוב את השורה הראשונה עם הוראות השליחה
-      if (!exists) {
-        sink.writeln('יש לשלוח קובץ זה למייל: $_fallbackMail');
-        sink.writeln(_reportSeparator2);
-        sink.writeln(''); // שורת רווח
-      }
-
-      // אם יש כבר תוכן קודם בקובץ קיים -> הוסף מפריד לפני הרשומה החדשה
-      if (exists && (await file.length()) > 0) {
-        sink.writeln(''); // שורת רווח
-        sink.writeln(_reportSeparator);
-        sink.writeln(''); // שורת רווח
-      }
-
-      sink.write(reportContent);
-      await sink.flush();
-      await sink.close();
-      return true;
-    } catch (e) {
-      debugPrint('Failed saving report: $e');
-      return false;
-    }
-  }
-
-  /// סופר כמה דיווחים יש בקובץ – לפי המפריד.
-  Future<int> _countReportsInFile() async {
-    try {
-      final libraryPath = Settings.getValue('key-library-path');
-      if (libraryPath == null || libraryPath.isEmpty) return 0;
-
-      final filePath = '$libraryPath${Platform.pathSeparator}$_reportFileName';
-      final file = File(filePath);
-      if (!await file.exists()) return 0;
-
-      final content = await file.readAsString(encoding: utf8);
-      if (content.trim().isEmpty) return 0;
-
-      final occurrences = _reportSeparator.allMatches(content).length;
-      return occurrences + 1;
-    } catch (e) {
-      debugPrint('countReports error: $e');
-      return 0;
-    }
-  }
-
-  void _showSimpleSnack(String message) {
-    if (!mounted) return;
-    UiSnack.show(message);
-  }
-
-  /// SnackBar לאחר שמירה: מציג מונה + פעולה לפתיחת דוא"ל (mailto).
-  void _showSavedSnack(int count) {
-    if (!mounted) return;
-
-    final message =
-        "הדיווח נשמר בהצלחה לקובץ '$_reportFileName', הנמצא בתיקייה הראשית של אוצריא.\n"
-        "יש לך כבר $count דיווחים!\n"
-        "כעת תוכל לשלוח את הקובץ למייל: $_fallbackMail";
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        // Row שם את האלמנטים אחד ליד השני
-        content: Row(
-          children: [
-            // 1. הטקסט (עטוף ב-Expanded כדי לתפוס את כל המקום הפנוי)
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(fontSize: 14),
-                maxLines: 3, // מאפשר עד 2 שורות אם הטקסט ממש ארוך
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-
-            // מרווח קטן
-            const SizedBox(width: 8),
-
-            // 2. כפתור שליחה
-            TextButton(
-              onPressed: () {
-                _launchMail(_fallbackMail);
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                minimumSize: const Size(0, 32),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                'שלח עכשיו בדוא"ל',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    fontWeight: FontWeight.bold),
-              ),
-            ),
-
-            // 3. כפתור סגור (אייקון X קטן לחסכון במקום)
-            TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
-              child: const Text(
-                'סגור',
-                style: TextStyle(fontSize: 14),
-              ),
-            ),
-          ],
-        ),
-        duration: const Duration(seconds: 10),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  Future<void> _launchMail(String email) async {
-    final emailUri = Uri(
-      scheme: 'mailto',
-      path: email,
-    );
-    try {
-      await launchUrl(emailUri, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      _showSimpleSnack('לא ניתן לפתוח את תוכנת הדואר');
-    }
   }
 
   Widget _buildBody(
@@ -2267,486 +1913,6 @@ $detailsSection
 
 // החלף את כל המחלקה הזו בקובץ text_book_screen.TXT
 
-/// Tabbed dialog for error reporting with regular and phone options
-class _TabbedReportDialog extends StatefulWidget {
-  final String visibleText;
-  final double fontSize;
-  final String bookTitle;
-  final int currentLineNumber;
-  final TextBookLoaded state;
-
-  const _TabbedReportDialog({
-    required this.visibleText,
-    required this.fontSize,
-    required this.bookTitle,
-    required this.currentLineNumber,
-    required this.state,
-  });
-
-  @override
-  State<_TabbedReportDialog> createState() => _TabbedReportDialogState();
-}
-
-class _TabbedReportDialogState extends State<_TabbedReportDialog>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  String? _selectedText;
-  final DataCollectionService _dataService = DataCollectionService();
-
-  // Phone report data
-  String _libraryVersion = 'unknown';
-  int? _bookId;
-  bool _isLoadingData = true;
-  List<String> _dataErrors = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _loadPhoneReportData();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadPhoneReportData() async {
-    try {
-      final availability =
-          await _dataService.checkDataAvailability(widget.bookTitle);
-
-      if (mounted) {
-        setState(() {
-          _libraryVersion = availability['libraryVersion'] ?? 'unknown';
-          _bookId = availability['bookId'];
-          _dataErrors = List<String>.from(availability['errors'] ?? []);
-          _isLoadingData = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading phone report data: $e');
-      if (mounted) {
-        setState(() {
-          _dataErrors = ['שגיאה בטעינת נתוני הדיווח'];
-          _isLoadingData = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.8,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'דיווח על טעות בספר',
-                style: Theme.of(context).textTheme.headlineSmall,
-                textDirection: TextDirection.rtl,
-              ),
-            ),
-            TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(text: 'שליחת דיווח'),
-                Tab(text: 'דיווח דרך קו אוצריא'),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildRegularReportTab(),
-                  _buildPhoneReportTab(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRegularReportTab() {
-    return _RegularReportTab(
-      visibleText: widget.visibleText,
-      fontSize: widget.fontSize,
-      initialSelectedText: _selectedText,
-      state: widget.state,
-      onTextSelected: (text) {
-        setState(() {
-          _selectedText = text;
-        });
-      },
-      // כאן השינוי המהותי: הפונקציה מקבלת גם Action וגם Data
-      onActionSelected: (action, reportData) {
-        Navigator.of(context).pop(ReportDialogResult(action, reportData));
-      },
-      onPhoneSubmit: (phoneReportData) {
-        Navigator.of(context)
-            .pop(ReportDialogResult(ReportAction.phone, phoneReportData));
-      },
-      onCancel: () {
-        Navigator.of(context).pop();
-      },
-    );
-  }
-
-  Widget _buildPhoneReportTab() {
-    if (_isLoadingData) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('טוען נתוני דיווח...'),
-          ],
-        ),
-      );
-    }
-
-    if (_dataErrors.isNotEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'לא ניתן לטעון את נתוני הדיווח:',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            ..._dataErrors.map((error) => Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    error,
-                    textAlign: TextAlign.center,
-                  ),
-                )),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('סגור'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return PhoneReportTab(
-      visibleText: widget.visibleText,
-      fontSize: widget.fontSize,
-      libraryVersion: _libraryVersion,
-      bookId: _bookId,
-      lineNumber: widget.currentLineNumber,
-      initialSelectedText: _selectedText,
-      onSubmit: (selectedText, errorId, moreInfo, lineNumber) async {
-        final reportData = PhoneReportData(
-          selectedText: selectedText,
-          errorId: errorId,
-          moreInfo: moreInfo,
-          libraryVersion: _libraryVersion,
-          bookId: _bookId!,
-          lineNumber: lineNumber,
-        );
-        // דיווח טלפוני מחזיר Action.phone
-        Navigator.of(context)
-            .pop(ReportDialogResult(ReportAction.phone, reportData));
-      },
-      onCancel: () {
-        Navigator.of(context).pop();
-      },
-    );
-  }
-}
-
-/// Regular report tab widget
-class _RegularReportTab extends StatefulWidget {
-  final String visibleText;
-  final double fontSize;
-  final String? initialSelectedText;
-  final TextBookLoaded state;
-  final Function(String) onTextSelected;
-  // קולבק חדש שמקבל את הפעולה הספציפית
-  final Function(ReportAction, ReportedErrorData) onActionSelected;
-  final Function(PhoneReportData) onPhoneSubmit;
-  final VoidCallback onCancel;
-
-  const _RegularReportTab({
-    required this.visibleText,
-    required this.fontSize,
-    this.initialSelectedText,
-    required this.state,
-    required this.onTextSelected,
-    required this.onActionSelected, // שונה מ-onSubmit
-    required this.onPhoneSubmit,
-    required this.onCancel,
-  });
-
-  @override
-  State<_RegularReportTab> createState() => _RegularReportTabState();
-}
-
-class _RegularReportTabState extends State<_RegularReportTab> {
-  String? _selectedContent;
-  final TextEditingController _detailsController = TextEditingController();
-  int? _selectionStart;
-  int? _selectionEnd;
-  @override
-  void initState() {
-    super.initState();
-    _selectedContent = widget.initialSelectedText;
-  }
-
-  Future<bool> _isPhoneReportDisabled() async {
-    try {
-      final bookDetails =
-          SourcesBooksService().getBookDetails(widget.state.book.title);
-      final sourceFolder = bookDetails['תיקיית המקור'];
-
-      if (sourceFolder != null) {
-        return sourceFolder.contains('sefariaToOtzaria') ||
-            sourceFolder.contains('wiki_jewish_books');
-      }
-
-      return false;
-    } catch (e) {
-      debugPrint('Error checking phone report availability: $e');
-      return false;
-    }
-  }
-
-  @override
-  void dispose() {
-    _detailsController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('סמן את הטקסט שבו נמצאת הטעות:'),
-          const SizedBox(height: 8),
-          // --- אזור הטקסט לבחירה (זהה למקור) ---
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.3,
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: SingleChildScrollView(
-                child: Builder(
-                  builder: (context) => TextSelectionTheme(
-                    data: const TextSelectionThemeData(
-                      selectionColor: Colors.transparent,
-                    ),
-                    child: SelectableText.rich(
-                      TextSpan(
-                        children: () {
-                          final text = widget.visibleText;
-                          final start = _selectionStart ?? -1;
-                          final end = _selectionEnd ?? -1;
-                          final hasSel =
-                              start >= 0 && end > start && end <= text.length;
-                          if (!hasSel) {
-                            return [TextSpan(text: text)];
-                          }
-                          final highlight = Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.25);
-                          return [
-                            if (start > 0)
-                              TextSpan(text: text.substring(0, start)),
-                            TextSpan(
-                              text: text.substring(start, end),
-                              style: TextStyle(backgroundColor: highlight),
-                            ),
-                            if (end < text.length)
-                              TextSpan(text: text.substring(end)),
-                          ];
-                        }(),
-                        style: TextStyle(
-                          fontSize: widget.fontSize,
-                          fontFamily:
-                              Settings.getValue('key-font-family') ?? 'candara',
-                        ),
-                      ),
-                      textAlign: TextAlign.right,
-                      textDirection: TextDirection.rtl,
-                      onSelectionChanged: (selection, cause) {
-                        if (selection.start != selection.end) {
-                          final newContent = widget.visibleText.substring(
-                            selection.start,
-                            selection.end,
-                          );
-                          if (newContent.isNotEmpty) {
-                            setState(() {
-                              _selectedContent = newContent;
-                              _selectionStart = selection.start;
-                              _selectionEnd = selection.end;
-                            });
-                            widget.onTextSelected(newContent);
-                          }
-                        }
-                      },
-                      contextMenuBuilder: (context, editableTextState) {
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // --- שדה הטקסט לפירוט (זהה למקור) ---
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'פירוט הטעות: (חובה לפרט מהי הטעות, בלא פירוט לא נוכל לטפל)',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(height: 4),
-          TextField(
-            controller: _detailsController,
-            minLines: 2,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              isDense: true,
-              border: OutlineInputBorder(),
-              hintText: 'כתוב כאן מה לא תקין, הצע תיקון וכו\'',
-            ),
-            textDirection: TextDirection.rtl,
-          ),
-          const SizedBox(height: 24),
-
-          // --- שורת הכפתורים החדשה ---
-          FutureBuilder<bool>(
-            future: _isPhoneReportDisabled(),
-            builder: (context, snapshot) {
-              final isPhoneDisabled = snapshot.data ?? false;
-              // כפתורי הפעולה זמינים רק אם נבחר טקסט
-              final canSubmit =
-                  _selectedContent != null && _selectedContent!.isNotEmpty;
-
-              return SizedBox(
-                width: double.infinity,
-                // מבטיח שהשורה תתפוס את כל הרוחב כדי שהיישור יעבוד
-                // כאן אנו מחזירים שורה (Row) או Wrap עם הכפתורים החדשים
-                child: Wrap(
-                  spacing: 8.0,
-                  runSpacing: 8.0,
-                  // ב-RTL (עברית): .end מיישר לשמאל
-                  // ב-LTR (אנגלית): .start מיישר לשמאל
-                  alignment: WrapAlignment.end,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    // סדר הכפתורים:
-                    // ב-Wrap שמיושר לשמאל (End ב-RTL), הכפתור הראשון ברשימה (ביטול)
-                    // יהיה הכי ימני מבין הכפתורים, והאחרון יהיה הכי שמאלי (בקצה).
-                    // אם תרצה לשנות את הסדר הפנימי ביניהם, פשוט תחליף את המיקום ברשימה למטה.
-
-                    // 1. כפתור ביטול
-                    TextButton(
-                      onPressed: widget.onCancel,
-                      child: const Text('ביטול'),
-                    ),
-
-                    // 2. כפתור שמור לדיווח מאוחר
-                    ElevatedButton.icon(
-                      onPressed: canSubmit
-                          ? () {
-                              widget.onActionSelected(
-                                ReportAction.saveForLater,
-                                ReportedErrorData(
-                                  selectedText: _selectedContent!,
-                                  errorDetails: _detailsController.text.trim(),
-                                ),
-                              );
-                            }
-                          : null,
-                      icon: const Icon(FluentIcons.save_24_regular, size: 18),
-                      label: const Text('שמור לדיווח מאוחר'),
-                    ),
-
-                    // 3. כפתור פתיחת דוא"ל
-                    ElevatedButton.icon(
-                      onPressed: canSubmit
-                          ? () {
-                              widget.onActionSelected(
-                                ReportAction.sendEmail,
-                                ReportedErrorData(
-                                  selectedText: _selectedContent!,
-                                  errorDetails: _detailsController.text.trim(),
-                                ),
-                              );
-                            }
-                          : null,
-                      icon: const Icon(FluentIcons.mail_24_regular, size: 18),
-                      label: const Text('שלח בדוא"ל'),
-                    ),
-
-                    // 4. כפתור דיווח טלפוני
-                    if (!isPhoneDisabled)
-                      OutlinedButton(
-                        onPressed: null, // canSubmitPhone
-                        // ? () async {
-                        //     final lineNumber = _calculateLineNumber();
-                        //     final phoneReportData = PhoneReportData(
-                        //       selectedText: _selectedContent!,
-                        //       errorId: 6,
-                        //       moreInfo: _detailsController.text.trim().isEmpty
-                        //           ? 'more_info'
-                        //           : _detailsController.text.trim(),
-                        //       libraryVersion: _libraryVersion,
-                        //       bookId: _bookId!,
-                        //       lineNumber: lineNumber,
-                        //     );
-                        //     widget.onPhoneSubmit(phoneReportData);
-                        //   }
-                        // : null,
-                        child: const Text('שלח ישירות לאוצריא (לא פעיל זמנית)'),
-                      ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 Widget _buildFullFileEditorButton(BuildContext context, TextBookLoaded state) {
   final shortcut =
       Settings.getValue<String>('key-shortcut-edit-section') ?? 'ctrl+e';
@@ -2980,129 +2146,6 @@ Future<void> _addNoteFromKeyboard(
     UiSnack.show('ההערה נשמרה בהצלחה');
   } catch (e) {
     UiSnack.showError('שמירת ההערה נכשלה: $e');
-  }
-}
-
-/// המרת שם המקור לטקסט מתאים עם קישור
-Map<String, String> _getSourceDisplayInfo(String source) {
-  switch (source) {
-    case 'Ben-Yehuda':
-      return {'text': 'פרוייקט בן-יהודה', 'https://benyehuda.org/': ''};
-    case 'Dicta':
-      return {'text': 'ספריית דיקטה', 'url': 'https://library.dicta.org.il/'};
-    case 'OnYourWay':
-      return {'text': 'ובלכתך בדרך', 'url': 'https://mobile.tora.ws/'};
-    case 'Orayta':
-      return {
-        'text': 'אורייתא',
-        'url': 'https://github.com/MosheWagner/Orayta-Books'
-      };
-    case 'sefaria':
-      return {'text': 'ספריא', 'url': 'https://www.sefaria.org/texts'};
-    case 'MoreBooks':
-      return {'text': 'ספרים פרטיים או מקורות נוספים', 'url': ''};
-    case 'wiki_jewish_books':
-      return {
-        'text': 'אוצר הספרים היהודי השיתופי',
-        'url': 'https://wiki.jewishbooks.org.il/'
-      };
-    case 'Tashma':
-      return {'text': 'תא שמע', 'url': 'https://tashma.co.il/'};
-    default:
-      return {'text': source, 'url': ''};
-  }
-}
-
-/// הצגת דיאלוג מקור הספר וזכויות יוצרים
-Future<void> _showBookSourceDialog(
-  BuildContext context,
-  TextBookLoaded state,
-) async {
-  try {
-    debugPrint('Opening book source dialog for: "${state.book.title}"');
-
-    // קבלת פרטי הספר מהשירות (נטען כבר בזיכרון)
-    final bookDetails = SourcesBooksService().getBookDetails(state.book.title);
-    final bookSource = bookDetails['תיקיית המקור'] ?? 'לא נמצא מקור';
-
-    // קבלת מידע התצוגה עבור המקור
-    final sourceInfo = _getSourceDisplayInfo(bookSource);
-    final displayText = sourceInfo['text']!;
-    final url = sourceInfo['url']!;
-
-    debugPrint('Book details received: $bookDetails');
-    debugPrint('Book source: $bookSource');
-    debugPrint('Display text: $displayText, URL: $url');
-
-    if (!context.mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'מקור הספר וזכויות יוצרים',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'מקור הספר:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              // אם יש URL, הצג כקישור, אחרת הצג כטקסט רגיל
-              url.isNotEmpty
-                  ? InkWell(
-                      onTap: () async {
-                        final uri = Uri.parse(url);
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri);
-                        }
-                      },
-                      child: Text(
-                        displayText,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.blue,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    )
-                  : SelectableText(
-                      displayText,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-              const SizedBox(height: 20),
-              const Text(
-                'זכויות יוצרים:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const SelectableText(
-                'המידע יוגדר בהמשך',
-                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('סגור'),
-          ),
-        ],
-      ),
-    );
-  } catch (e) {
-    debugPrint('Error showing book source dialog: $e');
-    if (context.mounted) {
-      UiSnack.showError('שגיאה בטעינת מקור הספר: ${e.toString()}');
-    }
   }
 }
 
