@@ -52,7 +52,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
   bool get wantKeepAlive => true;
 
   late final PdfViewerController pdfController;
-  late final PdfTextSearcher textSearcher;
+  PdfTextSearcher? textSearcher;
   TabController? _leftPaneTabController;
   int _currentLeftPaneTabIndex = 0;
   final FocusNode _searchFieldFocusNode = FocusNode();
@@ -83,7 +83,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
 
     //ברוב המקרים, שינוי הטקסט עצמו יפעיל את ה-listener של הספרייה.
     // אם לא, ייתכן שעדיין צריך לקרוא לזה ידנית:
-    textSearcher.startTextSearch(query, goToFirstMatch: false);
+    textSearcher?.startTextSearch(query, goToFirstMatch: false);
   }
 
   void _ensureSearchTabIsActive() {
@@ -101,27 +101,30 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     int? persistedIndexFromTab = widget.tab.pdfSearchCurrentMatchIndex;
 
     widget.tab.searchText = currentSearchTerm;
-    widget.tab.pdfSearchMatches = List.from(textSearcher.matches);
-    widget.tab.pdfSearchCurrentMatchIndex = textSearcher.currentIndex;
+    widget.tab.pdfSearchMatches =
+        textSearcher != null ? List.from(textSearcher!.matches) : null;
+    widget.tab.pdfSearchCurrentMatchIndex = textSearcher?.currentIndex;
 
     if (mounted) {
       setState(() {});
     }
 
-    bool isNewSearchExecution =
-        (_lastProcessedSearchSessionId != textSearcher.searchSession);
-    if (isNewSearchExecution) {
-      _lastProcessedSearchSessionId = textSearcher.searchSession;
-    }
+    if (textSearcher != null) {
+      bool isNewSearchExecution =
+          (_lastProcessedSearchSessionId != textSearcher!.searchSession);
+      if (isNewSearchExecution) {
+        _lastProcessedSearchSessionId = textSearcher!.searchSession;
+      }
 
-    if (isNewSearchExecution &&
-        currentSearchTerm.isNotEmpty &&
-        textSearcher.matches.isNotEmpty &&
-        persistedIndexFromTab != null &&
-        persistedIndexFromTab >= 0 &&
-        persistedIndexFromTab < textSearcher.matches.length &&
-        textSearcher.currentIndex != persistedIndexFromTab) {
-      textSearcher.goToMatchOfIndex(persistedIndexFromTab);
+      if (isNewSearchExecution &&
+          currentSearchTerm.isNotEmpty &&
+          textSearcher!.matches.isNotEmpty &&
+          persistedIndexFromTab != null &&
+          persistedIndexFromTab >= 0 &&
+          persistedIndexFromTab < textSearcher!.matches.length &&
+          textSearcher!.currentIndex != persistedIndexFromTab) {
+        textSearcher!.goToMatchOfIndex(persistedIndexFromTab);
+      }
     }
   }
 
@@ -297,7 +300,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
 
   @override
   void dispose() {
-    textSearcher.removeListener(_onTextSearcherUpdated);
+    textSearcher?.removeListener(_onTextSearcherUpdated);
     widget.tab.pdfViewerController.removeListener(_onPdfViewerControllerUpdate);
     _leftPaneTabController?.dispose();
     _searchFieldFocusNode.dispose();
@@ -516,9 +519,9 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                                         Colors.blue.withValues(alpha: 0.2),
                                   ),
                                 ),
-                                pagePaintCallbacks: [
-                                  textSearcher.pageTextMatchPaintCallback
-                                ],
+                                pagePaintCallbacks: textSearcher != null
+                                    ? [textSearcher!.pageTextMatchPaintCallback]
+                                    : null,
                                 onDocumentChanged: (document) async {
                                   if (document == null) {
                                     widget.tab.documentRef.value = null;
@@ -526,6 +529,10 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                                   }
                                 },
                                 onViewerReady: (document, controller) async {
+                                  // 0. יצירת textSearcher רק אחרי שה-controller מוכן
+                                  if (!mounted) return;
+                                  textSearcher = PdfTextSearcher(pdfController)
+                                    ..addListener(_onTextSearcherUpdated);
                                   // 1. הגדרת המידע הראשוני מהמסמך
                                   widget.tab.documentRef.value =
                                       controller.documentRef;
@@ -765,15 +772,20 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                           }
                           return child!;
                         },
-                        child: PdfBookSearchView(
-                          textSearcher: textSearcher,
-                          searchController: widget.tab.searchController,
-                          focusNode: _searchFieldFocusNode,
-                          outline: widget.tab.outline.value,
-                          bookTitle: widget.tab.book.title,
-                          initialSearchText: widget.tab.searchText,
-                          onSearchResultNavigated: _ensureSearchTabIsActive,
-                        ),
+                        child: textSearcher != null
+                            ? PdfBookSearchView(
+                                textSearcher: textSearcher!,
+                                searchController: widget.tab.searchController,
+                                focusNode: _searchFieldFocusNode,
+                                outline: widget.tab.outline.value,
+                                bookTitle: widget.tab.book.title,
+                                initialSearchText: widget.tab.searchText,
+                                onSearchResultNavigated:
+                                    _ensureSearchTabIsActive,
+                              )
+                            : const Center(
+                                child: CircularProgressIndicator(),
+                              ),
                       ),
                       ValueListenableBuilder(
                         valueListenable: widget.tab.documentRef,

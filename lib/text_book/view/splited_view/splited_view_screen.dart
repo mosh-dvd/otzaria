@@ -127,7 +127,11 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
       ];
 
   List<Area> _closedAreas(BuildContext context, TextBookLoaded state) => [
-        Area(flex: 0, min: 0),
+        Area(
+          flex: 0,
+          min: 0,
+          builder: (context, area) => const SizedBox.shrink(),
+        ),
         Area(
           flex: 1,
           min: 200,
@@ -298,13 +302,24 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
           );
         }
 
+        // עדכון ה-areas אם צריך
+        final newAreas = _paneOpen
+            ? _openAreas(context, state)
+            : _closedAreas(context, state);
+        if (_controller.areas.isEmpty ||
+            _controller.areas.length != newAreas.length) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _controller.areas = newAreas;
+            }
+          });
+        }
+
         return MultiSplitView(
           controller: _controller,
           axis: Axis.horizontal,
           resizable: true,
-          initialAreas: _paneOpen
-              ? _openAreas(context, state)
-              : _closedAreas(context, state),
+          initialAreas: newAreas,
           dividerBuilder:
               (axis, index, resizable, dragging, highlighted, themeData) {
             final color = dragging
