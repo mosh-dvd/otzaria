@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:otzaria/library/models/library.dart';
 import 'package:otzaria/models/books.dart';
+import 'package:otzaria/widgets/data_source_indicator.dart';
+import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 import 'dart:math';
 
 class HeaderItem extends StatelessWidget {
@@ -187,6 +189,16 @@ class BookGridItem extends StatelessWidget {
                         style: const TextStyle(fontSize: 13)),
                   ),
                 ),
+                // Data source indicator (DB or File)
+                book is TextBook
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: DataSourceIndicatorAsync(
+                          sourceFuture: FileSystemData.instance.getBookDataSource(book.title),
+                          size: 18.0,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
                 book.heShortDesc == null || book.heShortDesc == ''
                     ? const SizedBox.shrink()
                     : Tooltip(

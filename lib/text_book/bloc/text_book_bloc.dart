@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:otzaria/models/books.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:otzaria/models/links.dart';
 import 'package:otzaria/text_book/bloc/text_book_event.dart';
 import 'package:otzaria/text_book/text_book_repository.dart';
@@ -20,6 +21,10 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
   final OverridesRepository _overridesRepository;
   final ItemScrollController scrollController;
   final ItemPositionsListener positionsListener;
+  
+  Timer? _debounceTimer;
+  Timer? _highlightTimer;
+  VoidCallback? _positionListenerCallback;
 
   TextBookBloc({
     required TextBookRepository repository,
@@ -138,13 +143,19 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       );
 
       // Set up position listener with debouncing to prevent excessive updates
-      Timer? debounceTimer;
-      positionsListener.itemPositions.addListener(() {
+      // Remove old listener if exists
+      if (_positionListenerCallback != null) {
+        positionsListener.itemPositions.removeListener(_positionListenerCallback!);
+      }
+      
+      _positionListenerCallback = () {
         // Cancel previous timer if exists
-        debounceTimer?.cancel();
+        _debounceTimer?.cancel();
 
         // Set new timer with 100ms delay
-        debounceTimer = Timer(const Duration(milliseconds: 100), () {
+        _debounceTimer = Timer(const Duration(milliseconds: 100), () {
+          if (isClosed) return;
+          
           final visibleIndicesNow = positionsListener.itemPositions.value
               .map((e) => e.index)
               .toList();
@@ -152,7 +163,9 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
             add(UpdateVisibleIndecies(visibleIndicesNow));
           }
         });
-      });
+      };
+      
+      positionsListener.itemPositions.addListener(_positionListenerCallback!);
 
       emit(TextBookLoaded(
         book: book,
@@ -362,7 +375,10 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     final currentState = state as TextBookLoaded;
     emit(currentState.copyWith(highlightedLine: event.lineIndex));
 
-    Future.delayed(const Duration(seconds: 2), () {
+    // Cancel previous highlight timer if exists
+    _highlightTimer?.cancel();
+    
+    _highlightTimer = Timer(const Duration(seconds: 2), () {
       if (!isClosed) {
         add(ClearHighlightedLine(event.lineIndex));
       }
@@ -717,6 +733,20 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     } catch (e) {
       // Handle error silently for auto-save
     }
+  }
+
+  @override
+  Future<void> close() {
+    // Cancel all timers
+    _debounceTimer?.cancel();
+    _highlightTimer?.cancel();
+    
+    // Remove position listener
+    if (_positionListenerCallback != null) {
+      positionsListener.itemPositions.removeListener(_positionListenerCallback!);
+    }
+    
+    return super.close();
   }
 
   List<CommentatorGroup> _buildCommentatorGroups(

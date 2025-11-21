@@ -4,12 +4,18 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/file_sync/file_sync_event.dart';
 import 'package:otzaria/file_sync/file_sync_state.dart';
 import 'package:otzaria/file_sync/file_sync_repository.dart';
+import 'package:otzaria/file_sync/database_migration_bloc.dart';
+import 'package:otzaria/file_sync/database_migration_event.dart';
 
 class FileSyncBloc extends Bloc<FileSyncEvent, FileSyncState> {
   final FileSyncRepository repository;
+  final DatabaseMigrationBloc? migrationBloc;
   Timer? _progressTimer;
 
-  FileSyncBloc({required this.repository}) : super(const FileSyncState()) {
+  FileSyncBloc({
+    required this.repository,
+    this.migrationBloc,
+  }) : super(const FileSyncState()) {
     on<StartSync>(_onStartSync);
     on<StopSync>(_onStopSync);
     on<UpdateProgress>(_onUpdateProgress);
@@ -55,6 +61,11 @@ class FileSyncBloc extends Bloc<FileSyncEvent, FileSyncState> {
           hasNewSync: true,
           message: 'סונכרנו $successCount קבצים חדשים',
         ));
+
+        // Trigger database migration check if available
+        if (migrationBloc != null) {
+          migrationBloc!.add(const CheckBooksToMigrate());
+        }
       } else {
         emit(state.copyWith(
           status: FileSyncStatus.completed,
