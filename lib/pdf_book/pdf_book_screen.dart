@@ -33,6 +33,7 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/utils/page_converter.dart';
 import 'package:flutter/gestures.dart';
 import 'package:otzaria/widgets/responsive_action_bar.dart';
+import 'pdf_zoom_bar.dart';
 
 class PdfBookScreen extends StatefulWidget {
   final PdfBookTab tab;
@@ -61,6 +62,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
   late final ValueNotifier<double> _rightPaneWidth;
   late final ValueNotifier<bool> _showRightPane;
   late final StreamSubscription<SettingsState> _settingsSub;
+  bool _showZoomBar = false;
+  Timer? _zoomBarTimer;
 
   Future<void> _runInitialSearchIfNeeded() async {
     final controller = widget.tab.searchController;
@@ -133,14 +136,12 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     super.initState();
 
     pdfController = PdfViewerController();
-
-    textSearcher = PdfTextSearcher(pdfController)
-      ..addListener(_onTextSearcherUpdated);
-
     widget.tab.pdfViewerController = pdfController;
 
     // הגדרת מעקב אחר שינויי עמוד לשמירה
     widget.tab.setupPageTracking();
+
+    // textSearcher ייוצר ב-onDocumentChanged כשה-document מוכן
 
     debugPrint('DEBUG: אתחול PDF טאב - דף התחלתי: ${widget.tab.pageNumber}');
 
@@ -300,6 +301,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
 
   @override
   void dispose() {
+    _zoomBarTimer?.cancel();
     textSearcher?.removeListener(_onTextSearcherUpdated);
     widget.tab.pdfViewerController.removeListener(_onPdfViewerControllerUpdate);
     _leftPaneTabController?.dispose();
@@ -626,6 +628,23 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                           );
                         },
                       ),
+                      // סרגל זום
+                      if (_showZoomBar &&
+                          widget.tab.pdfViewerController.isReady)
+                        Positioned(
+                          top: 16,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: PdfZoomBar(
+                              currentZoom:
+                                  widget.tab.pdfViewerController.value.zoom,
+                              onZoomIn: _zoomIn,
+                              onZoomOut: _zoomOut,
+                              onResetZoom: _resetZoom,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -805,12 +824,49 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     );
   }
 
+  void _showZoomBarTemporarily() {
+    setState(() {
+      _showZoomBar = true;
+    });
+    _zoomBarTimer?.cancel();
+    _zoomBarTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _showZoomBar = false;
+        });
+      }
+    });
+  }
+
   void _zoomIn() {
-    widget.tab.pdfViewerController.zoomUp();
+    if (!widget.tab.pdfViewerController.isReady) return;
+    final currentZoom = widget.tab.pdfViewerController.value.zoom;
+    final newZoom = currentZoom * 1.1; // הגדלה ב-10%
+    widget.tab.pdfViewerController.setZoom(
+      widget.tab.pdfViewerController.centerPosition,
+      newZoom,
+    );
+    _showZoomBarTemporarily();
   }
 
   void _zoomOut() {
-    widget.tab.pdfViewerController.zoomDown();
+    if (!widget.tab.pdfViewerController.isReady) return;
+    final currentZoom = widget.tab.pdfViewerController.value.zoom;
+    final newZoom = currentZoom / 1.1; // הקטנה ב-10%
+    widget.tab.pdfViewerController.setZoom(
+      widget.tab.pdfViewerController.centerPosition,
+      newZoom,
+    );
+    _showZoomBarTemporarily();
+  }
+
+  void _resetZoom() {
+    if (!widget.tab.pdfViewerController.isReady) return;
+    widget.tab.pdfViewerController.setZoom(
+      widget.tab.pdfViewerController.centerPosition,
+      1.0,
+    );
+    _showZoomBarTemporarily();
   }
 
   void _goNextPage() {
@@ -921,11 +977,11 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         widget: IconButton(
           icon: const Icon(FluentIcons.zoom_in_24_regular),
           tooltip: 'הגדל',
-          onPressed: () => widget.tab.pdfViewerController.zoomUp(),
+          onPressed: _zoomIn,
         ),
         icon: FluentIcons.zoom_in_24_regular,
         tooltip: 'הגדל',
-        onPressed: () => widget.tab.pdfViewerController.zoomUp(),
+        onPressed: _zoomIn,
       ),
 
       // 3) Zoom Out Button
@@ -933,11 +989,11 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         widget: IconButton(
           icon: const Icon(FluentIcons.zoom_out_24_regular),
           tooltip: 'הקטן',
-          onPressed: () => widget.tab.pdfViewerController.zoomDown(),
+          onPressed: _zoomOut,
         ),
         icon: FluentIcons.zoom_out_24_regular,
         tooltip: 'הקטן',
-        onPressed: () => widget.tab.pdfViewerController.zoomDown(),
+        onPressed: _zoomOut,
       ),
 
       // 4) Search Button
