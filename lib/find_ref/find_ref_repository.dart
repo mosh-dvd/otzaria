@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:otzaria/data/data_providers/tantivy_data_provider.dart';
 import 'package:otzaria/data/repository/data_repository.dart';
 import 'package:otzaria/utils/text_manipulation.dart';
@@ -22,7 +23,7 @@ class FindRefRepository {
     // שלב 1: שלוף יותר תוצאות מהרגיל כדי לפצות על אלו שיסוננו
     final rawResults = await TantivyDataProvider.instance.searchRefs(
       replaceParaphrases(removeSectionNames(ref)),
-      300,
+      5000,
       false,
     );
 
@@ -142,6 +143,8 @@ class FindRefRepository {
     }
 
     for (final entry in entries) {
+      if (entry.depth > 0) continue;
+
       if (entry.headingTokens.isEmpty) {
         entry.depth = 1;
         entry.level2Tokens = const [];
@@ -332,10 +335,11 @@ class _RefEntry {
   final List<String> bookTokens;
   final List<String> headingTokens;
   final String bookKey;
+  final int? explicitLevel;
 
-  late int depth;
-  late List<String> level2Tokens;
-  late List<String> level3Tokens;
+  int depth;
+  List<String> level2Tokens;
+  List<String> level3Tokens;
 
   _RefEntry({
     required this.result,
@@ -343,6 +347,10 @@ class _RefEntry {
     required this.bookTokens,
     required this.headingTokens,
     required this.bookKey,
+    this.explicitLevel,
+    this.depth = 0,
+    this.level2Tokens = const [],
+    this.level3Tokens = const [],
   });
 
   static _RefEntry? fromResult(
@@ -361,6 +369,60 @@ class _RefEntry {
         .split(' ')
         .where((token) => token.isNotEmpty)
         .toList(growable: false);
+
+    // תמיכה בפורמט האינדקס החדש (היררכי)
+    if (result.filePath.startsWith('{')) {
+      try {
+        final metadata = jsonDecode(result.filePath);
+        final path = metadata['path'] as String?;
+
+        if (path != null) {
+          // הנתיב הוא בפורמט /Book/Chapter/Section
+          // החלק הראשון הוא שם הספר, והשאר הם הכותרות
+          final pathParts = path.split('/').where((s) => s.isNotEmpty).toList();
+
+          if (pathParts.isNotEmpty) {
+            // שחזור הכותרת המלאה מתוך הנתיב
+            final fullHeading = pathParts.skip(1).join(' ');
+            final normalizedFullHeading = normalizer(fullHeading);
+
+            final headingTokens = normalizedFullHeading
+                .split(' ')
+                .where((token) => token.isNotEmpty)
+                .toList(growable: false);
+
+            final level2String = pathParts.length > 1 ? pathParts[1] : '';
+            final level3String =
+                pathParts.length > 2 ? pathParts.skip(2).join(' ') : '';
+
+            final level2Tokens = normalizer(level2String)
+                .split(' ')
+                .where((t) => t.isNotEmpty)
+                .toList();
+            final level3Tokens = normalizer(level3String)
+                .split(' ')
+                .where((t) => t.isNotEmpty)
+                .toList();
+
+            return _RefEntry(
+              result: result,
+              originalIndex: index,
+              bookTokens: bookTokens,
+              headingTokens: headingTokens,
+              bookKey: normalizedTitle,
+              explicitLevel: metadata['level'] as int?,
+              depth: metadata['level'] as int? ?? 0,
+              level2Tokens: level2Tokens,
+              level3Tokens: level3Tokens,
+            );
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    // לוגיקה ישנה (עבור אינדקסים ישנים או PDF)
     final referenceTokens = normalizedRef
         .split(' ')
         .where((token) => token.isNotEmpty)

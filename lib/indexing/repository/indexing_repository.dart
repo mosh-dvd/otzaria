@@ -92,6 +92,20 @@ class IndexingRepository {
     final texts = text.split('\n');
     List<String> reference = [];
 
+    // Index the book title itself as Level 1
+    if (!_tantivyDataProvider.isIndexing.value) return;
+
+    // רמה 1: שם הספר בלבד
+    refIndex.addDocument(
+      id: BigInt.from(DateTime.now().microsecondsSinceEpoch),
+      title: title,
+      reference: title, // הטקסט לחיפוש הוא רק שם הספר
+      shortRef: title,
+      segment: BigInt.from(-1),
+      isPdf: false,
+      filePath: jsonEncode({'level': 1, 'path': '/$title'}), // סימון שזו רמה 1
+    );
+
     // Index each line separately
     for (int i = 0; i < texts.length; i++) {
       if (!_tantivyDataProvider.isIndexing.value) {
@@ -106,6 +120,7 @@ class IndexingRepository {
       String line = texts[i];
       // get the reference from the headers
       if (line.startsWith('<h')) {
+        // ניהול המחסנית (Stack) של הכותרות כדי לדעת את ההיררכיה
         if (reference.isNotEmpty &&
             reference.any(
                 (element) => element.substring(0, 4) == line.substring(0, 4))) {
@@ -116,18 +131,32 @@ class IndexingRepository {
         }
         reference.add(line);
 
-        // Index the header as a reference
-        String refText = stripHtmlIfNeeded(reference.join(" "));
-        final shortref = replaceParaphrases(removeSectionNames(refText));
+        // חישוב הרמה הנוכחית (רמה 1 זה הספר, אז הכותרות מתחילות מ-2)
+        final level = reference.length + 1;
 
+        // הטקסט לחיפוש: רק הכותרת הנוכחית, נקייה, בלי ההורים שלה!
+        String currentHeaderClean = stripHtmlIfNeeded(line);
+        currentHeaderClean =
+            replaceParaphrases(removeSectionNames(currentHeaderClean));
+
+        // בניית הנתיב ההיררכי (Facet)
+        // אנחנו מנקים את כל הכותרות בדרך כדי ליצור נתיב נקי: /Book/Chapter/Section
+        String facetPath = '/$title';
+        for (var refPart in reference) {
+          facetPath += '/${stripHtmlIfNeeded(refPart)}';
+        }
+
+        // שמירה לאינדקס
         refIndex.addDocument(
-            id: BigInt.from(DateTime.now().microsecondsSinceEpoch),
-            title: title,
-            reference: refText,
-            shortRef: shortref,
-            segment: BigInt.from(i),
-            isPdf: false,
-            filePath: '');
+          id: BigInt.from(DateTime.now().microsecondsSinceEpoch),
+          title: title,
+          reference: currentHeaderClean, // כאן נכנס רק "פרק א", בלי "ברכות"
+          shortRef: currentHeaderClean,
+          segment: BigInt.from(i),
+          isPdf: false,
+          filePath: jsonEncode(
+              {'level': level, 'path': facetPath}), // שמירת הרמה וההיררכיה
+        );
       } else {
         line = stripHtmlIfNeeded(line);
         line = removeVolwels(line);

@@ -211,7 +211,10 @@ class _FindRefDialogState extends State<FindRefDialog> {
                                       FluentIcons.document_pdf_24_regular)
                                   : null,
                               title: Text(
-                                state.refs[index].reference,
+                                state.refs[index].reference
+                                        .startsWith(state.refs[index].title)
+                                    ? state.refs[index].reference
+                                    : '${state.refs[index].title} ${state.refs[index].reference}',
                                 style: TextStyle(
                                   fontWeight: isSelected
                                       ? FontWeight.w600
