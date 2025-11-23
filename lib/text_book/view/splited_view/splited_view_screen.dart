@@ -40,6 +40,8 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
   late final GlobalKey<SelectionAreaState> _selectionKey;
   bool _paneOpen = false;
   int? _currentTabIndex;
+  double _leftPaneWidth = 400.0;
+  bool _isResizing = false;
 
   @override
   void initState() {
@@ -47,6 +49,8 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
     _controller = MultiSplitViewController();
     _selectionKey = GlobalKey<SelectionAreaState>();
     _currentTabIndex = _getInitialTabIndex();
+    // טען את רוחב הפאנל השמור
+    _leftPaneWidth = Settings.getValue<double>('key-left-pane-width') ?? 400.0;
   }
 
   @override
@@ -79,72 +83,6 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
       return (saved ?? 0).clamp(0, 2);
     }
   }
-
-  List<Area> _openAreas(BuildContext context, TextBookLoaded state) => [
-        Area(
-          flex: 0.4,
-          min: 200,
-          builder: (context, area) => ContextMenuRegion(
-            contextMenu: _buildContextMenu(state),
-            child: SelectionArea(
-              key: _selectionKey,
-              child: TabbedCommentaryPanel(
-                fontSize: state.fontSize,
-                openBookCallback: widget.openBookCallback,
-                showSearch: true,
-                onClosePane: _togglePane,
-                initialTabIndex: _currentTabIndex,
-                onTabChanged: (index) {
-                  debugPrint(
-                      'DEBUG: Tab changed to $index, showSplitView: ${widget.showSplitView}');
-                  setState(() {
-                    _currentTabIndex = index;
-                  });
-                  if (!widget.showSplitView) {
-                    debugPrint('DEBUG: Saving tab $index to combined settings');
-                    Settings.setValue<int>(
-                        'key-sidebar-tab-index-combined', index);
-                  } else {
-                    debugPrint('DEBUG: NOT saving tab (split view mode)');
-                  }
-                },
-              ),
-            ),
-          ),
-        ),
-        Area(
-          flex: 0.6,
-          min: 200,
-          builder: (context, area) => CombinedView(
-            data: widget.content,
-            textSize: state.fontSize,
-            openBookCallback: widget.openBookCallback,
-            openLeftPaneTab: widget.openLeftPaneTab,
-            showCommentaryAsExpansionTiles: false,
-            tab: widget.tab,
-          ),
-        ),
-      ];
-
-  List<Area> _closedAreas(BuildContext context, TextBookLoaded state) => [
-        Area(
-          flex: 0,
-          min: 0,
-          builder: (context, area) => const SizedBox.shrink(),
-        ),
-        Area(
-          flex: 1,
-          min: 200,
-          builder: (context, area) => CombinedView(
-            data: widget.content,
-            textSize: state.fontSize,
-            openBookCallback: widget.openBookCallback,
-            openLeftPaneTab: widget.openLeftPaneTab,
-            showCommentaryAsExpansionTiles: false,
-            tab: widget.tab,
-          ),
-        ),
-      ];
 
   void _togglePane() {
     if (!_paneOpen) {
@@ -253,18 +191,94 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // אם החלונית סגורה - מציגים combined view עם כפתור צף
-        if (!_paneOpen) {
-          return Stack(
-            children: [
-              CombinedView(
-                data: widget.content,
-                textSize: state.fontSize,
-                openBookCallback: widget.openBookCallback,
-                openLeftPaneTab: widget.openLeftPaneTab,
-                showCommentaryAsExpansionTiles: !widget.showSplitView,
-                tab: widget.tab,
-              ),
+        return Stack(
+          children: [
+            Row(
+              children: [
+                // תוכן הספר
+                Expanded(
+                  child: CombinedView(
+                    data: widget.content,
+                    textSize: state.fontSize,
+                    openBookCallback: widget.openBookCallback,
+                    openLeftPaneTab: widget.openLeftPaneTab,
+                    showCommentaryAsExpansionTiles: false,
+                    tab: widget.tab,
+                  ),
+                ),
+                // מפריד ניתן לגרירה
+                if (_paneOpen)
+                  MouseRegion(
+                    cursor: SystemMouseCursors.resizeColumn,
+                    child: GestureDetector(
+                      onHorizontalDragStart: (_) {
+                        setState(() => _isResizing = true);
+                      },
+                      onHorizontalDragUpdate: (details) {
+                        setState(() {
+                          // גרירה שמאלה מקטינה, ימינה מגדילה
+                          _leftPaneWidth = (_leftPaneWidth + details.delta.dx)
+                              .clamp(200.0, 800.0);
+                        });
+                      },
+                      onHorizontalDragEnd: (_) {
+                        setState(() => _isResizing = false);
+                        // שמור את הרוחב
+                        Settings.setValue<double>(
+                            'key-left-pane-width', _leftPaneWidth);
+                      },
+                      child: Container(
+                        width: _isResizing ? 4 : 8,
+                        color: _isResizing
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.transparent,
+                        alignment: Alignment.center,
+                        child: _isResizing
+                            ? null
+                            : Container(
+                                width: 1.5,
+                                color: Theme.of(context).dividerColor,
+                              ),
+                      ),
+                    ),
+                  ),
+                // פאנל שמאלי (בצד ימין של המסך)
+                if (_paneOpen)
+                  SizedBox(
+                    width: _leftPaneWidth,
+                    child: ContextMenuRegion(
+                      contextMenu: _buildContextMenu(state),
+                      child: SelectionArea(
+                        key: _selectionKey,
+                        child: TabbedCommentaryPanel(
+                          fontSize: state.fontSize,
+                          openBookCallback: widget.openBookCallback,
+                          showSearch: true,
+                          onClosePane: _togglePane,
+                          initialTabIndex: _currentTabIndex,
+                          onTabChanged: (index) {
+                            debugPrint(
+                                'DEBUG: Tab changed to $index, showSplitView: ${widget.showSplitView}');
+                            setState(() {
+                              _currentTabIndex = index;
+                            });
+                            if (!widget.showSplitView) {
+                              debugPrint(
+                                  'DEBUG: Saving tab $index to combined settings');
+                              Settings.setValue<int>(
+                                  'key-sidebar-tab-index-combined', index);
+                            } else {
+                              debugPrint('DEBUG: NOT saving tab (split view mode)');
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            // כפתור צף להצגה כאשר הפאנל סגור
+            if (!_paneOpen)
               Positioned(
                 left: 8,
                 top: 8,
@@ -299,45 +313,7 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
                   ),
                 ),
               ),
-            ],
-          );
-        }
-
-        // עדכון ה-areas אם צריך
-        final newAreas = _paneOpen
-            ? _openAreas(context, state)
-            : _closedAreas(context, state);
-        if (_controller.areas.isEmpty ||
-            _controller.areas.length != newAreas.length) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              _controller.areas = newAreas;
-            }
-          });
-        }
-
-        return MultiSplitView(
-          controller: _controller,
-          axis: Axis.horizontal,
-          resizable: true,
-          initialAreas: newAreas,
-          dividerBuilder:
-              (axis, index, resizable, dragging, highlighted, themeData) {
-            final color = dragging
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).dividerColor;
-            return MouseRegion(
-              cursor: SystemMouseCursors.resizeColumn,
-              child: Container(
-                width: 8,
-                alignment: Alignment.center,
-                child: Container(
-                  width: 1.5,
-                  color: color,
-                ),
-              ),
-            );
-          },
+          ],
         );
       },
     );
