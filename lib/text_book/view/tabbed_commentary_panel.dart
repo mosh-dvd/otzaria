@@ -112,7 +112,7 @@ class _TabbedCommentaryPanelState extends State<TabbedCommentaryPanel>
                   // כפתור סינון מפרשים - בהתחלה
                   IconButton(
                     icon: Icon(
-                      FluentIcons.filter_24_regular,
+                      FluentIcons.apps_list_24_regular,
                       color: _showFilterTab
                           ? Theme.of(context).colorScheme.primary
                           : Theme.of(context)
@@ -139,7 +139,7 @@ class _TabbedCommentaryPanelState extends State<TabbedCommentaryPanel>
                         return TabBar(
                           controller: _tabController,
                           isScrollable: true,
-                          tabAlignment: TabAlignment.start,
+                          tabAlignment: TabAlignment.center,
                           padding: EdgeInsets.zero,
                           labelPadding: EdgeInsets.symmetric(
                               horizontal: availableWidth < 250 ? 8 : 16),
@@ -225,6 +225,11 @@ class _TabbedCommentaryPanelState extends State<TabbedCommentaryPanel>
                           openBookCallback: widget.openBookCallback,
                           fontSize: widget.fontSize,
                           showSearch: widget.showSearch,
+                          onOpenCommentatorsFilter: () {
+                            setState(() {
+                              _showFilterTab = true;
+                            });
+                          },
                         ),
                         // כרטיסיית הקישורים
                         SelectedLineLinksView(

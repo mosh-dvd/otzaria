@@ -66,6 +66,7 @@ class CommentaryListBase extends StatefulWidget {
   final VoidCallback? onClosePane;
   final bool shrinkWrap;
   final ItemPositionsListener? itemPositionsListener;
+  final VoidCallback? onOpenCommentatorsFilter;
 
   const CommentaryListBase({
     super.key,
@@ -76,6 +77,7 @@ class CommentaryListBase extends StatefulWidget {
     this.onClosePane,
     this.shrinkWrap = true,
     this.itemPositionsListener,
+    this.onOpenCommentatorsFilter,
   });
 
   @override
@@ -210,8 +212,8 @@ class CommentaryListBaseState extends State<CommentaryListBase> {
           }
         });
       },
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      collapsedBackgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Colors.transparent,
+      collapsedBackgroundColor: Colors.transparent,
       title: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, settingsState) {
           String displayTitle = group.bookTitle;
@@ -301,15 +303,35 @@ class CommentaryListBaseState extends State<CommentaryListBase> {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    hasAnyCommentaryLinks
-                        ? 'לא נבחרו מפרשים להצגה'
-                        : 'לא נמצאו מפרשים לקטע הנבחר',
-                    style: TextStyle(
-                      fontSize: widget.fontSize * 0.7,
-                      color: Colors.grey,
-                    ),
-                    textAlign: TextAlign.center,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        hasAnyCommentaryLinks
+                            ? 'לא נבחרו מפרשים להצגה'
+                            : 'לא נמצאו מפרשים לקטע הנבחר',
+                        style: TextStyle(
+                          fontSize: widget.fontSize * 0.7,
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      if (hasAnyCommentaryLinks &&
+                          widget.onOpenCommentatorsFilter != null) ...[
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: widget.onOpenCommentatorsFilter,
+                          icon: const Icon(FluentIcons.apps_list_24_regular),
+                          label: const Text('בחר מפרשים'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               );
@@ -485,48 +507,54 @@ class CommentaryListBaseState extends State<CommentaryListBase> {
           ],
         );
       } else {
-        return Stack(
+        return Column(
           children: [
-            buildList(),
+            // כפתור גלובלי מעל הרשימה
             if (state.activeCommentators.isNotEmpty)
-              Positioned(
-                top: 8,
-                left: 8,
-                child: IconButton(
-                  style: IconButton.styleFrom(
-                    backgroundColor: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.1),
-                    foregroundColor: Theme.of(context).colorScheme.primary,
-                  ),
-                  icon: Icon(
-                    _allExpanded
-                        ? FluentIcons.arrow_collapse_all_24_regular
-                        : FluentIcons.arrow_expand_all_24_regular,
-                  ),
-                  tooltip: _allExpanded
-                      ? 'סגור את כל המפרשים'
-                      : 'פתח את כל המפרשים',
-                  onPressed: () {
-                    setState(() {
-                      _allExpanded = !_allExpanded;
-                      // מעדכן את כל המצבים של ה-ExpansionTiles
-                      for (var key in _expansionStates.keys) {
-                        _expansionStates[key] = _allExpanded;
-                      }
-                      // משתמש ב-controllers לפתיחה/סגירה
-                      for (var controller in _controllers.values) {
-                        if (_allExpanded) {
-                          controller.expand();
-                        } else {
-                          controller.collapse();
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    style: IconButton.styleFrom(
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.1),
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                    ),
+                    icon: Icon(
+                      _allExpanded
+                          ? FluentIcons.arrow_collapse_all_24_regular
+                          : FluentIcons.arrow_expand_all_24_regular,
+                    ),
+                    tooltip: _allExpanded
+                        ? 'סגור את כל המפרשים'
+                        : 'פתח את כל המפרשים',
+                    onPressed: () {
+                      setState(() {
+                        _allExpanded = !_allExpanded;
+                        // מעדכן את כל המצבים של ה-ExpansionTiles
+                        for (var key in _expansionStates.keys) {
+                          _expansionStates[key] = _allExpanded;
                         }
-                      }
-                    });
-                  },
+                        // משתמש ב-controllers לפתיחה/סגירה
+                        for (var controller in _controllers.values) {
+                          if (_allExpanded) {
+                            controller.expand();
+                          } else {
+                            controller.collapse();
+                          }
+                        }
+                      });
+                    },
+                  ),
                 ),
               ),
+            // הרשימה
+            Expanded(
+              child: buildList(),
+            ),
           ],
         );
       }

@@ -775,7 +775,9 @@ $textWithBreaks
           ),
         ),
         // המפרשים - ללא SelectionArea נפרד, כי יש SelectionArea כללי
-        if (widget.showCommentaryAsExpansionTiles && isSelected)
+        if (widget.showCommentaryAsExpansionTiles &&
+            isSelected &&
+            _hasCommentaries(state, index))
           _CommentaryCard(
             index: index,
             textSize: widget.textSize,
@@ -783,6 +785,18 @@ $textWithBreaks
           ),
       ],
     );
+  }
+
+  /// בדיקה אם יש מפרשים לאינדקס מסוים
+  bool _hasCommentaries(TextBookLoaded state, int index) {
+    // בדיקה אם יש קישורים רלוונטיים לאינדקס הזה
+    final hasRelevantLinks = state.links.any((link) =>
+        link.index1 == index + 1 &&
+        (link.connectionType == "commentary" ||
+            link.connectionType == "targum") &&
+        state.activeCommentators.contains(utils.getTitleFromPath(link.path2)));
+
+    return hasRelevantLinks;
   }
 
   @override
@@ -814,133 +828,50 @@ class _CommentaryCard extends StatefulWidget {
 }
 
 class _CommentaryCardState extends State<_CommentaryCard> {
-  final ItemPositionsListener _itemPositionsListener =
-      ItemPositionsListener.create();
   final GlobalKey<CommentaryListBaseState> _commentaryKey = GlobalKey();
-  final ValueNotifier<bool> _showButton = ValueNotifier(false);
-  OverlayEntry? _overlayEntry;
-
-  @override
-  void initState() {
-    super.initState();
-    _itemPositionsListener.itemPositions.addListener(_checkScrollPosition);
-    _showButton.addListener(_updateOverlay);
-  }
-
-  @override
-  void dispose() {
-    _removeOverlay();
-    _itemPositionsListener.itemPositions.removeListener(_checkScrollPosition);
-    _showButton.removeListener(_updateOverlay);
-    _showButton.dispose();
-    super.dispose();
-  }
-
-  void _checkScrollPosition() {
-    final positions = _itemPositionsListener.itemPositions.value;
-    if (positions.isEmpty) return;
-
-    final first = positions.first;
-    // If first item is index 0 and its top is visible (>= 0), we are at top.
-    final isAtTop = first.index == 0 && first.itemLeadingEdge >= -0.05;
-    if (isAtTop) {
-      if (_showButton.value) _showButton.value = false;
-    } else {
-      if (!_showButton.value) _showButton.value = true;
-    }
-  }
-
-  void _updateOverlay() {
-    if (_showButton.value) {
-      _showOverlay();
-    } else {
-      _removeOverlay();
-    }
-  }
-
-  void _showOverlay() {
-    if (_overlayEntry != null) return;
-
-    final overlay = Overlay.of(context);
-    // ignore: unnecessary_null_comparison
-    if (overlay == null) return;
-    final theme = Theme.of(context);
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        left: 16,
-        bottom: 16,
-        child: SafeArea(
-          child: Theme(
-            data: theme,
-            child: Material(
-              type: MaterialType.transparency,
-              child: IconButton(
-                icon: const Icon(FluentIcons.arrow_up_24_regular),
-                tooltip: 'חזרה לשורת הטקסט',
-                style: IconButton.styleFrom(
-                  backgroundColor:
-                      theme.colorScheme.primary.withValues(alpha: 0.1),
-                  foregroundColor: theme.colorScheme.primary,
-                  shadowColor: Colors.black26,
-                  elevation: 4,
-                ),
-                onPressed: () {
-                  _commentaryKey.currentState?.scrollToTop();
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    overlay.insert(_overlayEntry!);
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(right: 24.0, left: 8.0, bottom: 8.0),
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.5,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(12),
-          bottomLeft: Radius.circular(12),
-          bottomRight: Radius.circular(12),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          margin: const EdgeInsets.only(right: 24.0, left: 8.0, bottom: 8.0),
+          constraints: BoxConstraints(
+            minHeight: 50,
+            maxHeight: MediaQuery.of(context).size.height * 0.6,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(12),
-          bottomLeft: Radius.circular(12),
-          bottomRight: Radius.circular(12),
-        ),
-        child: CommentaryListBase(
-          key: _commentaryKey,
-          indexes: [widget.index],
-          fontSize: widget.textSize,
-          openBookCallback: widget.openBookCallback,
-          showSearch: false,
-          shrinkWrap: false,
-          itemPositionsListener: _itemPositionsListener,
-        ),
-      ),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerLow,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              bottomLeft: Radius.circular(12),
+              bottomRight: Radius.circular(12),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              bottomLeft: Radius.circular(12),
+              bottomRight: Radius.circular(12),
+            ),
+            child: CommentaryListBase(
+              key: _commentaryKey,
+              indexes: [widget.index],
+              fontSize: widget.textSize,
+              openBookCallback: widget.openBookCallback,
+              showSearch: false,
+              shrinkWrap: false,
+            ),
+          ),
+        );
+      },
     );
   }
 }

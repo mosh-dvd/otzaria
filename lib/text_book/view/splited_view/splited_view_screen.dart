@@ -294,6 +294,7 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
                       FluentIcons.panel_left_contract_24_regular,
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
+                    tooltip: 'פתח מפרשים וקישורים',
                     onPressed: _togglePane,
                   ),
                 ),
