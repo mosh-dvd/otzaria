@@ -949,19 +949,21 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         onPressed: () => _handleBookmarkPress(context, state),
       ),
 
-      // 2) הוסף הערה לקטע זה
+      // 2) הצג הערות אישיות
       ActionButtonData(
-        widget: _buildAddNoteButton(context, state),
-        icon: FluentIcons.note_add_24_regular,
-        tooltip: 'הוסף הערה אישית לשורה זו',
-        onPressed: () => _handleAddNotePress(context, state),
-      ),
-
-      // 3) הצג הערות
-      ActionButtonData(
-        widget: _buildShowNotesButton(context, state),
+        widget: IconButton(
+          onPressed: () {
+            // פתיחת חלונית הצד עם כרטיסיית ההערות (אינדקס 2)
+            setState(() {
+              _sidebarTabIndex = 2; // כרטיסיית ההערות
+            });
+            context.read<TextBookBloc>().add(const ToggleSplitView(true));
+          },
+          icon: const Icon(FluentIcons.note_24_regular),
+          tooltip: 'הצג הערות אישיות',
+        ),
         icon: FluentIcons.note_24_regular,
-        tooltip: 'הצג הערות',
+        tooltip: 'הצג הערות אישיות',
         onPressed: () {
           // פתיחת חלונית הצד עם כרטיסיית ההערות (אינדקס 2)
           setState(() {
@@ -971,7 +973,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         },
       ),
 
-      // 4) שמור וזכור - סמן כנלמד או הוסף למעקב
+      // 3) שמור וזכור - סמן כנלמד או הוסף למעקב
       ActionButtonData(
         widget: _buildShamorZachorButton(context, state),
         icon: _isBookTrackedInShamorZachor(state.book.title)
@@ -1120,30 +1122,6 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       },
       icon: const Icon(FluentIcons.bookmark_add_24_regular),
       tooltip: 'הוספת סימניה (${shortcut.toUpperCase()})',
-    );
-  }
-
-  Widget _buildShowNotesButton(BuildContext context, TextBookLoaded state) {
-    return IconButton(
-      onPressed: () {
-        // פתיחת חלונית הצד עם כרטיסיית ההערות (אינדקס 2)
-        setState(() {
-          _sidebarTabIndex = 2; // כרטיסיית ההערות
-        });
-        context.read<TextBookBloc>().add(const ToggleSplitView(true));
-      },
-      icon: const Icon(FluentIcons.note_24_regular),
-      tooltip: 'הצג הערות',
-    );
-  }
-
-  Widget _buildAddNoteButton(BuildContext context, TextBookLoaded state) {
-    final shortcut =
-        Settings.getValue<String>('key-shortcut-add-note') ?? 'ctrl+n';
-    return IconButton(
-      onPressed: () => _handleAddNotePress(context, state),
-      icon: const Icon(FluentIcons.note_add_24_regular),
-      tooltip: 'הוסף הערה אישית לשורה זו (${shortcut.toUpperCase()})',
     );
   }
 
@@ -1399,51 +1377,6 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
     if (!context.mounted) return;
 
     openBook(context, book, index ?? 1, '', ignoreHistory: true);
-  }
-
-  Future<void> _handleAddNotePress(
-      BuildContext context, TextBookLoaded state) async {
-    final positions = state.positionsListener.itemPositions.value;
-    final currentIndex = positions.isNotEmpty ? positions.first.index : 0;
-    // לא צריך טקסט נבחר - ההערה חלה על כל השורה
-    final controller = TextEditingController();
-    final notesBloc = context.read<PersonalNotesBloc>();
-    final textBookBloc = context.read<TextBookBloc>();
-
-    final noteContent = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => PersonalNoteEditorDialog(
-        title: 'הוסף הערה אישית לשורה זו',
-        controller: controller,
-      ),
-    );
-
-    if (noteContent == null) {
-      return;
-    }
-
-    final trimmed = noteContent.trim();
-    if (trimmed.isEmpty) {
-      UiSnack.show('ההערה ריקה, לא נשמרה');
-      return;
-    }
-
-    if (!mounted) return;
-
-    try {
-      notesBloc.add(AddPersonalNote(
-        bookId: state.book.title,
-        lineNumber: currentIndex + 1,
-        content: trimmed,
-      ));
-      textBookBloc.add(const ToggleSplitView(true));
-      setState(() {
-        _sidebarTabIndex = 2;
-      });
-      UiSnack.show('ההערה נשמרה בהצלחה');
-    } catch (e) {
-      UiSnack.showError('שמירת ההערה נכשלה: $e');
-    }
   }
 
   void _handleBookmarkPress(BuildContext context, TextBookLoaded state) async {

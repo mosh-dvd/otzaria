@@ -65,6 +65,7 @@ class PdfCommentaryPanel extends StatefulWidget {
   final Function(OpenedTab) openBookCallback;
   final double fontSize;
   final VoidCallback? onClose;
+  final int? initialTabIndex;
 
   const PdfCommentaryPanel({
     super.key,
@@ -72,6 +73,7 @@ class PdfCommentaryPanel extends StatefulWidget {
     required this.openBookCallback,
     required this.fontSize,
     this.onClose,
+    this.initialTabIndex,
   });
 
   @override
@@ -89,8 +91,18 @@ class _PdfCommentaryPanelState extends State<PdfCommentaryPanel>
     _tabController = TabController(
       length: 3, // מפרשים, קישורים, הערות
       vsync: this,
-      initialIndex: 0,
+      initialIndex: widget.initialTabIndex ?? 0,
     );
+  }
+
+  @override
+  void didUpdateWidget(PdfCommentaryPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // אם initialTabIndex השתנה, מעדכן את הטאב
+    if (oldWidget.initialTabIndex != widget.initialTabIndex &&
+        widget.initialTabIndex != null) {
+      _tabController.animateTo(widget.initialTabIndex!);
+    }
   }
 
   @override

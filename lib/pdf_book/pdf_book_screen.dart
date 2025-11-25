@@ -61,6 +61,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
   late final ValueNotifier<double> _sidebarWidth;
   late final ValueNotifier<double> _rightPaneWidth;
   late final ValueNotifier<bool> _showRightPane;
+  int? _rightPaneInitialTabIndex; // אינדקס הטאב הרצוי בחלונית השמאלית
   late final StreamSubscription<SettingsState> _settingsSub;
   bool _showZoomBar = false;
   Timer? _zoomBarTimer;
@@ -263,10 +264,10 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     if (newPage == widget.tab.pageNumber) return;
     widget.tab.pageNumber = newPage;
     final token = _lastComputedForPage = newPage;
-    
+
     // עדכון מיידי של הכותרת עם מספר העמוד
     widget.tab.currentTitle.value = 'עמוד $newPage';
-    
+
     final title = await refFromPageNumber(
         newPage, widget.tab.outline.value ?? [], widget.tab.book.title);
     if (token == _lastComputedForPage) {
@@ -1105,7 +1106,29 @@ class _PdfBookScreenState extends State<PdfBookScreen>
   /// כפתורים שתמיד יהיו בתפריט "..."
   List<ActionButtonData> _buildAlwaysInMenuPdfActions(BuildContext context) {
     return [
-      // 1) הוספת הערה
+      // 1) הצג הערות אישיות
+      ActionButtonData(
+        widget: IconButton(
+          icon: const Icon(FluentIcons.note_24_regular),
+          tooltip: 'הצג הערות אישיות',
+          onPressed: () {
+            setState(() {
+              _rightPaneInitialTabIndex = 2; // טאב הערות אישיות
+            });
+            _showRightPane.value = true;
+          },
+        ),
+        icon: FluentIcons.note_24_regular,
+        tooltip: 'הצג הערות אישיות',
+        onPressed: () {
+          setState(() {
+            _rightPaneInitialTabIndex = 2; // טאב הערות אישיות
+          });
+          _showRightPane.value = true;
+        },
+      ),
+
+      // 2) הוספת הערה
       ActionButtonData(
         widget: IconButton(
           icon: const Icon(FluentIcons.note_add_24_regular),
@@ -1117,7 +1140,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         onPressed: () => _handleAddNotePress(context),
       ),
 
-      // 2) הוספת סימניה
+      // 3) הוספת סימניה
       ActionButtonData(
         widget: IconButton(
           icon: const Icon(FluentIcons.bookmark_add_24_regular),
@@ -1129,7 +1152,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         onPressed: () => _handleBookmarkPress(context),
       ),
 
-      // 3) הדפסה
+      // 4) הדפסה
       ActionButtonData(
         widget: IconButton(
           icon: const Icon(FluentIcons.print_24_regular),
@@ -1313,6 +1336,9 @@ class _PdfBookScreenState extends State<PdfBookScreen>
       ));
 
       // פתיחת חלונית המפרשים בטאב ההערות
+      setState(() {
+        _rightPaneInitialTabIndex = 2; // טאב הערות אישיות
+      });
       _showRightPane.value = true;
 
       // המתנה קצרה לעדכון ה-bloc
@@ -1399,6 +1425,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
             onClose: () {
               _showRightPane.value = false;
             },
+            initialTabIndex: _rightPaneInitialTabIndex,
           ),
         ),
       ),

@@ -56,12 +56,14 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
   @override
   void didUpdateWidget(SplitedViewScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // אם showSplitView השתנה, מאפס את הטאב
-    if (oldWidget.showSplitView != widget.showSplitView) {
+    // אם showSplitView השתנה או initialTabIndex השתנה, מעדכן את הטאב
+    if (oldWidget.showSplitView != widget.showSplitView ||
+        oldWidget.initialTabIndex != widget.initialTabIndex) {
       setState(() {
         _currentTabIndex = _getInitialTabIndex();
-        // אם עוברים למצב split view, פותחים את הטור השמאלי אוטומטית
-        if (widget.showSplitView && !_paneOpen) {
+        // אם עוברים למצב split view או initialTabIndex השתנה, פותחים את הטור השמאלי אוטומטית
+        if ((widget.showSplitView || widget.initialTabIndex != null) &&
+            !_paneOpen) {
           _paneOpen = true;
         }
       });
@@ -268,7 +270,8 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
                               Settings.setValue<int>(
                                   'key-sidebar-tab-index-combined', index);
                             } else {
-                              debugPrint('DEBUG: NOT saving tab (split view mode)');
+                              debugPrint(
+                                  'DEBUG: NOT saving tab (split view mode)');
                             }
                           },
                         ),
