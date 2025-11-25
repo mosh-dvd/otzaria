@@ -596,6 +596,7 @@ class _ReadingScreenState extends State<ReadingScreen>
 
   void _showTabsListDialog(BuildContext context, TabsState state) {
     final tabs = state.tabs;
+    final tabsBloc = context.read<TabsBloc>();
 
     final sortedTabs = List<OpenedTab>.from(tabs);
     sortedTabs.sort((a, b) => a.title.compareTo(b.title));
@@ -635,10 +636,10 @@ class _ReadingScreenState extends State<ReadingScreen>
         );
       },
     ).then((selectedTab) {
-      if (selectedTab != null) {
+      if (selectedTab != null && mounted) {
         final index = tabs.indexOf(selectedTab);
         if (index != -1) {
-          context.read<TabsBloc>().add(SetCurrentTab(index));
+          tabsBloc.add(SetCurrentTab(index));
         }
       }
     });

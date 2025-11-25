@@ -236,15 +236,17 @@ class CommentaryListBaseState extends State<CommentaryListBase> {
 
       final linkKey = _getLinkKey(targetLink!);
       final itemKey = _itemKeys[linkKey];
-      final context = itemKey?.currentContext;
+      final itemContext = itemKey?.currentContext;
 
-      if (context != null) {
-        Scrollable.ensureVisible(
-          context,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-          alignment: 0.1, // מביא את הפריט לחלק העליון של המסך
-        );
+      if (itemContext != null) {
+        if (itemContext.mounted) {
+          Scrollable.ensureVisible(
+            itemContext,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+            alignment: 0.1, // מביא את הפריט לחלק העליון של המסך
+          );
+        }
       } else {
         // Fallback: אם לא מוצאים את ההקשר, גולל לקבוצה
         if (_itemScrollController.isAttached) {
