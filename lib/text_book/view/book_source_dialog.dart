@@ -14,21 +14,19 @@ Map<String, String> getSourceDisplayInfo(String source) {
     case 'OnYourWay':
       return {'text': 'ובלכתך בדרך', 'url': 'https://mobile.tora.ws/'};
     case 'Orayta':
-      return {
-        'text': 'אורייתא',
-        'url': 'https://github.com/MosheWagner/Orayta-Books'
-      };
+      return {'text': 'אורייתא', 'url': 'https://github.com/MosheWagner/Orayta-Books'};
     case 'sefaria':
       return {'text': 'ספריא', 'url': 'https://www.sefaria.org/texts'};
     case 'MoreBooks':
       return {'text': 'ספרים פרטיים או מקורות נוספים', 'url': ''};
     case 'wiki_jewish_books':
-      return {
-        'text': 'אוצר הספרים היהודי השיתופי',
-        'url': 'https://wiki.jewishbooks.org.il/'
-      };
+      return {'text': 'אוצר הספרים היהודי השיתופי', 'url': 'https://wiki.jewishbooks.org.il/'};
     case 'Tashma':
       return {'text': 'תא שמע', 'url': 'https://tashma.co.il/'};
+    case 'ToratEmet':
+      return {'text': 'תורת אמת', 'url': 'http://www.toratemetfreeware.com/index.html?downloads;1;'};
+    case 'wikiSource':
+      return {'text': 'ויקיטקסט', 'url': 'https://he.wikisource.org/wiki'};
     default:
       return {'text': source, 'url': ''};
   }
