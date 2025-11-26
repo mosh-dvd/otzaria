@@ -35,6 +35,14 @@ class SettingsRepository {
   static const String keyLibraryShowPreview = 'key-library-show-preview';
   static const String keyEnablePerBookSettings = 'key-enable-per-book-settings';
 
+  // Calendar Notification Settings
+  static const String keyCalendarNotificationsEnabled =
+      'key-calendar-notifications-enabled';
+  static const String keyCalendarNotificationTime =
+      'key-calendar-notification-time';
+  static const String keyCalendarNotificationSound =
+      'key-calendar-notification-sound';
+
   final SettingsWrapper _settings;
 
   SettingsRepository({SettingsWrapper? settings})
@@ -145,6 +153,20 @@ class SettingsRepository {
       'shortcuts': await getShortcuts(),
       'enablePerBookSettings': _settings.getValue<bool>(
         keyEnablePerBookSettings,
+        defaultValue: true,
+      ),
+
+      // Calendar Notification Settings
+      'calendarNotificationsEnabled': _settings.getValue<bool>(
+        keyCalendarNotificationsEnabled,
+        defaultValue: true,
+      ),
+      'calendarNotificationTime': _settings.getValue<int>(
+        keyCalendarNotificationTime,
+        defaultValue: 60,
+      ),
+      'calendarNotificationSound': _settings.getValue<bool>(
+        keyCalendarNotificationSound,
         defaultValue: true,
       ),
     };
@@ -266,6 +288,19 @@ class SettingsRepository {
     await _settings.setValue(keyEnablePerBookSettings, value);
   }
 
+  // Calendar Notification Settings
+  Future<void> updateCalendarNotificationsEnabled(bool value) async {
+    await _settings.setValue(keyCalendarNotificationsEnabled, value);
+  }
+
+  Future<void> updateCalendarNotificationTime(int value) async {
+    await _settings.setValue(keyCalendarNotificationTime, value);
+  }
+
+  Future<void> updateCalendarNotificationSound(bool value) async {
+    await _settings.setValue(keyCalendarNotificationSound, value);
+  }
+
   Future<Map<String, String>> getShortcuts() async {
     // Start with the default shortcuts
     final shortcuts =
@@ -354,6 +389,11 @@ class SettingsRepository {
     await _settings.setValue(keyLibraryViewMode, 'grid');
     await _settings.setValue(keyLibraryShowPreview, true);
     await _settings.setValue(keyEnablePerBookSettings, true);
+
+    // Calendar Notification Settings
+    await _settings.setValue(keyCalendarNotificationsEnabled, true);
+    await _settings.setValue(keyCalendarNotificationTime, 60);
+    await _settings.setValue(keyCalendarNotificationSound, true);
 
     // Mark as initialized
     await _settings.setValue('settings_initialized', true);

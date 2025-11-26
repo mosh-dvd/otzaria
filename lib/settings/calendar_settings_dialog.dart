@@ -151,6 +151,59 @@ class _CalendarSettingsDialogState extends State<_CalendarSettingsDialog> {
                           )
                         : const SizedBox.shrink(),
                   ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'התראות:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  SwitchListTile(
+                    title: const Text('הפעל התראות על אירועים'),
+                    value: state.calendarNotificationsEnabled,
+                    onChanged: (value) {
+                      widget.calendarCubit
+                          .changeCalendarNotificationsEnabled(value);
+                    },
+                  ),
+                  if (state.calendarNotificationsEnabled)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 16.0, left: 16.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SwitchListTile(
+                            title: const Text('השמע צליל בהתראה'),
+                            value: state.calendarNotificationSound,
+                            onChanged: (value) {
+                              widget.calendarCubit
+                                  .changeCalendarNotificationSound(value);
+                            },
+                          ),
+                          DropdownButtonFormField<int>(
+                            decoration: const InputDecoration(
+                              labelText: 'זמן תזכורת לפני האירוע',
+                            ),
+                            initialValue: state.calendarNotificationTime,
+                            items: const [
+                              DropdownMenuItem(value: 60, child: Text('שעה')),
+                              DropdownMenuItem(
+                                  value: 720, child: Text('12 שעות')),
+                              DropdownMenuItem(value: 1440, child: Text('יום')),
+                              DropdownMenuItem(
+                                  value: 2880, child: Text('יומיים')),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                widget.calendarCubit
+                                    .changeCalendarNotificationTime(value);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),

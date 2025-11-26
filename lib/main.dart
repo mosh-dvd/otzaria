@@ -56,6 +56,7 @@ import 'package:otzaria/utils/toc_parser.dart';
 import 'package:otzaria/settings/backup_service.dart';
 import 'package:otzaria/services/sources_books_service.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:otzaria/services/notification_service.dart';
 
 // Global reference to window listener for cleanup
 AppWindowListener? _appWindowListener;
@@ -265,6 +266,15 @@ Future<void> initialize() async {
       debugPrint('Failed to load SourcesBooks.csv: $e');
     }
     // Continue without sources data if it fails
+  }
+
+  // Initialize Notification Service
+  try {
+    await NotificationService().init();
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('Failed to initialize notification service: $e');
+    }
   }
 }
 
