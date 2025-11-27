@@ -579,7 +579,7 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
 
     // Filter by selected filter
     List<_NoteWithBook> filteredNotes;
-    
+
     if (_selectedFilter == null) {
       // Show all notes
       filteredNotes = allNotes;
@@ -598,7 +598,7 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
           }
           return null;
         }
-        
+
         final category = findCategory(libraryState.library!, _selectedFilter!);
         if (category != null) {
           final booksInCategory = _getBooksInCategory(category);
@@ -632,29 +632,66 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
       );
     }
 
+    // Group notes by book for headers when showing all notes
+    final groupedNotes = <_NotesGroup>[];
+    if (_selectedFilter == null) {
+      String? currentBookId;
+      List<_NoteWithBook> currentGroup = [];
+
+      for (final note in displayNotes) {
+        if (note.bookId != currentBookId) {
+          if (currentGroup.isNotEmpty) {
+            groupedNotes.add(_NotesGroup(bookId: currentBookId!, notes: currentGroup));
+          }
+          currentBookId = note.bookId;
+          currentGroup = [note];
+        } else {
+          currentGroup.add(note);
+        }
+      }
+      if (currentGroup.isNotEmpty) {
+        groupedNotes.add(_NotesGroup(bookId: currentBookId!, notes: currentGroup));
+      }
+    } else {
+      // Single group for filtered views
+      groupedNotes.add(_NotesGroup(bookId: _selectedFilter ?? 'all', notes: displayNotes));
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
-      itemCount: displayNotes.length,
-      itemBuilder: (context, index) {
-        final item = displayNotes[index];
-        final showBookHeader = index == 0 ||
-            displayNotes[index - 1].bookId != item.bookId;
+      itemCount: groupedNotes.length,
+      itemBuilder: (context, groupIndex) {
+        final group = groupedNotes[groupIndex];
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (showBookHeader && _selectedFilter == null)
+            if (_selectedFilter == null && group.bookId != 'all')
               Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 8),
+                padding: const EdgeInsets.only(top: 16, bottom: 16),
                 child: Text(
-                  item.bookId,
+                  group.bookId,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.primary,
                       ),
                 ),
               ),
-            _buildNoteCard(item.note, item.isMissing),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 400,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 2.5,
+              ),
+              itemCount: group.notes.length,
+              itemBuilder: (context, noteIndex) {
+                final item = group.notes[noteIndex];
+                return _buildNoteCard(item.note, item.isMissing);
+              },
+            ),
           ],
         );
       },
@@ -662,74 +699,123 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
   }
 
   Widget _buildNoteCard(PersonalNote note, bool isMissing) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        title: Row(
-          children: [
-            Text(
-              isMissing ? 'הערה ללא מיקום' : 'שורה ${note.lineNumber}',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const Spacer(),
-            Text(
-              _formatDate(note.updatedAt),
-              style: Theme.of(context).textTheme.bodySmall,
+    return GestureDetector(
+      onTap: isMissing ? () => _repositionMissing(note) : null,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        clipBehavior: Clip.hardEdge,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 2,
+              offset: const Offset(1, 1),
             ),
           ],
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!isMissing && note.referenceWords.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 8),
+        child: SizedBox(
+          height: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      isMissing ? 'הערה ללא מיקום' : 'שורה ${note.lineNumber}',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'עריכה',
+                        icon: const Icon(FluentIcons.edit_24_regular, size: 18),
+                        onPressed: () => _editNote(note),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                      if (isMissing) ...[
+                        const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: 'מיקום מחדש',
+                          icon: const Icon(FluentIcons.location_24_regular, size: 18),
+                          onPressed: () => _repositionMissing(note),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: 'מחיקה',
+                        icon: const Icon(FluentIcons.delete_24_regular, size: 18),
+                        onPressed: () => _deleteNote(note),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (!isMissing && note.referenceWords.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    note.referenceWords.join(' '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                  ),
+                ),
+              Expanded(
                 child: Text(
-                  note.referenceWords.join(' '),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
+                  note.content,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.black87,
                       ),
                 ),
               ),
-            Text(
-              note.content,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            if (isMissing && note.lastKnownLineNumber != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
+              if (isMissing && note.lastKnownLineNumber != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'שורה קודמת: ${note.lastKnownLineNumber}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.black54,
+                        ),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.bottomRight,
                 child: Text(
-                  'שורה קודמת: ${note.lastKnownLineNumber}',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  _formatDate(note.updatedAt),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.black54,
+                        fontSize: 12,
+                      ),
                 ),
               ),
-          ],
-        ),
-        onTap: isMissing ? () => _repositionMissing(note) : null,
-        trailing: Wrap(
-          spacing: 4,
-          children: [
-            IconButton(
-              tooltip: 'עריכה',
-              icon: const Icon(FluentIcons.edit_24_regular),
-              onPressed: () => _editNote(note),
-            ),
-            if (isMissing)
-              IconButton(
-                tooltip: 'מיקום מחדש',
-                icon: const Icon(FluentIcons.location_24_regular),
-                onPressed: () => _repositionMissing(note),
-              ),
-            IconButton(
-              tooltip: 'מחיקה',
-              icon: const Icon(FluentIcons.delete_24_regular),
-              onPressed: () => _deleteNote(note),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -827,5 +913,15 @@ class _NoteWithBook {
     required this.note,
     required this.bookId,
     this.isMissing = false,
+  });
+}
+
+class _NotesGroup {
+  final String bookId;
+  final List<_NoteWithBook> notes;
+
+  _NotesGroup({
+    required this.bookId,
+    required this.notes,
   });
 }
