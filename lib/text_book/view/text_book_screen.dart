@@ -33,7 +33,6 @@ import 'package:otzaria/text_book/view/book_source_dialog.dart';
 import 'package:otzaria/text_book/editing/helpers/editor_settings_helper.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:otzaria/personal_notes/personal_notes_system.dart';
-import 'package:otzaria/personal_notes/utils/note_text_utils.dart';
 import 'package:otzaria/models/phone_report_data.dart';
 import 'package:otzaria/services/phone_report_service.dart';
 import 'package:otzaria/services/sources_books_service.dart';

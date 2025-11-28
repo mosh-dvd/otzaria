@@ -144,7 +144,7 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
               children: [
                 // Right sidebar navigation - גובה מלא
                 if (_isNavigationVisible) ...[
-                  Container(
+                  SizedBox(
                     width: _navigationWidth,
                     child: _buildNotesTree(),
                   ),
