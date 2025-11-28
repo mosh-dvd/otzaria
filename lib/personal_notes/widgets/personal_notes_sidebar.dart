@@ -300,7 +300,7 @@ class _PersonalNotesSidebarState extends State<PersonalNotesSidebar> {
   }
 }
 
-class _LocatedNoteTile extends StatelessWidget {
+class _LocatedNoteTile extends StatefulWidget {
   final PersonalNote note;
   final VoidCallback onTap;
   final VoidCallback onEdit;
@@ -316,45 +316,67 @@ class _LocatedNoteTile extends StatelessWidget {
   });
 
   @override
+  State<_LocatedNoteTile> createState() => _LocatedNoteTileState();
+}
+
+class _LocatedNoteTileState extends State<_LocatedNoteTile> {
+  bool _isExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        ExpansionTile(
-          key: PageStorageKey('note_${note.id}'),
-          maintainState: true,
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          collapsedBackgroundColor: Theme.of(context).colorScheme.surface,
-          title: Text(
-            note.title,
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: _NoteActions(onEdit: onEdit, onDelete: onDelete),
-          onExpansionChanged: (isExpanded) {
-            if (isExpanded) {
-              onTap();
-            }
-          },
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 12.0),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  note.content,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        height: 1.5,
-                      ),
-                  textAlign: TextAlign.justify,
-                  textDirection: TextDirection.rtl,
+        InkWell(
+          onTap: widget.onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            color: Theme.of(context).colorScheme.surface,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.note.title,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
+                _NoteActions(
+                  onEdit: widget.onEdit,
+                  onDelete: widget.onDelete,
+                  isExpanded: _isExpanded,
+                  onToggleExpansion: () {
+                    setState(() {
+                      _isExpanded = !_isExpanded;
+                    });
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          child: _isExpanded
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 12.0),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      widget.note.content,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            height: 1.5,
+                          ),
+                      textAlign: TextAlign.justify,
+                      textDirection: TextDirection.rtl,
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
         ),
         Divider(
           height: 1,
@@ -366,7 +388,7 @@ class _LocatedNoteTile extends StatelessWidget {
   }
 }
 
-class _MissingNoteTile extends StatelessWidget {
+class _MissingNoteTile extends StatefulWidget {
   final PersonalNote note;
   final VoidCallback onReposition;
   final VoidCallback onEdit;
@@ -382,76 +404,95 @@ class _MissingNoteTile extends StatelessWidget {
   });
 
   @override
+  State<_MissingNoteTile> createState() => _MissingNoteTileState();
+}
+
+class _MissingNoteTileState extends State<_MissingNoteTile> {
+  bool _isExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        ExpansionTile(
-          key: PageStorageKey('missing_note_${note.id}'),
-          maintainState: true,
-          backgroundColor: Theme.of(context).colorScheme.surfaceTint.withValues(alpha: 0.05),
-          collapsedBackgroundColor: Theme.of(context).colorScheme.surfaceTint.withValues(alpha: 0.05),
-          title: Text(
-            'הערה ללא מיקום',
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          trailing: _NoteActions(
-            onEdit: onEdit,
-            onDelete: onDelete,
-            extraAction: IconButton(
-              tooltip: 'מיקום מחדש',
-              icon: const Icon(FluentIcons.location_24_regular, size: 18),
-              iconSize: 18,
-              padding: const EdgeInsets.all(8),
-              constraints: const BoxConstraints(
-                minWidth: 32,
-                minHeight: 32,
-              ),
-              onPressed: onReposition,
-            ),
-          ),
-          onExpansionChanged: (isExpanded) {
-            if (isExpanded) {
-              onReposition();
-            }
-          },
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (note.lastKnownLineNumber != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text(
-                        'שורה קודמת: ${note.lastKnownLineNumber}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                            ),
-                        textAlign: TextAlign.right,
-                      ),
-                    ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      note.content,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            height: 1.5,
-                          ),
-                      textAlign: TextAlign.justify,
-                      textDirection: TextDirection.rtl,
-                    ),
+        InkWell(
+          onTap: widget.onReposition,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            color: Theme.of(context).colorScheme.surfaceTint.withValues(alpha: 0.05),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'הערה ללא מיקום',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
-                ],
-              ),
+                ),
+                _NoteActions(
+                  onEdit: widget.onEdit,
+                  onDelete: widget.onDelete,
+                  isExpanded: _isExpanded,
+                  onToggleExpansion: () {
+                    setState(() {
+                      _isExpanded = !_isExpanded;
+                    });
+                  },
+                  extraAction: IconButton(
+                    tooltip: 'מיקום מחדש',
+                    icon: const Icon(FluentIcons.location_24_regular, size: 18),
+                    iconSize: 18,
+                    padding: const EdgeInsets.all(8),
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    onPressed: widget.onReposition,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          child: _isExpanded
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (widget.note.lastKnownLineNumber != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Text(
+                            'שורה קודמת: ${widget.note.lastKnownLineNumber}',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          widget.note.content,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                height: 1.5,
+                              ),
+                          textAlign: TextAlign.justify,
+                          textDirection: TextDirection.rtl,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(),
         ),
         Divider(
           height: 1,
@@ -466,11 +507,15 @@ class _MissingNoteTile extends StatelessWidget {
 class _NoteActions extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool isExpanded;
+  final VoidCallback onToggleExpansion;
   final Widget? extraAction;
 
   const _NoteActions({
     required this.onEdit,
     required this.onDelete,
+    required this.isExpanded,
+    required this.onToggleExpansion,
     this.extraAction,
   });
 
@@ -502,7 +547,24 @@ class _NoteActions extends StatelessWidget {
           ),
           onPressed: onDelete,
         ),
-        const SizedBox(width: 8), // מרווח לחץ ההרחבה
+        IconButton(
+          tooltip: isExpanded ? 'סגור' : 'פתח',
+          icon: AnimatedRotation(
+            turns: isExpanded ? 0.5 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: const Icon(
+              FluentIcons.chevron_down_24_regular,
+              size: 18,
+            ),
+          ),
+          iconSize: 18,
+          padding: const EdgeInsets.all(8),
+          constraints: const BoxConstraints(
+            minWidth: 32,
+            minHeight: 32,
+          ),
+          onPressed: onToggleExpansion,
+        ),
       ],
     );
   }
