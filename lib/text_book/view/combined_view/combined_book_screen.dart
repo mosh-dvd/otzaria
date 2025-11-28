@@ -18,6 +18,7 @@ import 'package:otzaria/models/books.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:otzaria/text_book/bloc/text_book_event.dart';
 import 'package:otzaria/personal_notes/personal_notes_system.dart';
+import 'package:otzaria/personal_notes/utils/note_text_utils.dart';
 import 'package:otzaria/utils/copy_utils.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:super_clipboard/super_clipboard.dart';
@@ -588,11 +589,22 @@ $textWithBreaks
                          state.selectedIndex ?? 
                          (state.visibleIndices.isNotEmpty ? state.visibleIndices.first : 0);
 
+    // קבלת הטקסט המזהה של השורה - אם יש טקסט נבחר, משתמשים בו (אחרי הסרת ניקוד), אחרת בטקסט המזהה (כמו שיוצג ככותרת)
+    final referenceText = selectedText?.trim().isNotEmpty == true
+        ? removeHebrewDiacritics(selectedText!.trim())
+        : extractDisplayTextFromLines(
+            state.content,
+            currentIndex + 1,
+            excludeBookTitle: widget.tab.book.title,
+          );
+
     showDialog(
       context: context,
       builder: (dialogContext) => PersonalNoteEditorDialog(
-        title: 'הוסף הערה אישית לשורה זו',
+        title: 'הוסף הערה',
         controller: controller,
+        referenceText: referenceText,
+        icon: FluentIcons.note_add_24_regular,
       ),
     ).then((noteContent) async {
       if (noteContent == null) return;

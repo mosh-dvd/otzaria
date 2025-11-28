@@ -33,6 +33,7 @@ import 'package:otzaria/text_book/view/book_source_dialog.dart';
 import 'package:otzaria/text_book/editing/helpers/editor_settings_helper.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:otzaria/personal_notes/personal_notes_system.dart';
+import 'package:otzaria/personal_notes/utils/note_text_utils.dart';
 import 'package:otzaria/models/phone_report_data.dart';
 import 'package:otzaria/services/phone_report_service.dart';
 import 'package:otzaria/services/sources_books_service.dart';
@@ -2250,11 +2251,20 @@ Future<void> _addNoteFromKeyboard(
   final notesBloc = context.read<PersonalNotesBloc>();
   final textBookBloc = context.read<TextBookBloc>();
 
+  // קבלת הטקסט המזהה של השורה (כמו שיוצג ככותרת ההערה)
+  final referenceText = extractDisplayTextFromLines(
+    state.content,
+    currentIndex + 1,
+    excludeBookTitle: state.book.title,
+  );
+
   final noteContent = await showDialog<String>(
     context: context,
     builder: (dialogContext) => PersonalNoteEditorDialog(
-      title: 'הוסף הערה אישית לשורה זו',
+      title: 'הוסף הערה',
       controller: controller,
+      referenceText: referenceText,
+      icon: FluentIcons.note_add_24_regular,
     ),
   );
 

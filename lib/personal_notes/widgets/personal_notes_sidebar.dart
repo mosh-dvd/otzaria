@@ -232,8 +232,10 @@ class _PersonalNotesSidebarState extends State<PersonalNotesSidebar> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) => PersonalNoteEditorDialog(
-        title: 'עריכת הערה',
+        title: 'ערוך הערה',
         controller: controller,
+        referenceText: note.displayTitle,
+        icon: FluentIcons.edit_24_regular,
       ),
     );
     if (result == null) return;

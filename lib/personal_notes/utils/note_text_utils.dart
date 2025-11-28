@@ -79,41 +79,52 @@ String extractDisplayTextFromLine(
     return '';
   }
   
+  // Remove nikud and te'amim (Hebrew diacritics) but keep the text structure
+  final withoutNikud = removeHebrewDiacritics(cleanedLine);
+  
   // Split book title into words for exclusion
   final excludedWords = excludeBookTitle != null
-      ? excludeBookTitle.split(RegExp(r'\s+')).map((w) => w.trim().toLowerCase()).toSet()
+      ? removeHebrewDiacritics(excludeBookTitle).split(RegExp(r'\s+')).map((w) => w.trim().toLowerCase()).toSet()
       : <String>{};
   
-  // Split the line into words and collect them with their positions
-  final matches = wordPattern.allMatches(cleanedLine).toList();
-  int wordCount = 0;
-  int? endPosition;
+  // Split the line into words by whitespace
+  final words = withoutNikud.split(RegExp(r'\s+'));
+  final selectedWords = <String>[];
   
-  for (final match in matches) {
-    final word = match.group(0)!;
+  for (final word in words) {
+    if (word.trim().isEmpty) continue;
+    
     // Skip words that are part of the book title
     if (!excludedWords.contains(word.trim().toLowerCase())) {
-      wordCount++;
-      if (wordCount == maxWords) {
-        endPosition = match.end;
+      selectedWords.add(word);
+      if (selectedWords.length == maxWords) {
         break;
       }
     }
   }
   
-  // If we didn't find enough words, use the whole line (up to 100 chars)
-  if (endPosition == null) {
-    final maxLen = cleanedLine.length > 100 ? 100 : cleanedLine.length;
-    return cleanedLine.substring(0, maxLen).trim();
-  }
-  
-  // Extract the substring from the beginning to the end of the last word
-  String result = cleanedLine.substring(0, endPosition).trim();
+  // Join the selected words
+  String result = selectedWords.join(' ').trim();
   
   // If the result is too long, truncate it
   if (result.length > 100) {
     result = result.substring(0, 100).trim();
   }
+  
+  return result;
+}
+
+/// Remove Hebrew nikud (vowel points) and te'amim (cantillation marks)
+/// Unicode ranges: 0591-05C7 (te'amim and nikud)
+/// Also replaces Hebrew maqaf (־) with space to separate words
+String removeHebrewDiacritics(String text) {
+  // Replace Hebrew maqaf (־) with space to separate words
+  // U+05BE is the Hebrew maqaf
+  String result = text.replaceAll('\u05BE', ' ');
+  
+  // Remove Hebrew diacritics (nikud and te'amim)
+  // Range: U+0591 to U+05C7
+  result = result.replaceAll(RegExp(r'[\u0591-\u05C7]'), '');
   
   return result;
 }
