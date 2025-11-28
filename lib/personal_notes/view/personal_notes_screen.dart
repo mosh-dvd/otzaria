@@ -131,6 +131,12 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
           setState(() {
             _bookStates[state.bookId!] = state;
           });
+          
+          // If this is a new book (not in _books list), refresh the books list
+          final bookExists = _books.any((book) => book.bookId == state.bookId);
+          if (!bookExists && (state.locatedNotes.isNotEmpty || state.missingNotes.isNotEmpty)) {
+            _loadBooks();
+          }
         }
       },
       child: Column(
@@ -456,7 +462,7 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
       return const SizedBox.shrink();
     }
 
-    final isExpanded = _expansionState[category.path] ?? level == 0;
+    final isExpanded = _expansionState[category.path] ?? level <= 1;
     final isSelected = _selectedFilter == category.path;
 
     return Column(
@@ -731,29 +737,24 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
       );
     }
 
-    // Group notes by book for headers when showing all notes
+    // Group notes by book for headers - always show book names
     final groupedNotes = <_NotesGroup>[];
-    if (_selectedFilter == null) {
-      String? currentBookId;
-      List<_NoteWithBook> currentGroup = [];
+    String? currentBookId;
+    List<_NoteWithBook> currentGroup = [];
 
-      for (final note in displayNotes) {
-        if (note.bookId != currentBookId) {
-          if (currentGroup.isNotEmpty) {
-            groupedNotes.add(_NotesGroup(bookId: currentBookId!, notes: currentGroup));
-          }
-          currentBookId = note.bookId;
-          currentGroup = [note];
-        } else {
-          currentGroup.add(note);
+    for (final note in displayNotes) {
+      if (note.bookId != currentBookId) {
+        if (currentGroup.isNotEmpty) {
+          groupedNotes.add(_NotesGroup(bookId: currentBookId!, notes: currentGroup));
         }
+        currentBookId = note.bookId;
+        currentGroup = [note];
+      } else {
+        currentGroup.add(note);
       }
-      if (currentGroup.isNotEmpty) {
-        groupedNotes.add(_NotesGroup(bookId: currentBookId!, notes: currentGroup));
-      }
-    } else {
-      // Single group for filtered views
-      groupedNotes.add(_NotesGroup(bookId: _selectedFilter ?? 'all', notes: displayNotes));
+    }
+    if (currentGroup.isNotEmpty) {
+      groupedNotes.add(_NotesGroup(bookId: currentBookId!, notes: currentGroup));
     }
 
     return ListView.builder(
@@ -765,30 +766,66 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_selectedFilter == null && group.bookId != 'all')
+            if (group.bookId != 'all')
               Padding(
                 padding: const EdgeInsets.only(top: 16, bottom: 16),
-                child: Text(
-                  group.bookId,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
+                child: Row(
+                  children: [
+                    Icon(
+                      FluentIcons.text_align_right_24_regular,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        group.bookId,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                       ),
+                    ),
+                  ],
                 ),
               ),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 400,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 2.5,
-              ),
-              itemCount: group.notes.length,
-              itemBuilder: (context, noteIndex) {
-                final item = group.notes[noteIndex];
-                return _buildNoteCard(item.note, item.isMissing);
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // Calculate how many cards can fit based on available width
+                // Each card needs minimum 400px, plus 12px spacing between cards
+                const minCardWidth = 400.0;
+                const spacing = 12.0;
+                final availableWidth = constraints.maxWidth;
+                
+                // Calculate maximum number of cards that can fit
+                // Formula: (width + spacing) / (cardWidth + spacing)
+                int crossAxisCount = ((availableWidth + spacing) / (minCardWidth + spacing)).floor();
+                
+                // Ensure at least 1 card per row
+                if (crossAxisCount < 1) crossAxisCount = 1;
+                
+                // Calculate actual card width based on available space
+                final actualCardWidth = (availableWidth - (spacing * (crossAxisCount - 1))) / crossAxisCount;
+                
+                // Adjust aspect ratio based on actual card width
+                // Target height is around 200px, so aspectRatio = width / 200
+                final aspectRatio = actualCardWidth / 200.0;
+                
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
+                    childAspectRatio: aspectRatio,
+                  ),
+                  itemCount: group.notes.length,
+                  itemBuilder: (context, noteIndex) {
+                    final item = group.notes[noteIndex];
+                    return _buildNoteCard(item.note, item.isMissing);
+                  },
+                );
               },
             ),
           ],
@@ -818,90 +855,102 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
             width: 1,
           ),
         ),
-        child: SizedBox(
-          height: double.infinity,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      isMissing ? 'הערה ללא מיקום' : note.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: 'עריכה',
-                        icon: const Icon(FluentIcons.edit_24_regular, size: 18),
-                        onPressed: () => _editNote(note),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        isMissing ? 'הערה ללא מיקום' : note.title,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      if (isMissing) ...[
-                        const SizedBox(width: 4),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         IconButton(
-                          tooltip: 'מיקום מחדש',
-                          icon: const Icon(FluentIcons.location_24_regular, size: 18),
-                          onPressed: () => _repositionMissing(note),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
+                          tooltip: 'עריכה',
+                          icon: const Icon(FluentIcons.edit_24_regular, size: 18),
+                          onPressed: () => _editNote(note),
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
+                        ),
+                        if (isMissing) ...[
+                          IconButton(
+                            tooltip: 'מיקום מחדש',
+                            icon: const Icon(FluentIcons.location_24_regular, size: 18),
+                            onPressed: () => _repositionMissing(note),
+                            padding: const EdgeInsets.all(8),
+                            constraints: const BoxConstraints(
+                              minWidth: 36,
+                              minHeight: 36,
+                            ),
+                          ),
+                        ],
+                        IconButton(
+                          tooltip: 'מחיקה',
+                          icon: const Icon(FluentIcons.delete_24_regular, size: 18),
+                          onPressed: () => _deleteNote(note),
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
                         ),
                       ],
-                      const SizedBox(width: 4),
-                      IconButton(
-                        tooltip: 'מחיקה',
-                        icon: const Icon(FluentIcons.delete_24_regular, size: 18),
-                        onPressed: () => _deleteNote(note),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                note.content,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.black87,
                     ),
-              ),
-              if (isMissing && note.lastKnownLineNumber != null)
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(bottom: 24),
                   child: Text(
-                    'שורה קודמת: ${note.lastKnownLineNumber}',
-                    maxLines: 1,
+                    note.content,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.black54,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.black87,
                         ),
                   ),
                 ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: Text(
-                  _formatDate(note.updatedAt),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.black54,
-                        fontSize: 12,
-                      ),
-                ),
+                if (isMissing && note.lastKnownLineNumber != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: Text(
+                      'שורה קודמת: ${note.lastKnownLineNumber}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.black54,
+                          ),
+                    ),
+                  ),
+              ],
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              child: Text(
+                _formatDate(note.updatedAt),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.black54,
+                      fontSize: 12,
+                    ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
