@@ -511,43 +511,51 @@ class _ReadingScreenState extends State<ReadingScreen>
               onSelected: () => context.read<TabsBloc>().add(CloneTab(tab)),
             ),
             const MenuDivider(),
-            // אפשרות "הצג לצד" - רק אם יש יותר מטאב אחד והטאב הנוכחי אינו משולב
-            if (state.tabs.length > 1 && tab is! CombinedTab)
-              MenuItem.submenu(
-                label: 'הצג לצד',
-                items: state.tabs
-                    .where((t) => t != tab && t is! CombinedTab)
-                    .map((otherTab) => MenuItem(
-                          label: otherTab.title,
-                          onSelected: () {
-                            context.read<TabsBloc>().add(
-                                  EnableSideBySideMode(
-                                    rightTab: tab, // הטאב הנוכחי ימני
-                                    leftTab: otherTab, // הטאב שנבחר שמאלי
-                                  ),
-                                );
-                          },
-                        ))
-                    .toList(),
-              ),
+            // אפשרות "הצג לצד" - תמיד מוצגת, אבל מושבתת אם אין מספיק טאבים
+            if (tab is! CombinedTab)
+              if (state.tabs.length > 1)
+                MenuItem.submenu(
+                  label: 'הצג לצד',
+                  items: state.tabs
+                      .where((t) => t != tab && t is! CombinedTab)
+                      .map((otherTab) => MenuItem(
+                            label: otherTab.title,
+                            onSelected: () {
+                              context.read<TabsBloc>().add(
+                                    EnableSideBySideMode(
+                                      rightTab: tab, // הטאב הנוכחי ימני
+                                      leftTab: otherTab, // הטאב שנבחר שמאלי
+                                    ),
+                                  );
+                            },
+                          ))
+                      .toList(),
+                )
+              else
+                MenuItem(
+                  label: 'שלב עם',
+                  enabled: false,
+                  onSelected: () {},
+                ),
             // אפשרויות לטאב משולב
             if (tab is CombinedTab) ...[
               MenuItem(
-                label: 'החלף את צדדי הספרים',
+                label: 'החלף צדדים',
                 onSelected: () =>
                     context.read<TabsBloc>().add(const SwapSideBySideTabs()),
               ),
               MenuItem(
-                label: 'פרק טאב משולב',
+                label: 'חזרה לתצוגה רגילה',
                 onSelected: () =>
                     context.read<TabsBloc>().add(const DisableSideBySideMode()),
               ),
             ],
             const MenuDivider(),
-            MenuItem(
-              label: 'רשימת הכרטיסיות',
-              onSelected: () => _showTabsListDialog(context, state),
-            ),
+            // הוסרת אפשרות הצמדה לדף הבית לאחר הסרת דף הבית
+            MenuItem.submenu(
+              label: 'רשימת הכרטיסיות ',
+              items: _getMenuItems(state.tabs, context),
+            )
           ],
         ),
         child: Draggable<OpenedTab>(
@@ -724,55 +732,20 @@ class _ReadingScreenState extends State<ReadingScreen>
     );
   }
 
-  void _showTabsListDialog(BuildContext context, TabsState state) {
-    final tabs = state.tabs;
-    final tabsBloc = context.read<TabsBloc>();
-
-    final sortedTabs = List<OpenedTab>.from(tabs);
-    sortedTabs.sort((a, b) => a.title.compareTo(b.title));
-
-    showDialog<OpenedTab>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("רשימת כרטיסיות פתוחות"),
-          content: SizedBox(
-            width: 300,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: sortedTabs.map((tab) {
-                  return ListTile(
-                    title: Text(
-                      tab.title,
-                      textDirection: TextDirection.rtl,
-                    ),
-                    onTap: () {
-                      Navigator.of(context).pop(tab);
-                    },
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
+  List<ContextMenuEntry> _getMenuItems(
+      List<OpenedTab> tabs, BuildContext context) {
+    List<MenuItem> items = tabs
+        .map((tab) => MenuItem(
+              label: tab.title,
+              onSelected: () {
+                final index = tabs.indexOf(tab);
+                context.read<TabsBloc>().add(SetCurrentTab(index));
               },
-              child: const Text("סגור"),
-            ),
-          ],
-        );
-      },
-    ).then((selectedTab) {
-      if (selectedTab != null && mounted) {
-        final index = tabs.indexOf(selectedTab);
-        if (index != -1) {
-          tabsBloc.add(SetCurrentTab(index));
-        }
-      }
-    });
+            ))
+        .toList();
+
+    items.sort((a, b) => a.label.compareTo(b.label));
+    return items;
   }
 
   void _showSaveWorkspaceDialog(BuildContext context) {
