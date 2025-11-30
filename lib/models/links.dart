@@ -81,22 +81,48 @@ Future<List<Link>> getLinksforIndexs(
     {required List<int> indexes,
     required List<Link> links,
     required List<String> commentatorsToShow}) async {
-  List<Link> doneLinks = links;
-  List<Link> allLinks = [];
-  for (int i = 0; i < indexes.length; i++) {
-    List<Link> thisLinks = doneLinks
-        .where((link) =>
-            link.index1 == indexes[i] + 1 &&
-            (link.connectionType == "commentary" ||
-                link.connectionType == "targum") &&
-            commentatorsToShow.contains(utils.getTitleFromPath(link.path2)))
-        .toList();
-    allLinks += thisLinks;
+  // אם אין מפרשים להצגה, מחזיר רשימה ריקה מיד
+  if (commentatorsToShow.isEmpty) {
+    return [];
   }
 
-  allLinks.sort(
-      //sort by the order of the commentators to show and then by the heRef
-      (a, b) {
+  // אם אין אינדקסים, מחזיר רשימה ריקה מיד
+  if (indexes.isEmpty) {
+    return [];
+  }
+
+  // יצירת Set לחיפוש מהיר יותר
+  final indexSet = indexes.map((i) => i + 1).toSet();
+  final commentatorsSet = commentatorsToShow.toSet();
+  
+  // סינון אחד במקום לולאה עם סינונים מרובים
+  final allLinks = links.where((link) {
+    // בדיקות מהירות קודם
+    if (!indexSet.contains(link.index1)) return false;
+    if (link.connectionType != "commentary" && link.connectionType != "targum") return false;
+    if (link.path2.isEmpty || link.index2 <= 0) return false;
+    
+    // בדיקה איטית יותר בסוף
+    return commentatorsSet.contains(utils.getTitleFromPath(link.path2));
+  }).toList();
+
+  // אם אין קישורים, מחזיר רשימה ריקה מיד
+  if (allLinks.isEmpty) {
+    return [];
+  }
+
+  // מיון אחד משולב במקום שני מיונים נפרדים
+  allLinks.sort((a, b) {
+    // קודם לפי סדר המפרשים
+    final commentatorComparison = commentatorsToShow
+        .indexOf(utils.getTitleFromPath(a.path2))
+        .compareTo(commentatorsToShow.indexOf(utils.getTitleFromPath(b.path2)));
+    
+    if (commentatorComparison != 0) {
+      return commentatorComparison;
+    }
+    
+    // אם אותו מפרש, מיון לפי heRef
     return a.heRef
         .replaceAll(' טו,', ' ,יה')
         .replaceAll(' טז,', ' יו,')
@@ -104,12 +130,5 @@ Future<List<Link>> getLinksforIndexs(
             b.heRef.replaceAll(' טו,', ' ,יה').replaceAll(' טז,', ' יו,'));
   });
 
-  allLinks.sort(
-      //sort by the order of the commentators to show and then by the heRef
-      (a, b) {
-    return commentatorsToShow
-        .indexOf(utils.getTitleFromPath(a.path2))
-        .compareTo(commentatorsToShow.indexOf(utils.getTitleFromPath(b.path2)));
-  });
   return allLinks;
 }

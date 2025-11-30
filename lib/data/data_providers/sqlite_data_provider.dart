@@ -5,6 +5,7 @@ import 'package:otzaria/models/books.dart';
 import 'package:otzaria/migration/dao/repository/seforim_repository.dart';
 import 'package:otzaria/migration/dao/drift/database.dart';
 import 'package:otzaria/migration/adapters/model_adapters.dart';
+import 'package:otzaria/data/constants/database_constants.dart';
 import 'package:path/path.dart' as path;
 
 /// A data provider that manages SQLite database operations for the library.
@@ -35,7 +36,7 @@ class SqliteDataProvider {
     if (_isInitialized) return;
     
     _libraryPath = Settings.getValue<String>('key-library-path') ?? '.';
-    _dbPath = path.join(_libraryPath, 'אוצריא', 'otzaria.db');
+    _dbPath = path.join(_libraryPath, DatabaseConstants.otzariaFolderName, DatabaseConstants.databaseFileName);
     
     debugPrint('Initializing SQLite database at: $_dbPath');
     

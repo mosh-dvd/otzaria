@@ -680,12 +680,39 @@ class FileSystemData {
   /// Reads the file line by line and returns the content at the specified index.
   Future<String> getLinkContent(Link link) async {
     try {
+      // Validate link data first
+      if (link.path2.isEmpty) {
+        debugPrint('⚠️ Empty path in link');
+        return 'שגיאה: נתיב ריק';
+      }
+      
+      if (link.index2 <= 0) {
+        debugPrint('⚠️ Invalid index in link: ${link.index2}');
+        return 'שגיאה: אינדקס לא תקין';
+      }
+
       String path = await _getBookPath(getTitleFromPath(link.path2));
       if (path.startsWith('error:')) {
+        debugPrint('⚠️ Book path not found for: ${link.path2}');
         return 'שגיאה בטעינת קובץ: ${link.path2}';
       }
-      return await getLineFromFile(path, link.index2);
+      
+      // Check if file exists before trying to read it
+      final file = File(path);
+      if (!await file.exists()) {
+        debugPrint('⚠️ File does not exist: $path');
+        return 'שגיאה: הקובץ לא נמצא';
+      }
+      
+      return await getLineFromFile(path, link.index2).timeout(
+        const Duration(seconds: 3),
+        onTimeout: () {
+          debugPrint('⚠️ Timeout reading line from file: $path');
+          return 'שגיאה: פג זמן קריאת הקובץ';
+        },
+      );
     } catch (e) {
+      debugPrint('⚠️ Error loading link content: $e');
       return 'שגיאה בטעינת תוכן המפרש: $e';
     }
   }
@@ -743,14 +770,51 @@ class FileSystemData {
   /// Uses a stream to read the file line by line until the desired index
   /// is reached, then closes the stream to conserve resources.
   Future<String> getLineFromFile(String path, int index) async {
-    File file = File(path);
-    final lines = file
-        .openRead()
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .take(index)
-        .toList();
-    return (await lines).last;
+    try {
+      File file = File(path);
+      
+      // Validate that file exists
+      if (!await file.exists()) {
+        debugPrint('⚠️ File does not exist: $path');
+        return 'שגיאה: הקובץ לא נמצא';
+      }
+      
+      // Validate index is positive
+      if (index <= 0) {
+        debugPrint('⚠️ Invalid line index: $index for file: $path');
+        return 'שגיאה: אינדקס שורה לא תקין';
+      }
+      
+      // Add timeout to prevent hanging
+      final lines = await file
+          .openRead()
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .take(index)
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: (sink) {
+              debugPrint('⚠️ Timeout reading file: $path');
+              sink.close();
+            },
+          )
+          .toList();
+      
+      if (lines.isEmpty) {
+        debugPrint('⚠️ No lines found in file: $path');
+        return 'שגיאה: הקובץ ריק';
+      }
+      
+      if (lines.length < index) {
+        debugPrint('⚠️ Line index $index exceeds file length ${lines.length} in: $path');
+        return 'שגיאה: אינדקס השורה חורג מגודל הקובץ';
+      }
+      
+      return lines.last;
+    } catch (e) {
+      debugPrint('⚠️ Error reading line from file $path: $e');
+      return 'שגיאה בקריאת הקובץ: $e';
+    }
   }
 
   /// Updates the mapping of book titles to their file system paths.

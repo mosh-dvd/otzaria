@@ -418,11 +418,28 @@ class _CommentaryListBaseState extends State<CommentaryListBase> {
                         ? [state.selectedIndex!]
                         : state.visibleIndices);
 
-                // סינון מהיר של קישורים רלוונטיים
-                final hasRelevantLinks = state.links.any((link) =>
-                    currentIndexes.contains(link.index1 - 1) &&
-                    state.activeCommentators
-                        .contains(utils.getTitleFromPath(link.path2)));
+                // אם אין מפרשים פעילים, לא מציג כלום
+                if (state.activeCommentators.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                // אם אין אינדקסים, לא מציג כלום
+                if (currentIndexes.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                // סינון מהיר של קישורים רלוונטיים - רק בודק את האינדקס הראשון
+                // כדי לא לעבור על כל הקישורים בכל פעם
+                final firstIndex = currentIndexes.first;
+                final hasRelevantLinks = state.links.any((link) {
+                  return link.index1 == firstIndex + 1 &&
+                      (link.connectionType == "commentary" ||
+                          link.connectionType == "targum") &&
+                      state.activeCommentators
+                          .contains(utils.getTitleFromPath(link.path2)) &&
+                      link.path2.isNotEmpty &&
+                      link.index2 > 0;
+                });
 
                 // אם אין קישורים רלוונטיים, לא מציג כלום
                 if (!hasRelevantLinks) {

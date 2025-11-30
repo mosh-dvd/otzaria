@@ -55,6 +55,8 @@ import 'package:shamor_zachor/services/dynamic_data_loader_service.dart';
 import 'package:otzaria/utils/toc_parser.dart';
 import 'package:otzaria/settings/backup_service.dart';
 import 'package:otzaria/services/sources_books_service.dart';
+import 'package:otzaria/file_sync/database_migration_bloc.dart';
+import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 
 // Global reference to window listener for cleanup
 AppWindowListener? _appWindowListener;
@@ -162,6 +164,11 @@ void main() async {
               repository: WorkspaceRepository(),
               tabsBloc: context.read<TabsBloc>(),
             )..add(LoadWorkspaces()),
+          ),
+          BlocProvider<DatabaseMigrationBloc>(
+            create: (context) => DatabaseMigrationBloc(
+              fileSystemData: FileSystemData(),
+            ),
           ),
           ChangeNotifierProvider<ShamorZachorDataProvider>(
             lazy: true, // Create only when needed

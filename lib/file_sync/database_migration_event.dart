@@ -48,3 +48,13 @@ class UpdateMigrationProgress extends DatabaseMigrationEvent {
   @override
   List<Object?> get props => [currentBook, processedCount, totalCount];
 }
+
+/// Event to migrate books from a specific folder
+class MigrateFolderToDatabase extends DatabaseMigrationEvent {
+  final String folderPath;
+
+  const MigrateFolderToDatabase(this.folderPath);
+
+  @override
+  List<Object?> get props => [folderPath];
+}

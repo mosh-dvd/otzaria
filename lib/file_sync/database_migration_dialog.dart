@@ -65,7 +65,7 @@ class DatabaseMigrationDialog extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'לאחר ההעברה, הקבצים המקוריים יימחקו.',
+              'לאחר ההעברה, הקבצים המקוריים יועתקו לתקייה "קבצים שטופלו".',
               style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
               textAlign: TextAlign.right,
             ),

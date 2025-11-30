@@ -7,6 +7,7 @@ import '../migration/core/models/generation_progress.dart';
 import '../migration/dao/drift/database.dart';
 import '../migration/dao/repository/seforim_repository.dart';
 import '../migration/generator/progress_generator.dart';
+import '../data/constants/database_constants.dart';
 
 enum DuplicateBookStrategy {
   skip,
@@ -71,8 +72,8 @@ class _DatabaseGenerationScreenState extends State<DatabaseGenerationScreen> {
       if (selectedDirectory != null) {
         _logger.info('Selected library folder: $selectedDirectory');
         
-        // Auto-set DB path to otzaria.db in the selected folder
-        final dbPath = '$selectedDirectory/otzaria.db';
+        // Auto-set DB path to database file in the selected folder
+        final dbPath = '$selectedDirectory/${DatabaseConstants.databaseFileName}';
         
         setState(() {
           _selectedLibraryPath = selectedDirectory;
@@ -741,7 +742,7 @@ class _DatabaseGenerationScreenState extends State<DatabaseGenerationScreen> {
               if (_progress.phase == GenerationPhase.idle)
                 Text(
                   'בחר תיקיית אוצריא.\n'
-                  'מסד הנתונים ייווצר אוטומטית בתיקייה (otzaria.db).\n'
+                  'מסד הנתונים ייווצר אוטומטית בתיקייה (${DatabaseConstants.databaseFileName}).\n'
                   'אם הקובץ קיים, הוא ישמש למסד הנתונים.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey[600],

@@ -38,7 +38,16 @@ class _CommentaryContentState extends State<CommentaryContent> {
   @override
   void initState() {
     super.initState();
-    content = widget.link.content;
+    _loadContent();
+  }
+
+  void _loadContent() {
+    // Validate link before loading content
+    if (widget.link.path2.isEmpty || widget.link.index2 <= 0) {
+      content = Future.value('שגיאה: קישור לא תקין');
+    } else {
+      content = widget.link.content;
+    }
   }
 
   @override
@@ -49,7 +58,9 @@ class _CommentaryContentState extends State<CommentaryContent> {
     if (oldWidget.link.path2 != widget.link.path2 ||
         oldWidget.link.index2 != widget.link.index2 ||
         oldWidget.link.heRef != widget.link.heRef) {
-      content = widget.link.content;
+      setState(() {
+        _loadContent();
+      });
     }
   }
 
@@ -76,7 +87,10 @@ class _CommentaryContentState extends State<CommentaryContent> {
         ));
       },
       child: FutureBuilder(
-          future: content,
+          future: content.timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => 'שגיאה: פג זמן טעינת הפירוש',
+          ),
           builder: (context, snapshot) {
             if (snapshot.hasData) {
               String text = snapshot.data!;
