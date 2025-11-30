@@ -174,11 +174,35 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
       await Settings.setValue<String>('key-library-path', event.path);
       FileSystemData.instance.libraryPath = event.path;
       DataRepository.instance.library = FileSystemData.instance.getLibrary();
+      
+      // טעינה מחדש של נתוני SourcesBooks.csv
+      try {
+        await SourcesBooksService().loadSourcesBooks();
+        developer.log('SourcesBooks.csv reloaded after path change', name: 'LibraryBloc');
+      } catch (e) {
+        developer.log('Warning: Could not reload SourcesBooks.csv', name: 'LibraryBloc', error: e);
+      }
+      
+      // פתיחה מחדש של אינדקס החיפוש
+      try {
+        TantivyDataProvider.instance.reopenIndex();
+      } catch (e) {
+        developer.log('Warning: Could not reopen search index', name: 'LibraryBloc', error: e);
+      }
+      
       final library = await _repository.library;
+      
+      // בחירת הספר הראשון לתצוגה מקדימה
+      final firstBook = _getFirstTextBook(library);
+      
       emit(state.copyWith(
         library: library,
         currentCategory: library,
         isLoading: false,
+        previewBook: firstBook,
+        searchResults: null,
+        searchQuery: null,
+        selectedTopics: null,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -195,11 +219,31 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     emit(state.copyWith(isLoading: true));
     try {
       await Settings.setValue<String>('key-hebrew-books-path', event.path);
+      
+      // רענון הספרייה כדי לטעון את הספרים החדשים
+      DataRepository.instance.library = FileSystemData.instance.getLibrary();
+      
+      // טעינה מחדש של נתוני SourcesBooks.csv
+      try {
+        await SourcesBooksService().loadSourcesBooks();
+        developer.log('SourcesBooks.csv reloaded after hebrew books path change', name: 'LibraryBloc');
+      } catch (e) {
+        developer.log('Warning: Could not reload SourcesBooks.csv', name: 'LibraryBloc', error: e);
+      }
+      
       final library = await _repository.library;
+      
+      // בחירת הספר הראשון לתצוגה מקדימה
+      final firstBook = _getFirstTextBook(library);
+      
       emit(state.copyWith(
         library: library,
         currentCategory: library,
         isLoading: false,
+        previewBook: firstBook,
+        searchResults: null,
+        searchQuery: null,
+        selectedTopics: null,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -266,8 +310,19 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
         includeHebrewBooks: event.showHebrewBooks ?? false,
       );
 
+      // בחירת הספר הראשון מתוצאות החיפוש לתצוגה מקדימה
+      Book? firstBook;
+      if (results.isNotEmpty) {
+        // העדפה לספר טקסט על פני PDF
+        firstBook = results.firstWhere(
+          (book) => book is TextBook,
+          orElse: () => results.first,
+        );
+      }
+
       emit(state.copyWith(
         searchResults: results,
+        previewBook: firstBook,
       ));
     } catch (e) {
       emit(state.copyWith(
@@ -281,7 +336,28 @@ class LibraryBloc extends Bloc<LibraryEvent, LibraryState> {
     SelectTopics event,
     Emitter<LibraryState> emit,
   ) {
-    emit(state.copyWith(selectedTopics: event.topics));
+    // כשמשנים את הנושאים, צריך לעדכן את הספר המוצג
+    // אם יש תוצאות חיפוש, נבחר את הספר הראשון מהרשימה המסוננת
+    Book? firstBook;
+    if (state.searchResults != null && state.searchResults!.isNotEmpty) {
+      final filteredResults = event.topics.isEmpty
+          ? state.searchResults!
+          : state.searchResults!.where((book) {
+              return event.topics.any((topic) => book.topics.contains(topic));
+            }).toList();
+      
+      if (filteredResults.isNotEmpty) {
+        firstBook = filteredResults.firstWhere(
+          (book) => book is TextBook,
+          orElse: () => filteredResults.first,
+        );
+      }
+    }
+    
+    emit(state.copyWith(
+      selectedTopics: event.topics,
+      previewBook: firstBook,
+    ));
   }
 
   void _onSelectBookForPreview(

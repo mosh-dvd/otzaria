@@ -181,6 +181,17 @@ class PersonalNotesStorage {
     final txtFile = await _getTxtFile(bookId);
     final jsonFile = await _getJsonFile(bookId);
 
+    // If no notes remain, delete both files
+    if (notes.isEmpty) {
+      if (await txtFile.exists()) {
+        await txtFile.delete();
+      }
+      if (await jsonFile.exists()) {
+        await jsonFile.delete();
+      }
+      return [];
+    }
+
     final buffer = StringBuffer();
 
     final updatedNotes = <PersonalNote>[];
@@ -284,6 +295,7 @@ class _MetadataOnlyNote {
   final String bookId;
   final int? lineNumber;
   final List<String> referenceWords;
+  final String? displayTitle;
   final int? lastKnownLine;
   final PersonalNoteStatus status;
   final PersonalNotePointer pointer;
@@ -295,6 +307,7 @@ class _MetadataOnlyNote {
     required this.bookId,
     required this.lineNumber,
     required this.referenceWords,
+    this.displayTitle,
     required this.lastKnownLine,
     required this.status,
     required this.pointer,
@@ -311,6 +324,7 @@ class _MetadataOnlyNote {
       bookId: bookId,
       lineNumber: lineNumber,
       referenceWords: referenceWords,
+      displayTitle: displayTitle,
       lastKnownLineNumber: lastKnownLine,
       status: status,
       pointer: pointer,
@@ -333,6 +347,7 @@ class _MetadataOnlyNote {
           .map((e) => e.toString())
           .where((element) => element.isNotEmpty)
           .toList(),
+      displayTitle: json['display_title'] as String?,
       lastKnownLine: json['last_known_line'] as int?,
       status: PersonalNoteStatus.values.byName(json['status'] as String),
       pointer: pointerJson is Map<String, dynamic>

@@ -20,12 +20,11 @@ class MoreScreen extends StatefulWidget {
 
 class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
   int _selectedIndex = 0;
-  int _currentPageIndex = 0;
   late final CalendarCubit _calendarCubit;
   late final SettingsRepository _settingsRepository;
   final GlobalKey<GematriaSearchScreenState> _gematriaKey =
       GlobalKey<GematriaSearchScreenState>();
-  late final PageController _pageController;
+  late final List<Widget> _pages;
 
   // Title for the ShamorZachor section (dynamic from the package)
   String _shamorZachorTitle = 'זכור ושמור';
@@ -42,7 +41,20 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
     super.initState();
     _settingsRepository = SettingsRepository();
     _calendarCubit = CalendarCubit(settingsRepository: _settingsRepository);
-    _pageController = PageController(initialPage: 0);
+
+    // יצירת הדפים פעם אחת ב-initState
+    _pages = [
+      BlocProvider.value(
+        value: _calendarCubit,
+        child: const CalendarWidget(),
+      ),
+      ShamorZachorWidget(
+        onTitleChanged: _updateShamorZachorTitle,
+      ),
+      const MeasurementConverterScreen(),
+      const PersonalNotesManagerScreen(),
+      GematriaSearchScreen(key: _gematriaKey),
+    ];
   }
 
   /// Reset to calendar page - public method for external access
@@ -51,16 +63,23 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
       setState(() {
         _selectedIndex = 0;
       });
-      if (_pageController.hasClients) {
-        _pageController.jumpToPage(0);
-      }
     }
+  }
+
+  Widget _buildCenteredLabel(String text) {
+    return SizedBox(
+      width: 74,
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 11),
+      ),
+    );
   }
 
   @override
   void dispose() {
     _calendarCubit.close();
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -84,149 +103,65 @@ class _MoreScreenState extends State<MoreScreen> with TickerProviderStateMixin {
         centerTitle: true,
         actions: _getActions(context, _selectedIndex),
       ),
-      body: OrientationBuilder(
-        builder: (context, orientation) {
-          if (isSmallScreen) {
-            // במסכים קטנים - השתמש ב-BottomNavigationBar
-            final pages = [
-              BlocProvider.value(
-                value: _calendarCubit,
-                child: const CalendarWidget(),
-              ),
-              ShamorZachorWidget(
-                onTitleChanged: _updateShamorZachorTitle,
-              ),
-              const MeasurementConverterScreen(),
-              const PersonalNotesManagerScreen(),
-              GematriaSearchScreen(key: _gematriaKey),
-            ];
-
-            return Column(
+      body: isSmallScreen
+          ? IndexedStack(
+              index: _selectedIndex,
+              children: _pages,
+            )
+          : Row(
               children: [
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    switchInCurve: Curves.easeInOut,
-                    switchOutCurve: Curves.easeInOut,
-                    transitionBuilder: (child, animation) {
-                      final offsetAnimation = Tween<Offset>(
-                        begin: orientation == Orientation.landscape
-                            ? const Offset(0.0, 0.3)
-                            : const Offset(0.3, 0.0),
-                        end: Offset.zero,
-                      ).animate(animation);
-
-                      return SlideTransition(
-                        position: offsetAnimation,
-                        child: FadeTransition(
-                          opacity: animation,
-                          child: child,
-                        ),
-                      );
+                SizedBox(
+                  width: 74,
+                  child: NavigationRail(
+                    selectedIndex: _selectedIndex,
+                    onDestinationSelected: (int index) {
+                      setState(() {
+                        _selectedIndex = index;
+                      });
                     },
-                    child: KeyedSubtree(
-                      key: ValueKey<int>(_currentPageIndex),
-                      child: pages[_currentPageIndex],
-                    ),
+                    labelType: NavigationRailLabelType.all,
+                    minWidth: 74,
+                    destinations: [
+                      NavigationRailDestination(
+                        icon: const Icon(Icons.calendar_month_outlined),
+                        label: _buildCenteredLabel('לוח שנה'),
+                      ),
+                      NavigationRailDestination(
+                        icon: const ImageIcon(
+                            AssetImage('assets/icon/זכור ושמור.png')),
+                        label: _buildCenteredLabel('זכור ושמור'),
+                      ),
+                      NavigationRailDestination(
+                        icon: const Icon(Icons.straighten),
+                        label: _buildCenteredLabel('מדות ושיעורים'),
+                      ),
+                      NavigationRailDestination(
+                        icon: const Icon(FluentIcons.note_24_regular),
+                        label: _buildCenteredLabel('הערות אישיות'),
+                      ),
+                      NavigationRailDestination(
+                        icon: const Icon(FluentIcons.calculator_24_regular),
+                        label: _buildCenteredLabel('גימטריות'),
+                      ),
+                    ],
+                  ),
+                ),
+                const VerticalDivider(thickness: 1, width: 1),
+                Expanded(
+                  child: IndexedStack(
+                    index: _selectedIndex,
+                    children: _pages,
                   ),
                 ),
               ],
-            );
-          }
-          // במסכים רחבים - השתמש ב-NavigationRail
-          final pages = [
-            BlocProvider.value(
-              value: _calendarCubit,
-              child: const CalendarWidget(),
             ),
-            ShamorZachorWidget(
-              onTitleChanged: _updateShamorZachorTitle,
-            ),
-            const MeasurementConverterScreen(),
-            const PersonalNotesManagerScreen(),
-            GematriaSearchScreen(key: _gematriaKey),
-          ];
-
-          return Row(
-            children: [
-              NavigationRail(
-                selectedIndex: _selectedIndex,
-                onDestinationSelected: (int index) {
-                  setState(() {
-                    _selectedIndex = index;
-                    _currentPageIndex = index;
-                  });
-                  if (_pageController.hasClients) {
-                    _pageController.jumpToPage(index);
-                  }
-                },
-                labelType: NavigationRailLabelType.all,
-                destinations: const [
-                  NavigationRailDestination(
-                    icon: Icon(Icons.calendar_month_outlined),
-                    label: Text('לוח שנה'),
-                  ),
-                  NavigationRailDestination(
-                    icon: ImageIcon(AssetImage('assets/icon/זכור ושמור.png')),
-                    label: Text('זכור ושמור'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.straighten),
-                    label: Text('מדות ושיעורים'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(FluentIcons.note_24_regular),
-                    label: Text('הערות אישיות'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(FluentIcons.calculator_24_regular),
-                    label: Text('גימטריות'),
-                  ),
-                ],
-              ),
-              const VerticalDivider(thickness: 1, width: 1),
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  switchInCurve: Curves.easeInOut,
-                  switchOutCurve: Curves.easeInOut,
-                  transitionBuilder: (child, animation) {
-                    final offsetAnimation = Tween<Offset>(
-                      begin: orientation == Orientation.landscape
-                          ? const Offset(0.0, 0.3)
-                          : const Offset(0.3, 0.0),
-                      end: Offset.zero,
-                    ).animate(animation);
-
-                    return SlideTransition(
-                      position: offsetAnimation,
-                      child: FadeTransition(
-                        opacity: animation,
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: KeyedSubtree(
-                    key: ValueKey<int>(_currentPageIndex),
-                    child: pages[_currentPageIndex],
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
       bottomNavigationBar: isSmallScreen
           ? BottomNavigationBar(
               currentIndex: _selectedIndex,
               onTap: (int index) {
                 setState(() {
                   _selectedIndex = index;
-                  _currentPageIndex = index;
                 });
-                if (_pageController.hasClients) {
-                  _pageController.jumpToPage(index);
-                }
               },
               type: BottomNavigationBarType.fixed,
               selectedFontSize: 11,

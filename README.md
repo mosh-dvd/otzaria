@@ -12,7 +12,7 @@
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
+[![GPL-3.0 License][license-shield]][license-url]
 
 
 
@@ -212,7 +212,13 @@ Don't forget to give the project a star! Thanks again!
 <!-- LICENSE -->
 ## License
 
-The code is totally open-sourced under the [Unlicense](https://unlicense.org/) license.
+The code is licensed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html).
+
+This means:
+- ✅ You can use, modify, and distribute this software
+- ✅ Any modifications must be released under the same GPL-3.0 license
+- ✅ Source code must be made available when distributing
+- ❌ Commercial use requires sharing all modifications and improvements
 
 The texts have different open licenses. You may check Sefaria's site for more info on that.
 
@@ -248,6 +254,9 @@ and Dicta association, by which many important books were added.
 <a href="http://mobile.tora.ws" title="ובלכתך בדרך" target="_blank"><img src="images/OnYourWay_logo.jpg" alt="ובלכתך בדרך" width="80" height="80"/></a>
 <a href="http://www.toratemetfreeware.com/index.html?downloads;1;" title="תורת אמת" target="_blank"><img src="images/toratemet.png" alt="תורת אמת" width="80" height="80"/></a>
 <a href="https://wiki.jewishbooks.org.il/mediawiki/wiki/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99" title="אוצר הספרים היהודי" target="_blank"><img src="images/JewishBook-logo-שקוף.png" alt="אוצר הספרים היהודי" width="200" height="80"/></a>
+<a href="https://he.wikisource.org/wiki" title="ויקיטקסט" target="_blank"><img src="images/wikisource.jpg" alt="ויקיטקסט" width="80" height="80"/></a>
+<a href="https://pninim.org/" title="פנינים" target="_blank"><img src="images/pninim.png" alt="פנינים" width="200" height="80"/></a>
+
 <!--a href="https://github.com/projectbenyehuda/public_domain_dump" title="פרוייקט בן יהודה" target="_blank"><img src="images/Project Ben-Yehuda logo.jpg" alt="פרוייקט בן יהודה" width="80" height="80"/></a -->
 
 The PDF viewer is powered by [pdfrx](https://pub.dev/packages/pdfrx).

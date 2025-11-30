@@ -74,7 +74,7 @@ Widget hebrewFlatChip({
       child: TextButton.icon(
         onPressed: startUpdate,
         icon: const Icon(FluentIcons.warning_24_regular),
-        label: const Text('שגיאה. נסה שוב.'),
+        label: const Text('שגיאה בחיבור לרשת במהלך בדיקת עדכונים'),
       ),
     );
   }

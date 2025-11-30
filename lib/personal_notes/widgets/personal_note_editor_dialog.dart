@@ -4,11 +4,15 @@ import 'package:flutter/services.dart';
 class PersonalNoteEditorDialog extends StatefulWidget {
   final TextEditingController controller;
   final String title;
+  final String? referenceText;
+  final IconData? icon;
 
   PersonalNoteEditorDialog({
     super.key,
     TextEditingController? controller,
     this.title = 'הערה חדשה',
+    this.referenceText,
+    this.icon,
   }) : controller = controller ?? TextEditingController();
 
   @override
@@ -144,19 +148,83 @@ class _PersonalNoteEditorDialogState extends State<PersonalNoteEditorDialog> {
           await _handleCancel();
         },
         child: AlertDialog(
-          title: Text(widget.title),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.icon != null) ...[
+                Icon(
+                  widget.icon,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                widget.title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
           content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: TextField(
-              controller: widget.controller,
-              focusNode: _textFieldFocusNode,
-              minLines: 5,
-              maxLines: 12,
-              autofocus: true,
-              keyboardType: TextInputType.multiline,
-              decoration: const InputDecoration(
-                hintText: 'כתבו כאן את ההערה האישית\n(Alt+Enter לשמירה)',
-                border: OutlineInputBorder(),
+            constraints: const BoxConstraints(
+              maxWidth: 480,
+              minWidth: 450,
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline,
+                  width: 1.5,
+                ),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (widget.referenceText != null && widget.referenceText!.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(4),
+                          topRight: Radius.circular(4),
+                        ),
+                      ),
+                      child: Text(
+                        widget.referenceText!,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                        textAlign: TextAlign.right,
+                        textDirection: TextDirection.rtl,
+                      ),
+                    ),
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                    ),
+                  ],
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextField(
+                      controller: widget.controller,
+                      focusNode: _textFieldFocusNode,
+                      minLines: 6,
+                      maxLines: 12,
+                      autofocus: true,
+                      keyboardType: TextInputType.multiline,
+                      decoration: const InputDecoration(
+                        hintText: 'כתוב כאן\n(Alt+Enter לשמירה)',
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(4),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,6 +12,7 @@ import 'package:otzaria/navigation/bloc/navigation_event.dart';
 import 'package:otzaria/navigation/bloc/navigation_state.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/settings/settings_event.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/empty_library/empty_library_screen.dart';
 import 'package:otzaria/find_ref/find_ref_dialog.dart';
@@ -26,6 +29,9 @@ import 'package:otzaria/tabs/bloc/tabs_bloc.dart';
 import 'package:otzaria/tabs/bloc/tabs_event.dart';
 import 'package:otzaria/tabs/models/searching_tab.dart';
 import 'package:otzaria/navigation/calendar_cubit.dart';
+import 'package:otzaria/widgets/ad_popup_dialog.dart';
+import 'package:window_manager/window_manager.dart';
+import 'package:otzaria/main.dart' show appWindowListener;
 
 class MainWindowScreen extends StatefulWidget {
   const MainWindowScreen({super.key});
@@ -51,7 +57,17 @@ class MainWindowScreenState extends State<MainWindowScreen>
   // rest of the application UI available.
   List<Widget> _pages = [];
 
+  // שמירת הדפים כדי שלא ייבנו מחדש
+  Widget? _cachedLibraryPage;
+  Widget? _cachedReadingPage;
+  Widget? _cachedMorePage;
+  Widget? _cachedSettingsPage;
+
+  // שמירת מצב הספרייה הקודם כדי לזהות שינויים
+  bool? _previousLibraryEmptyState;
+
   bool _hasCheckedAutoIndex = false;
+  bool _hasRestoredFullscreen = false;
 
   @override
   void initState() {
@@ -63,6 +79,48 @@ class MainWindowScreenState extends State<MainWindowScreen>
         Screen.library.index;
     _currentPageIndex = initialPage;
     pageController = PageController(initialPage: initialPage);
+
+    // הצגת פופאפ פרסומת אחרי 5 שניות
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AdPopupDialog.showIfNeeded(context);
+    });
+
+    // Setup fullscreen sync with window manager
+    _setupFullscreenSync();
+  }
+
+  /// Setup synchronization between window fullscreen state and settings
+  void _setupFullscreenSync() {
+    if (kIsWeb ||
+        (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS)) {
+      return;
+    }
+
+    // Listen for fullscreen changes from the window manager (e.g., user presses F11 in OS)
+    appWindowListener?.onFullscreenChanged = (isFullscreen) {
+      if (!mounted) return;
+      final settingsBloc = context.read<SettingsBloc>();
+      // Only update if the state is different to avoid loops
+      if (settingsBloc.state.isFullscreen != isFullscreen) {
+        settingsBloc.add(UpdateIsFullscreen(isFullscreen));
+      }
+    };
+  }
+
+  /// Restore fullscreen state from settings when app starts
+  Future<void> _restoreFullscreenState(BuildContext context) async {
+    if (_hasRestoredFullscreen) return;
+    _hasRestoredFullscreen = true;
+
+    if (kIsWeb ||
+        (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS)) {
+      return;
+    }
+
+    final settingsState = context.read<SettingsBloc>().state;
+    if (settingsState.isFullscreen) {
+      await windowManager.setFullScreen(true);
+    }
   }
 
   void _checkAndStartIndexing(BuildContext context) {
@@ -81,6 +139,8 @@ class MainWindowScreenState extends State<MainWindowScreen>
 
   @override
   void dispose() {
+    // Clean up fullscreen callback
+    appWindowListener?.onFullscreenChanged = null;
     _calendarCubit.close();
     pageController.dispose();
     super.dispose();
@@ -220,9 +280,13 @@ class MainWindowScreenState extends State<MainWindowScreen>
       setState(() {
         _currentPageIndex = targetPage;
       });
-      // סנכרון ה-PageController ללא אנימציה
+      // מעבר עם אנימציה
       if (pageController.hasClients) {
-        pageController.jumpToPage(targetPage);
+        pageController.animateToPage(
+          targetPage,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
       }
     }
 
@@ -255,6 +319,8 @@ class MainWindowScreenState extends State<MainWindowScreen>
           listener: (context, state) {
             // When settings are loaded for the first time, check if we should start indexing
             _checkAndStartIndexing(context);
+            // Also restore fullscreen state
+            _restoreFullscreenState(context);
           },
         ),
       ],
@@ -264,19 +330,31 @@ class MainWindowScreenState extends State<MainWindowScreen>
           builder: (context, state) {
             // Build the pages list here so we can inject the EmptyLibraryScreen
             // into the library page while keeping the rest of the app visible.
+            // נבנה את הדפים רק פעם אחת ונשמור אותם
+            // אם מצב הספרייה השתנה, נבנה מחדש את דף הספרייה
+            if (_cachedLibraryPage == null ||
+                state.isLibraryEmpty !=
+                    (_cachedLibraryPage is EmptyLibraryScreen) ||
+                _previousLibraryEmptyState != state.isLibraryEmpty) {
+              _cachedLibraryPage = state.isLibraryEmpty
+                  ? EmptyLibraryScreen(
+                      onLibraryLoaded: () {
+                        context.read<NavigationBloc>().refreshLibrary();
+                      },
+                    )
+                  : const LibraryBrowser();
+              _previousLibraryEmptyState = state.isLibraryEmpty;
+            }
+
+            _cachedReadingPage ??= const ReadingScreen();
+            _cachedMorePage ??= MoreScreen(key: moreScreenKey);
+            _cachedSettingsPage ??= const MySettingsScreen();
+
             _pages = [
-              KeepAlivePage(
-                child: state.isLibraryEmpty
-                    ? EmptyLibraryScreen(
-                        onLibraryLoaded: () {
-                          context.read<NavigationBloc>().refreshLibrary();
-                        },
-                      )
-                    : const LibraryBrowser(),
-              ),
-              const KeepAlivePage(child: ReadingScreen()),
-              KeepAlivePage(child: MoreScreen(key: moreScreenKey)),
-              const KeepAlivePage(child: MySettingsScreen()),
+              _cachedLibraryPage!,
+              _cachedReadingPage!,
+              _cachedMorePage!,
+              _cachedSettingsPage!,
             ];
 
             return SafeArea(
@@ -288,37 +366,20 @@ class MainWindowScreenState extends State<MainWindowScreen>
                       builder: (context, orientation) {
                         _handleOrientationChange(context, orientation);
 
-                        final pageView = AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          switchInCurve: Curves.easeInOut,
-                          switchOutCurve: Curves.easeInOut,
-                          transitionBuilder: (child, animation) {
-                            final offsetAnimation = Tween<Offset>(
-                              begin: orientation == Orientation.landscape
-                                  ? const Offset(0.0, 0.3)
-                                  : const Offset(0.3, 0.0),
-                              end: Offset.zero,
-                            ).animate(animation);
-
-                            return SlideTransition(
-                              position: offsetAnimation,
-                              child: FadeTransition(
-                                opacity: animation,
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: KeyedSubtree(
-                            key: ValueKey<int>(_currentPageIndex),
-                            child: _pages[_currentPageIndex],
-                          ),
+                        final pageView = PageView(
+                          controller: pageController,
+                          scrollDirection: orientation == Orientation.landscape
+                              ? Axis.vertical
+                              : Axis.horizontal,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: _pages,
                         );
 
                         if (orientation == Orientation.landscape) {
                           return Row(
                             children: [
                               SizedBox.fromSize(
-                                size: const Size.fromWidth(80),
+                                size: const Size.fromWidth(74),
                                 child: Material(
                                   color: Theme.of(context).colorScheme.surface,
                                   child: LayoutBuilder(
@@ -468,12 +529,15 @@ class MainWindowScreenState extends State<MainWindowScreen>
       return;
     }
 
+    final navigationBloc = context.read<NavigationBloc>();
+
     showDialog(
       context: context,
       builder: (context) => const SearchDialog(existingTab: null),
     ).then((_) {
       // אחרי סגירת הדיאלוג, אם אנחנו במסך reading/search, נוודא שהמצב מסונכרן
-      final currentScreen = context.read<NavigationBloc>().state.currentScreen;
+      if (!mounted) return;
+      final currentScreen = navigationBloc.state.currentScreen;
       if (currentScreen == Screen.reading || currentScreen == Screen.search) {
         _syncPageWithState();
       }
@@ -509,12 +573,15 @@ class MainWindowScreenState extends State<MainWindowScreen>
   }
 
   void _handleFindRefOpen(BuildContext context) {
+    final navigationBloc = context.read<NavigationBloc>();
+
     showDialog(
       context: context,
       builder: (context) => FindRefDialog(),
     ).then((_) {
       // אחרי סגירת הדיאלוג, אם אנחנו במסך reading, נוודא שהמצב מסונכרן
-      final currentScreen = context.read<NavigationBloc>().state.currentScreen;
+      if (!mounted) return;
+      final currentScreen = navigationBloc.state.currentScreen;
       if (currentScreen == Screen.reading || currentScreen == Screen.search) {
         _syncPageWithState();
       }
@@ -551,7 +618,7 @@ class MainWindowScreenState extends State<MainWindowScreen>
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      width: 80,
+      width: 74,
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -602,14 +669,14 @@ class MainWindowScreenState extends State<MainWindowScreen>
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              minimumSize: const Size(64, 25),
+              minimumSize: const Size(56, 25),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             destination.label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: isSelected
                   ? colorScheme.onSecondaryContainer
                   : colorScheme.onSurfaceVariant,

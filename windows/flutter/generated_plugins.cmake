@@ -6,7 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   irondash_engine_context
   isar_flutter_libs
   printing
-  screen_retriever
+  screen_retriever_windows
   sqlite3_flutter_libs
   super_native_extensions
   url_launcher_windows
@@ -14,7 +14,8 @@ list(APPEND FLUTTER_PLUGIN_LIST
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
-  pdfrx
+  flutter_local_notifications_windows
+  pdfium_flutter
   search_engine
 )
 

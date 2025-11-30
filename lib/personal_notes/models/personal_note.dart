@@ -66,6 +66,11 @@ class PersonalNote extends Equatable {
   /// First 10 words that were captured from the line when the note was created.
   final List<String> referenceWords;
 
+  /// Display title for the note - either the text selected by the user,
+  /// or the original text from the beginning of the line (without normalization).
+  /// This is shown to the user instead of "Line X".
+  final String? displayTitle;
+
   /// If the note lost its anchor, we keep the previous line number for UI hints.
   final int? lastKnownLineNumber;
 
@@ -89,6 +94,7 @@ class PersonalNote extends Equatable {
     required this.bookId,
     required this.lineNumber,
     required this.referenceWords,
+    this.displayTitle,
     required this.lastKnownLineNumber,
     required this.status,
     required this.pointer,
@@ -102,9 +108,20 @@ class PersonalNote extends Equatable {
   /// First 10 reference words as a single string separated by spaces.
   String get referenceSignature => referenceWords.join(' ');
 
+  /// Get the title to display - either the stored displayTitle or fallback to reference words.
+  String get title {
+    if (displayTitle?.isNotEmpty == true) {
+      return displayTitle!;
+    }
+    // Fallback to reference words (for old notes)
+    return referenceWords.take(5).join(' ');
+  }
+
   PersonalNote copyWith({
     int? lineNumber,
     List<String>? referenceWords,
+    String? displayTitle,
+    bool clearDisplayTitle = false,
     int? lastKnownLineNumber,
     PersonalNoteStatus? status,
     PersonalNotePointer? pointer,
@@ -117,6 +134,7 @@ class PersonalNote extends Equatable {
       bookId: bookId,
       lineNumber: lineNumber ?? this.lineNumber,
       referenceWords: referenceWords ?? this.referenceWords,
+      displayTitle: clearDisplayTitle ? null : (displayTitle ?? this.displayTitle),
       lastKnownLineNumber: lastKnownLineNumber ?? this.lastKnownLineNumber,
       status: status ?? this.status,
       pointer: pointer ?? this.pointer,
@@ -131,6 +149,7 @@ class PersonalNote extends Equatable {
         'book_id': bookId,
         'line': lineNumber,
         'reference_words': referenceWords,
+        'display_title': displayTitle,
         'last_known_line': lastKnownLineNumber,
         'status': status.name,
         'pointer': pointer.toJson(),
@@ -148,6 +167,7 @@ class PersonalNote extends Equatable {
       bookId: json['book_id'] as String,
       lineNumber: json['line'] as int?,
       referenceWords: rawWords.map((e) => e.toString()).where((e) => e.isNotEmpty).toList(),
+      displayTitle: json['display_title'] as String?,
       lastKnownLineNumber: json['last_known_line'] as int?,
       status: PersonalNoteStatus.values.byName(json['status'] as String),
       pointer: PersonalNotePointer.fromJson(json['pointer'] as Map<String, dynamic>),
@@ -163,6 +183,7 @@ class PersonalNote extends Equatable {
         bookId,
         lineNumber,
         referenceWords,
+        displayTitle,
         lastKnownLineNumber,
         status,
         pointer,

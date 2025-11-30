@@ -36,8 +36,9 @@ class SearchingTab extends OpenedTab {
 
   SearchingTab(
     super.title,
-    String? searchText,
-  ) {
+    String? searchText, {
+    super.isPinned = false,
+  }) {
     if (searchText != null) {
       queryController.text = searchText;
       searchBloc.add(UpdateSearchQuery(searchText.trim()));
@@ -143,7 +144,8 @@ class SearchingTab extends OpenedTab {
 
   @override
   factory SearchingTab.fromJson(Map<String, dynamic> json) {
-    final tab = SearchingTab(json['title'], json['searchText']);
+    final tab = SearchingTab(json['title'], json['searchText'],
+        isPinned: json['isPinned'] ?? false);
     return tab;
   }
 
@@ -152,6 +154,7 @@ class SearchingTab extends OpenedTab {
     return {
       'title': title,
       'searchText': queryController.text,
+      'isPinned': isPinned,
       'type': 'SearchingTabWindow'
     };
   }

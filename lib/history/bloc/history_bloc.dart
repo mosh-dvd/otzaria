@@ -11,6 +11,7 @@ import 'package:otzaria/tabs/models/tab.dart';
 import 'package:otzaria/tabs/models/text_tab.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/utils/ref_helper.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 class HistoryBloc extends Bloc<HistoryEvent, HistoryState> {
   final HistoryRepository _repository;
@@ -96,13 +97,53 @@ class HistoryBloc extends Bloc<HistoryEvent, HistoryState> {
     } else if (tab is PdfBookTab) {
       if (!tab.pdfViewerController.isReady) return null;
       final page = tab.pdfViewerController.pageNumber ?? 1;
+
+      // נסה למצוא כותרת מה-outline
+      String ref;
+      final outline = tab.outline.value;
+      if (outline != null && outline.isNotEmpty) {
+        final heading = _findHeadingForPage(outline, page);
+        if (heading != null) {
+          ref = '${tab.title} $heading'; // שם הספר + הכותרת
+        } else {
+          ref = '${tab.title} עמוד $page'; // אם אין כותרת, הצג עם מספר עמוד
+        }
+      } else {
+        ref = '${tab.title} עמוד $page'; // אם אין outline, הצג עם מספר עמוד
+      }
+
       return Bookmark(
-        ref: '${tab.title} עמוד $page',
+        ref: ref,
         book: tab.book,
         index: page,
       );
     }
     return null;
+  }
+
+  /// מוצא את הכותרת המתאימה לעמוד מסוים ב-outline
+  String? _findHeadingForPage(List<PdfOutlineNode> outline, int page) {
+    PdfOutlineNode? bestMatch;
+
+    void searchNodes(List<PdfOutlineNode> nodes) {
+      for (final node in nodes) {
+        final nodePage = node.dest?.pageNumber;
+        if (nodePage != null && nodePage <= page) {
+          // אם זה העמוד המדויק או קרוב יותר מהמצא הקודם
+          if (bestMatch == null ||
+              nodePage > (bestMatch!.dest?.pageNumber ?? 0)) {
+            bestMatch = node;
+          }
+          // חפש גם בילדים
+          if (node.children.isNotEmpty) {
+            searchNodes(node.children);
+          }
+        }
+      }
+    }
+
+    searchNodes(outline);
+    return bestMatch?.title;
   }
 
   String _buildFormattedQuery(SearchingTab tab) {

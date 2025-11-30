@@ -28,7 +28,7 @@ class PersonalNotesService {
     final reconciled = <PersonalNote>[];
 
     for (final note in notes) {
-      final updated = _reconcileLocation(note, lines);
+      final updated = _reconcileLocation(note, lines, bookId);
       if (updated != note) {
         changesDetected = true;
       }
@@ -50,13 +50,21 @@ class PersonalNotesService {
     required String bookContent,
     required int lineNumber,
     required String content,
+    String? selectedText,
   }) async {
     final notes = await _storage.readNotes(bookId);
     final lines = splitBookContentIntoLines(bookContent);
     final normalizedLineNumber = lineNumber.clamp(1, lines.length);
 
     final referenceWords =
-        extractReferenceWordsFromLines(lines, normalizedLineNumber);
+        extractReferenceWordsFromLines(lines, normalizedLineNumber, excludeBookTitle: bookId);
+    
+    // Use selectedText if provided, otherwise extract display text from the line
+    // Always remove nikud and te'amim from the display title
+    final trimmedSelectedText = selectedText?.trim();
+    final displayTitle = (trimmedSelectedText != null && trimmedSelectedText.isNotEmpty)
+        ? removeHebrewDiacritics(trimmedSelectedText)
+        : extractDisplayTextFromLines(lines, normalizedLineNumber, excludeBookTitle: bookId);
 
     final now = DateTime.now();
     final newNote = PersonalNote(
@@ -64,6 +72,7 @@ class PersonalNotesService {
       bookId: bookId,
       lineNumber: normalizedLineNumber,
       referenceWords: referenceWords,
+      displayTitle: displayTitle,
       lastKnownLineNumber: null,
       status: PersonalNoteStatus.located,
       pointer: const PersonalNotePointer(textStartLine: 0, textLineCount: 0),
@@ -141,12 +150,15 @@ class PersonalNotesService {
     final lines = splitBookContentIntoLines(bookContent);
     final normalizedLineNumber = lineNumber.clamp(1, lines.length);
     final newReference =
-        extractReferenceWordsFromLines(lines, normalizedLineNumber);
+        extractReferenceWordsFromLines(lines, normalizedLineNumber, excludeBookTitle: bookId);
+    final newDisplayTitle =
+        extractDisplayTextFromLines(lines, normalizedLineNumber, excludeBookTitle: bookId);
     final now = DateTime.now();
 
     final updatedNote = notes[index].copyWith(
       lineNumber: normalizedLineNumber,
       referenceWords: newReference,
+      displayTitle: newDisplayTitle,
       lastKnownLineNumber: null,
       status: PersonalNoteStatus.located,
       updatedAt: now,
@@ -169,14 +181,14 @@ class PersonalNotesService {
     final reconciled = <PersonalNote>[];
 
     for (final note in notes) {
-      final updated = _reconcileLocation(note, lines);
+      final updated = _reconcileLocation(note, lines, bookId);
       reconciled.add(updated);
     }
 
     return await _storage.writeNotes(bookId, sortPersonalNotes(reconciled));
   }
 
-  PersonalNote _reconcileLocation(PersonalNote note, List<String> lines) {
+  PersonalNote _reconcileLocation(PersonalNote note, List<String> lines, String bookId) {
     if (note.status == PersonalNoteStatus.missing || note.lineNumber == null) {
       return note;
     }
@@ -192,10 +204,11 @@ class PersonalNotesService {
     }
 
     final actualWords =
-        extractReferenceWordsFromLines(lines, note.lineNumber!);
+        extractReferenceWordsFromLines(lines, note.lineNumber!, excludeBookTitle: bookId);
 
     if (_wordsMatch(note.referenceWords, actualWords)) {
-      // no change required, but keep reference words up to date as they might shrink (new line shorter)
+      // no change required, but keep reference words up to date
+      // IMPORTANT: We keep the existing displayTitle - don't overwrite it!
       if (const ListEquality<String>().equals(note.referenceWords, actualWords)) {
         return note;
       }
@@ -205,8 +218,9 @@ class PersonalNotesService {
       );
     }
 
-    final match = _searchNearby(lines, note.lineNumber!, note.referenceWords);
+    final match = _searchNearby(lines, note.lineNumber!, note.referenceWords, bookId);
     if (match != null) {
+      // When we find the note in a new location, keep the existing displayTitle
       return note.copyWith(
         lineNumber: match.line,
         referenceWords: match.words,
@@ -228,6 +242,7 @@ class PersonalNotesService {
     List<String> lines,
     int centerLine,
     List<String> reference,
+    String bookId,
   ) {
     for (int offset = -5; offset <= 5; offset++) {
       if (offset == 0) continue;
@@ -236,7 +251,7 @@ class PersonalNotesService {
         continue;
       }
 
-      final words = extractReferenceWordsFromLines(lines, candidateLine);
+      final words = extractReferenceWordsFromLines(lines, candidateLine, excludeBookTitle: bookId);
       if (_wordsMatch(reference, words)) {
         return _LineMatch(line: candidateLine, words: words);
       }

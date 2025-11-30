@@ -13,7 +13,7 @@ import 'package:otzaria/core/app_paths.dart';
 class TantivyDataProvider {
   /// Instance of the search engine pointing to the index directory
   late Future<SearchEngine> engine;
-  late ReferenceSearchEngine refEngine;
+  late Future<ReferenceSearchEngine> refEngine;
 
   static final TantivyDataProvider _singleton = TantivyDataProvider();
   static TantivyDataProvider instance = _singleton;
@@ -50,17 +50,20 @@ class TantivyDataProvider {
 
     engine = Future.value(SearchEngine(path: indexPath));
 
-    try {
-      refEngine = ReferenceSearchEngine(path: refIndexPath);
-    } catch (e) {
-      if (e.toString() ==
-          "PanicException(Failed to create index: SchemaError(\"An index exists but the schema does not match.\"))") {
-        resetIndex(indexPath);
-        reopenIndex();
-      } else {
-        rethrow;
+    refEngine = Future(() {
+      try {
+        return ReferenceSearchEngine(path: refIndexPath);
+      } catch (e) {
+        if (e.toString() ==
+            "PanicException(Failed to create index: SchemaError(\"An index exists but the schema does not match.\"))") {
+          resetIndex(indexPath);
+          reopenIndex();
+          throw Exception('Index reset required, please try again');
+        } else {
+          rethrow;
+        }
       }
-    }
+    });
     //test the engine
     engine.then((value) {
       try {
@@ -199,7 +202,8 @@ class TantivyDataProvider {
 
   Future<List<ReferenceSearchResult>> searchRefs(
       String reference, int limit, bool fuzzy) async {
-    return refEngine.search(
+    final engine = await refEngine;
+    return engine.search(
         query: reference,
         limit: limit,
         fuzzy: fuzzy,
@@ -283,7 +287,7 @@ class TantivyDataProvider {
     isIndexing.value = false;
     final index = await engine;
     await index.clear();
-    final refIndex = refEngine;
+    final refIndex = await refEngine;
     await refIndex.clear();
     booksDone.clear();
     await saveBooksDoneToDisk();

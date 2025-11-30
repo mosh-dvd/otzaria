@@ -33,7 +33,7 @@ class _PdfCommentatorsSelectorState extends State<PdfCommentatorsSelector> {
   List<String> _modern = [];
   List<String> _ungrouped = [];
   List<CommentatorGroup> _groups = [];
-  
+
   static const String _torahShebichtavTitle = '__TITLE_TORAH_SHEBICHTAV__';
   static const String _chazalTitle = '__TITLE_CHAZAL__';
   static const String _rishonimTitle = '__TITLE_RISHONIM__';
@@ -53,7 +53,7 @@ class _PdfCommentatorsSelectorState extends State<PdfCommentatorsSelector> {
     _loadCommentatorGroups();
   }
 
-  void _loadCommentatorGroups() {
+  void _loadCommentatorGroups() async {
     // חילוץ רשימת המפרשים הייחודיים מה-links
     final commentatorsSet = <String>{};
     for (final link in widget.tab.links) {
@@ -64,16 +64,53 @@ class _PdfCommentatorsSelectorState extends State<PdfCommentatorsSelector> {
       }
     }
 
-    // יצירת קבוצות מפרשים פשוטה - כל המפרשים בקבוצה אחת
+    final availableCommentators = commentatorsSet.toList();
+
+    // חלוקת המפרשים לפי דורות
+    final eras = await utils.splitByEra(availableCommentators);
+
+    // יצירת קבוצות מפרשים לפי דורות
+    final known = <String>{
+      ...?eras['תורה שבכתב'],
+      ...?eras['חז"ל'],
+      ...?eras['ראשונים'],
+      ...?eras['אחרונים'],
+      ...?eras['מחברי זמננו'],
+    };
+
+    final others = (eras['מפרשים נוספים'] ?? [])
+        .toSet()
+        .union(availableCommentators
+            .where((c) => !known.contains(c))
+            .toList()
+            .toSet())
+        .toList();
+
     _groups = [
-      const CommentatorGroup(title: 'תורה שבכתב', commentators: []),
-      const CommentatorGroup(title: 'חז"ל', commentators: []),
-      const CommentatorGroup(title: 'ראשונים', commentators: []),
-      const CommentatorGroup(title: 'אחרונים', commentators: []),
-      const CommentatorGroup(title: 'מחברי זמננו', commentators: []),
       CommentatorGroup(
-          title: 'שאר מפרשים',
-          commentators: commentatorsSet.toList()..sort()),
+        title: 'תורה שבכתב',
+        commentators: eras['תורה שבכתב'] ?? const [],
+      ),
+      CommentatorGroup(
+        title: 'חז"ל',
+        commentators: eras['חז"ל'] ?? const [],
+      ),
+      CommentatorGroup(
+        title: 'ראשונים',
+        commentators: eras['ראשונים'] ?? const [],
+      ),
+      CommentatorGroup(
+        title: 'אחרונים',
+        commentators: eras['אחרונים'] ?? const [],
+      ),
+      CommentatorGroup(
+        title: 'מחברי זמננו',
+        commentators: eras['מחברי זמננו'] ?? const [],
+      ),
+      CommentatorGroup(
+        title: 'שאר מפרשים',
+        commentators: others,
+      ),
     ];
     _update();
   }
@@ -199,9 +236,8 @@ class _PdfCommentatorsSelectorState extends State<PdfCommentatorsSelector> {
             ),
             child: Chip(
               label: Text(item),
-              backgroundColor: isSelected!
-                  ? Theme.of(context).colorScheme.secondary
-                  : null,
+              backgroundColor:
+                  isSelected! ? Theme.of(context).colorScheme.secondary : null,
               labelStyle: TextStyle(
                 color: isSelected
                     ? Theme.of(context).colorScheme.onSecondary

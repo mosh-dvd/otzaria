@@ -188,6 +188,41 @@ class _ResponsiveActionBarState extends State<ResponsiveActionBar> {
           },
           itemBuilder: (context) {
             return hiddenActions.map((action) {
+              // אם יש submenuItems, נבנה תת-תפריט
+              if (action.submenuItems != null && action.submenuItems!.isNotEmpty) {
+                return PopupMenuItem<ActionButtonData>(
+                  enabled: false,
+                  padding: EdgeInsets.zero,
+                  child: SubmenuButton(
+                    menuChildren: action.submenuItems!.map((subAction) {
+                      return MenuItemButton(
+                        leadingIcon: subAction.icon != null ? Icon(subAction.icon, size: 20) : null,
+                        onPressed: () {
+                          Navigator.of(context).pop(); // סוגר את התפריט הראשי
+                          subAction.onPressed?.call();
+                        },
+                        child: Text(subAction.tooltip ?? ''),
+                      );
+                    }).toList(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (action.icon != null) ...[
+                            Icon(action.icon),
+                            const SizedBox(width: 8),
+                          ],
+                          Expanded(child: Text(action.tooltip ?? '')),
+                          const Icon(Icons.arrow_left, size: 16),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+              
+              // פריט רגיל ללא submenu
               return PopupMenuItem<ActionButtonData>(
                 value: action,
                 child: Row(
@@ -223,11 +258,15 @@ class ActionButtonData {
   /// הפעולה לביצוע כשלוחצים על הכפתור בתפריט
   final VoidCallback? onPressed;
 
+  /// רשימת פריטי תת-תפריט (אם קיימת, זה יהיה submenu)
+  final List<ActionButtonData>? submenuItems;
+
   const ActionButtonData({
     required this.widget,
     this.icon,
     this.tooltip,
     this.onPressed,
+    this.submenuItems,
   });
 
   @override

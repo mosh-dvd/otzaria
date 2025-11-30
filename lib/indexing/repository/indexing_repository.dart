@@ -8,6 +8,7 @@ import 'package:otzaria/models/books.dart';
 import 'package:otzaria/utils/text_manipulation.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:otzaria/utils/ref_helper.dart';
+import 'package:search_engine/search_engine.dart';
 
 class IndexingRepository {
   final TantivyDataProvider _tantivyDataProvider;
@@ -74,8 +75,7 @@ class IndexingRepository {
         await Future.delayed(Duration.zero);
       }
 
-    await Future.delayed(Duration.zero); 
-
+      await Future.delayed(Duration.zero);
     }
 
     // Reset indexing flag after completion
@@ -85,7 +85,7 @@ class IndexingRepository {
   /// Indexes a text-based book by processing its content and adding it to the search index and reference index.
   Future<void> _indexTextBook(TextBook book) async {
     final index = await _tantivyDataProvider.engine;
-    final refIndex = _tantivyDataProvider.refEngine;
+    final refIndex = await _tantivyDataProvider.refEngine;
     var text = await book.text;
     final title = book.title;
     final topics = "/${book.topics.replaceAll(', ', '/')}";
@@ -98,7 +98,7 @@ class IndexingRepository {
       if (!_tantivyDataProvider.isIndexing.value) {
         return;
       }
-      
+
       // Yield control periodically to prevent blocking
       if (i % 100 == 0) {
         await Future.delayed(Duration.zero);
@@ -119,13 +119,14 @@ class IndexingRepository {
 
         // Index the header as a reference
         String refText = stripHtmlIfNeeded(reference.join(" "));
-        final shortref = replaceParaphrases(removeSectionNames(refText));
+        // שומרים את ה-reference המקורי ללא עיבוד
+        // הנרמול יתבצע בשלב החיפוש, לא באינדקס
 
         refIndex.addDocument(
             id: BigInt.from(DateTime.now().microsecondsSinceEpoch),
             title: title,
             reference: refText,
-            shortRef: shortref,
+            shortRef: refText, // שומרים את המקור
             segment: BigInt.from(i),
             isPdf: false,
             filePath: '');
@@ -154,6 +155,9 @@ class IndexingRepository {
   /// Indexes a PDF book by extracting and processing text from each page.
   Future<void> _indexPdfBook(PdfBook book) async {
     final index = await _tantivyDataProvider.engine;
+    final refIndex = await _tantivyDataProvider.refEngine;
+
+    debugPrint('?? PDF indexing started: "${book.title}" (${book.path})');
 
     // Extract text from each page
     final document = await PdfDocument.openFile(book.path);
@@ -162,15 +166,41 @@ class IndexingRepository {
     final title = book.title;
     final topics = "/${book.topics.replaceAll(', ', '/')}";
 
+    debugPrint(
+        '?? PDF outline items: ${outline.length}, pages: ${pages.length}');
+
+    // Index the PDF outline (headings) as references so find-ref can surface them
+    if (outline.isNotEmpty) {
+      // קודם נוסיף ערך לשם הספר עצמו (depth 1)
+      refIndex.addDocument(
+        id: BigInt.from(DateTime.now().microsecondsSinceEpoch),
+        title: title,
+        reference: title,
+        shortRef: title,
+        segment: BigInt.from(1),
+        isPdf: true,
+        filePath: book.path,
+      );
+      debugPrint('✅ Added PDF book root: "$title" file: ${book.path}');
+
+      await _indexPdfOutline(
+        outline,
+        title,
+        book.path,
+        refIndex,
+      );
+    }
+
     // Process each page
     for (int i = 0; i < pages.length; i++) {
-      final texts = (await pages[i].loadText()).fullText.split('\n');
+      final pageText = await pages[i].loadText();
+      final texts = pageText?.fullText.split('\n') ?? [];
       // Index each line from the page
       for (int j = 0; j < texts.length; j++) {
         if (!_tantivyDataProvider.isIndexing.value) {
           return;
         }
-        
+
         // Yield control periodically to prevent blocking
         if (j % 50 == 0) {
           await Future.delayed(Duration.zero);
@@ -192,7 +222,80 @@ class IndexingRepository {
     }
 
     await index.commit();
+    await refIndex.commit();
     saveIndexedBooks();
+  }
+
+  /// Index PDF outline (bookmarks/headings) recursively into the reference index.
+  Future<void> _indexPdfOutline(
+    List<PdfOutlineNode> outline,
+    String bookTitle,
+    String filePath,
+    ReferenceSearchEngine refIndex, {
+    String parentRef = '',
+  }) async {
+    debugPrint(
+        '?? Indexing PDF outline level (parent="$parentRef") with ${outline.length} nodes');
+
+    for (final node in outline) {
+      if (!_tantivyDataProvider.isIndexing.value) {
+        return;
+      }
+
+      final nodeTitle = node.title.trim().replaceAll('\n', ' ');
+      debugPrint(
+          '?? Outline node: "$nodeTitle" (children: ${node.children.length}, dest: ${node.dest?.pageNumber})');
+      if (nodeTitle.isEmpty) {
+        // Still traverse children to avoid losing deeper headings
+        if (node.children.isNotEmpty) {
+          await _indexPdfOutline(
+            node.children,
+            bookTitle,
+            filePath,
+            refIndex,
+            parentRef: parentRef,
+          );
+        }
+        continue;
+      }
+
+      final isDuplicateRoot = parentRef.isEmpty &&
+          nodeTitle.toLowerCase() == bookTitle.toLowerCase();
+      final baseRef = parentRef.isEmpty ? bookTitle : parentRef;
+      final currentRef = isDuplicateRoot ? baseRef : '$baseRef, $nodeTitle';
+      final pageNumber = node.dest?.pageNumber ?? 1;
+
+      // Only add navigable headings (ones with a destination)
+      if (node.dest != null && pageNumber > 0 && !isDuplicateRoot) {
+        // שומרים את ה-reference המקורי ללא עיבוד
+        // הנרמול יתבצע בשלב החיפוש, לא באינדקס
+        refIndex.addDocument(
+          id: BigInt.from(DateTime.now().microsecondsSinceEpoch),
+          title: bookTitle,
+          reference: currentRef,
+          shortRef: currentRef, // שומרים את המקור
+          segment: BigInt.from(pageNumber),
+          isPdf: true,
+          filePath: filePath,
+        );
+        debugPrint(
+            '✅ Added PDF outline ref: "$currentRef" (page $pageNumber) file: $filePath');
+      }
+
+      // Recursively index children
+      if (node.children.isNotEmpty) {
+        await _indexPdfOutline(
+          node.children,
+          bookTitle,
+          filePath,
+          refIndex,
+          parentRef: currentRef,
+        );
+      }
+
+      // Yield to event loop periodically
+      await Future.delayed(Duration.zero);
+    }
   }
 
   /// Cancels the ongoing indexing process.

@@ -58,10 +58,19 @@ void main() {
     });
 
     test('mock rebase service should return success', () async {
-      when(mockRebaseService.rebaseOverride(any, any))
-          .thenAnswer((_) async => RebaseOutcome.success);
+      when(mockRebaseService.rebaseIfSourceChanged(
+        bookId: anyNamed('bookId'),
+        sectionId: anyNamed('sectionId'),
+        originalCandidate: anyNamed('originalCandidate'),
+        overrideMarkdown: anyNamed('overrideMarkdown'),
+      )).thenAnswer((_) async => RebaseOutcome.success);
 
-      final result = await mockRebaseService.rebaseOverride(null, 'content');
+      final result = await mockRebaseService.rebaseIfSourceChanged(
+        bookId: 'book',
+        sectionId: 'section',
+        originalCandidate: 'original',
+        overrideMarkdown: 'content',
+      );
       expect(result, RebaseOutcome.success);
     });
   });

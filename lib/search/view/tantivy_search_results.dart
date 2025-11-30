@@ -517,7 +517,7 @@ class _TantivySearchResultsState extends State<TantivySearchResults> {
                             const SizedBox(height: 8),
                             // הטקסט שנמצא
                             RichText(
-                              textAlign: TextAlign.right,
+                              textAlign: TextAlign.justify,
                               text: TextSpan(
                                 style: TextStyle(
                                   fontSize: 16,
