@@ -61,8 +61,9 @@ class PersonalNotesService {
     
     // Use selectedText if provided, otherwise extract display text from the line
     // Always remove nikud and te'amim from the display title
-    final displayTitle = selectedText?.trim().isNotEmpty == true
-        ? removeHebrewDiacritics(selectedText!.trim())
+    final trimmedSelectedText = selectedText?.trim();
+    final displayTitle = (trimmedSelectedText != null && trimmedSelectedText.isNotEmpty)
+        ? removeHebrewDiacritics(trimmedSelectedText)
         : extractDisplayTextFromLines(lines, normalizedLineNumber, excludeBookTitle: bookId);
 
     final now = DateTime.now();

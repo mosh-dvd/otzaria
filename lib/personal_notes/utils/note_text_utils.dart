@@ -92,11 +92,12 @@ String extractDisplayTextFromLine(
   final selectedWords = <String>[];
   
   for (final word in words) {
-    if (word.trim().isEmpty) continue;
+    final trimmedWord = word.trim();
+    if (trimmedWord.isEmpty) continue;
     
     // Skip words that are part of the book title
-    if (!excludedWords.contains(word.trim().toLowerCase())) {
-      selectedWords.add(word);
+    if (!excludedWords.contains(trimmedWord.toLowerCase())) {
+      selectedWords.add(trimmedWord);
       if (selectedWords.length == maxWords) {
         break;
       }
