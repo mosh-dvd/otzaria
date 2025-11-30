@@ -454,52 +454,54 @@ class _BookPreviewPanelState extends State<BookPreviewPanel> {
   Widget _buildSkeletonLoading() {
     final baseColor = Theme.of(context).colorScheme.surfaceContainerHighest;
     
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // כותרת רמה 1 (כמו "פרק א")
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 16.0),
-              child: _SkeletonLine(width: 0.25, height: 36, color: baseColor),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // כותרת רמה 1 (כמו "פרק א")
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: _SkeletonLine(width: 0.25, height: 36, color: baseColor),
+              ),
             ),
-          ),
-          // כותרת רמה 2 (כמו "משנה א")
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: _SkeletonLine(width: 0.2, height: 28, color: baseColor),
+            // כותרת רמה 2 (כמו "משנה א")
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20.0),
+                child: _SkeletonLine(width: 0.2, height: 28, color: baseColor),
+              ),
             ),
-          ),
-          // פסקה ראשונה
-          ..._buildParagraph([0.95, 0.92, 0.88, 0.94, 0.85], baseColor),
-          const SizedBox(height: 24),
-          // כותרת רמה 2
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: _SkeletonLine(width: 0.18, height: 28, color: baseColor),
+            // פסקה ראשונה
+            ..._buildParagraph([0.95, 0.92, 0.88, 0.94, 0.85], baseColor),
+            const SizedBox(height: 24),
+            // כותרת רמה 2
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20.0),
+                child: _SkeletonLine(width: 0.18, height: 28, color: baseColor),
+              ),
             ),
-          ),
-          // פסקה שנייה
-          ..._buildParagraph([0.93, 0.89, 0.96, 0.87, 0.91, 0.82], baseColor),
-          const SizedBox(height: 24),
-          // כותרת רמה 2
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: _SkeletonLine(width: 0.22, height: 28, color: baseColor),
+            // פסקה שנייה
+            ..._buildParagraph([0.93, 0.89, 0.96, 0.87, 0.91, 0.82], baseColor),
+            const SizedBox(height: 24),
+            // כותרת רמה 2
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20.0),
+                child: _SkeletonLine(width: 0.22, height: 28, color: baseColor),
+              ),
             ),
-          ),
-          // פסקה שלישית
-          ..._buildParagraph([0.94, 0.88, 0.92, 0.86], baseColor),
-        ],
+            // פסקה שלישית
+            ..._buildParagraph([0.94, 0.88, 0.92, 0.86], baseColor),
+          ],
+        ),
       ),
     );
   }

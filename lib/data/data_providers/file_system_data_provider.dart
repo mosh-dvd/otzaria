@@ -166,10 +166,24 @@ class FileSystemData {
   /// Reads the library from the configured path and combines it with metadata
   /// to create a full [Library] object containing all categories and books.
   Future<Library> getLibrary() async {
+    // בדיקה שהתיקייה הראשית קיימת
+    final rootDir = Directory(libraryPath);
+    if (!rootDir.existsSync()) {
+      debugPrint('Library root directory does not exist: $libraryPath');
+      return Library(categories: []);
+    }
+
+    // בדיקה שתיקיית אוצריא קיימת
+    final otzariaPath = '$libraryPath${Platform.pathSeparator}אוצריא';
+    final otzariaDir = Directory(otzariaPath);
+    if (!otzariaDir.existsSync()) {
+      debugPrint('Otzaria directory does not exist: $otzariaPath');
+      return Library(categories: []);
+    }
+
     titleToPath = _getTitleToPath();
     metadata = _getMetadata();
-    return _getLibraryFromDirectory(
-        '$libraryPath${Platform.pathSeparator}אוצריא', await metadata);
+    return _getLibraryFromDirectory(otzariaPath, await metadata);
   }
 
   /// Recursively builds the library structure from a directory.
@@ -647,6 +661,12 @@ class FileSystemData {
     try {
       final libraryDir =
           Directory('$libraryPath${Platform.pathSeparator}אוצריא');
+      
+      // בדיקה שהתיקייה קיימת לפני ניסיון לגשת אליה
+      if (!libraryDir.existsSync()) {
+        debugPrint('Library directory does not exist, skipping cleanup');
+        return 0;
+      }
 
       await for (final entity in libraryDir.list(recursive: true)) {
         if (entity is File) {

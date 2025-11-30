@@ -13,21 +13,48 @@ String truncate(String text, int length) {
 }
 
 String removeVolwels(String s) {
-  s = s.replaceAll('־', ' ').replaceAll(' ׀', '');
+  s = s.replaceAll('־', ' ').replaceAll('׀', ' ').replaceAll('|', ' ');
   return s.replaceAll(SearchRegexPatterns.vowelsAndCantillation, '');
 }
 
 String highLight(String data, String searchQuery, {int currentIndex = -1}) {
   if (searchQuery.isEmpty) return data;
 
-  final regex = RegExp(RegExp.escape(searchQuery), caseSensitive: false);
+  // הסרת ניקוד ממחרוזת החיפוש לצורך השוואה
+  final cleanSearchQuery = removeVolwels(searchQuery);
+
+  // יצירת regex שמתעלם מניקוד - מוסיף תווי ניקוד אופציונליים בין כל תו
+  // תווי ניקוד וטעמים בעברית: U+0591 עד U+05C7
+  final pattern = cleanSearchQuery.split('').map((char) {
+    // אם זה תו עברי, נוסיף אחריו אפשרות לניקוד
+    if (RegExp(r'[א-ת]').hasMatch(char)) {
+      return '${RegExp.escape(char)}[\u0591-\u05C7]*';
+    }
+    return RegExp.escape(char);
+  }).join();
+
+  final regex = RegExp(pattern, caseSensitive: false);
   final matches = regex.allMatches(data).toList();
 
   if (matches.isEmpty) return data;
 
   // אם לא צוין אינדקס נוכחי, נדגיש את כל התוצאות באדום
   if (currentIndex == -1) {
-    return data.replaceAll(regex, '<font color=red>$searchQuery</font>');
+    String result = data;
+    int offset = 0;
+
+    for (final match in matches) {
+      final matchedText = match.group(0)!;
+      final replacement = '<font color=red>$matchedText</font>';
+
+      final start = match.start + offset;
+      final end = match.end + offset;
+
+      result = result.substring(0, start) + replacement + result.substring(end);
+      offset += replacement.length - matchedText.length;
+    }
+
+    return result;
   }
 
   // נדגיש את התוצאה הנוכחית בכחול ואת השאר באדום
@@ -36,17 +63,18 @@ String highLight(String data, String searchQuery, {int currentIndex = -1}) {
 
   for (int i = 0; i < matches.length; i++) {
     final match = matches[i];
+    final matchedText = match.group(0)!;
     final color = i == currentIndex ? 'blue' : 'red';
     final backgroundColor =
         i == currentIndex ? ' style="background-color: yellow;"' : '';
     final replacement =
-        '<font color=$color$backgroundColor>${match.group(0)}</font>';
+        '<font color=$color$backgroundColor>$matchedText</font>';
 
     final start = match.start + offset;
     final end = match.end + offset;
 
     result = result.substring(0, start) + replacement + result.substring(end);
-    offset += replacement.length - match.group(0)!.length;
+    offset += replacement.length - matchedText.length;
   }
 
   return result;
@@ -321,7 +349,7 @@ String replaceParaphrases(String s) {
       .replaceAll(' בר', ' בראשית רבה')
       .replaceAll(' ברר', ' בראשית רבה')
       .replaceAll(' בש', ' בית שמואל')
-      .replaceAll(' ד', ' דף')
+      .replaceAll(' ד ', ' דף ')
       .replaceAll(' דבר', ' דברים רבה')
       .replaceAll(' דהי', ' דברי הימים')
       .replaceAll(' דויד', ' דוד')

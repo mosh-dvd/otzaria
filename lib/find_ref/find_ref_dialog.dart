@@ -29,6 +29,18 @@ class _FindRefDialogState extends State<FindRefDialog> {
     if (context.read<IndexingBloc>().state is IndexingInProgress) {
       showIndexWarning = true;
     }
+
+    // בחירת הטקסט הקיים כאשר חוזרים למסך
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller =
+          context.read<FocusRepository>().findRefSearchController;
+      if (controller.text.isNotEmpty) {
+        controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: controller.text.length,
+        );
+      }
+    });
   }
 
   GlobalKey _getKeyForIndex(int index) {
@@ -104,7 +116,8 @@ class _FindRefDialogState extends State<FindRefDialog> {
                 final refs = state is FindRefSuccess ? state.refs : [];
                 return Focus(
                   onKeyEvent: (node, event) {
-                    if (event is! KeyDownEvent) {
+                    // טיפול גם ב-KeyDownEvent וגם ב-KeyRepeatEvent (לחיצה רצופה)
+                    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
                       return KeyEventResult.ignored;
                     }
 

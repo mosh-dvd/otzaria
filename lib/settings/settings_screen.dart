@@ -6,7 +6,6 @@ import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:otzaria/data/repository/data_repository.dart';
 import 'package:otzaria/indexing/bloc/indexing_bloc.dart';
 import 'package:otzaria/indexing/bloc/indexing_event.dart';
 import 'package:otzaria/indexing/bloc/indexing_state.dart';
@@ -15,6 +14,8 @@ import 'package:otzaria/settings/settings_event.dart';
 import 'package:otzaria/settings/settings_state.dart';
 import 'package:otzaria/library/bloc/library_bloc.dart';
 import 'package:otzaria/library/bloc/library_event.dart';
+import 'package:otzaria/navigation/bloc/navigation_bloc.dart';
+import 'package:otzaria/navigation/bloc/navigation_event.dart';
 import 'package:otzaria/settings/reading_settings_dialog.dart';
 import 'package:otzaria/settings/library_settings_dialog.dart';
 import 'package:otzaria/settings/calendar_settings_dialog.dart';
@@ -87,8 +88,6 @@ class _MySettingsScreenState extends State<MySettingsScreen>
       ),
     );
   }
-
-
 
   Widget _buildColumns(int maxColumns, List<Widget> children) {
     const double rowSpacing = 16.0;
@@ -786,36 +785,56 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                         disabledLabel: 'מאגר הספרים לא יתעדכן אוטומטית.',
                         activeColor: Theme.of(context).cardColor,
                       ),
-                      SwitchSettingsTile(
-                        settingKey: 'key-use-fast-search',
-                        title: 'חיפוש מהיר באמצעות אינדקס',
-                        enabledLabel: 'חיפוש מהיר יותר, נדרש ליצור אינדקס',
-                        disabledLabel: 'חיפוש איטי יותר, לא נדרש אינדקס',
-                        leading: const Icon(FluentIcons.search_24_regular),
-                        defaultValue: state.useFastSearch,
-                        onChange: (value) {
-                          context
-                              .read<SettingsBloc>()
-                              .add(UpdateUseFastSearch(value));
-                        },
-                        activeColor: Theme.of(context).cardColor,
-                      ),
+                      const SizedBox(height: 16),
+                      _buildColumns(2, [
+                        SwitchSettingsTile(
+                          settingKey: 'key-use-fast-search',
+                          title: 'חיפוש מהיר באמצעות אינדקס',
+                          enabledLabel: 'חיפוש מהיר יותר, נדרש ליצור אינדקס',
+                          disabledLabel: 'חיפוש איטי יותר, לא נדרש אינדקס',
+                          leading: const Icon(FluentIcons.search_24_regular),
+                          defaultValue: state.useFastSearch,
+                          onChange: (value) {
+                            context
+                                .read<SettingsBloc>()
+                                .add(UpdateUseFastSearch(value));
+                          },
+                          activeColor: Theme.of(context).cardColor,
+                        ),
+                        SwitchSettingsTile(
+                          title: 'עדכון אינדקס אוטומטי',
+                          leading: const Icon(FluentIcons.arrow_clockwise_24_regular),
+                          settingKey: 'key-auto-index-update',
+                          defaultValue: state.autoUpdateIndex,
+                          enabledLabel: 'אינדקס החיפוש יתעדכן אוטומטית',
+                          disabledLabel: 'אינדקס החיפוש לא יתעדכן אוטומטית',
+                          onChange: (value) async {
+                            context
+                                .read<SettingsBloc>()
+                                .add(UpdateAutoUpdateIndex(value));
+                          },
+                          activeColor: Theme.of(context).cardColor,
+                        ),
+                      ]),
+                      const SizedBox(height: 16),
                       _buildColumns(2, [
                         BlocBuilder<IndexingBloc, IndexingState>(
                           builder: (context, indexingState) {
                             return SimpleSettingsTile(
                               title: "אינדקס חיפוש",
                               subtitle: indexingState is IndexingInProgress
-                                  ? "בתהליך עדכון:${indexingState.booksProcessed}/${indexingState.totalBooks}"
-                                  : "האינדקס מעודכן",
+                                  ? "התקדמות האינדקס: ${indexingState.booksProcessed}/${indexingState.totalBooks}"
+                                  : indexingState is IndexingComplete
+                                      ? "האינדקס מעודכן"
+                                      : "האינדקס לא מעודכן",
                               leading: const Icon(FluentIcons.table_24_regular),
                               onTap: () async {
                                 if (indexingState is IndexingInProgress) {
                                   final result = await showConfirmationDialog(
                                     context: context,
-                                    title: 'עצירת אינדקס',
+                                    title: 'עצירת עדכון',
                                     content:
-                                        'האם לעצור את תהליך יצירת האינדקס?',
+                                        'האם לעצור את תהליך עדכון האינדקס?',
                                   );
                                   if (!context.mounted) return;
                                   if (result == true) {
@@ -825,56 +844,42 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                                     setState(() {});
                                   }
                                 } else {
-                                  final result = await showConfirmationDialog(
-                                    context: context,
-                                    title: 'איפוס אינדקס',
-                                    content: 'האם לאפס את האינדקס?',
-                                  );
-                                  if (!context.mounted) return;
-                                  if (result == true) {
-                                    //reset the index
+                                  // התחלת עדכון האינדקס ללא מחיקה
+                                  final library = context
+                                      .read<LibraryBloc>()
+                                      .state
+                                      .library;
+                                  if (library != null) {
                                     context
                                         .read<IndexingBloc>()
-                                        .add(ClearIndex());
-                                    final library = context
-                                        .read<LibraryBloc>()
-                                        .state
-                                        .library;
-                                    if (library != null) {
-                                      context
-                                          .read<IndexingBloc>()
-                                          .add(StartIndexing(library));
-                                    }
+                                        .add(StartIndexing(library));
                                   }
                                 }
                               },
                             );
                           },
                         ),
-                        SwitchSettingsTile(
-                          title: 'עדכון אינדקס',
-                          leading:
-                              const Icon(FluentIcons.arrow_sync_24_regular),
-                          settingKey: 'key-auto-index-update',
-                          defaultValue: state.autoUpdateIndex,
-                          enabledLabel: 'אינדקס החיפוש יתעדכן אוטומטית',
-                          disabledLabel: 'אינדקס החיפוש לא יתעדכן אוטומטית',
-                          onChange: (value) async {
-                            context
-                                .read<SettingsBloc>()
-                                .add(UpdateAutoUpdateIndex(value));
-                            if (value) {
-                              final library =
-                                  await DataRepository.instance.library;
-                              if (!context.mounted) return;
+                        SimpleSettingsTile(
+                          title: "איפוס אינדקס",
+                          subtitle: "מחק את אינדקס החיפוש",
+                          leading: const Icon(FluentIcons.delete_24_regular),
+                          onTap: () async {
+                            final result = await showConfirmationDialog(
+                              context: context,
+                              title: 'איפוס אינדקס',
+                              content: 'האם למחוק את אינדקס החיפוש? תצטרך לבנות אותו מחדש כדי להשתמש בחיפוש.',
+                            );
+                            if (!context.mounted) return;
+                            if (result == true) {
+                              // רק מחיקת האינדקס, ללא התחלה מחדש
                               context
                                   .read<IndexingBloc>()
-                                  .add(StartIndexing(library));
+                                  .add(ClearIndex());
                             }
                           },
-                          activeColor: Theme.of(context).cardColor,
                         ),
                       ]),
+                      if (!(Platform.isAndroid || Platform.isIOS)) const SizedBox(height: 16),
                       if (!(Platform.isAndroid || Platform.isIOS))
                         _buildColumns(2, [
                           SimpleSettingsTile(
@@ -888,9 +893,14 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                                   await FilePicker.platform.getDirectoryPath();
                               if (path != null) {
                                 if (!context.mounted) return;
+                                // עדכון מיקום הספרייה
                                 context
                                     .read<LibraryBloc>()
                                     .add(UpdateLibraryPath(path));
+                                // רענון מצב הניווט כדי לבדוק אם הספרייה ריקה
+                                context
+                                    .read<NavigationBloc>()
+                                    .add(const CheckLibrary());
                               }
                             },
                           ),
@@ -908,15 +918,29 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                                     .getDirectoryPath();
                                 if (path != null) {
                                   if (!context.mounted) return;
+                                  // עדכון מיקום ספרי היברובוקס
                                   context
                                       .read<LibraryBloc>()
                                       .add(UpdateHebrewBooksPath(path));
+                                  // רענון מצב הניווט
+                                  context
+                                      .read<NavigationBloc>()
+                                      .add(const CheckLibrary());
                                 }
                               },
                             ),
                           ),
                         ]),
                       if (!(Platform.isAndroid || Platform.isIOS))
+                        SwitchSettingsTile(
+                          settingKey: 'key-dev-channel',
+                          title: 'עדכון לגרסאות מפתחים',
+                          enabledLabel:
+                              'קבלת עדכונים על גרסאות בדיקה, ייתכנו באגים וחוסר יציבות',
+                          disabledLabel: 'קבלת עדכונים על גרסאות יציבות בלבד',
+                          leading: const Icon(FluentIcons.bug_24_regular),
+                          activeColor: Theme.of(context).cardColor,
+                        ),
                         SimpleSettingsTile(
                           title: 'טעינת תקיות למסד נתונים',
                           subtitle: 'העבר ספרים מתקיות לתוך מסד הנתונים',

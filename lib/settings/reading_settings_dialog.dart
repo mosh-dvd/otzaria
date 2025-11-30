@@ -5,6 +5,7 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_event.dart';
 import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/settings/per_book_settings.dart';
 
 /// פונקציה גלובלית להצגת דיאלוג הגדרות תצוגת הספרים
 /// ניתן לקרוא לה מכל מקום באפליקציה
@@ -145,36 +146,68 @@ void showReadingSettingsDialog(BuildContext context) {
                                     items: const [
                                       DropdownMenuItem(
                                           value: 'TaameyDavidCLM',
-                                          child: Text('דוד', style: TextStyle(fontFamily: 'TaameyDavidCLM'))),
+                                          child: Text('דוד',
+                                              style: TextStyle(
+                                                  fontFamily:
+                                                      'TaameyDavidCLM'))),
                                       DropdownMenuItem(
                                           value: 'FrankRuhlCLM',
-                                          child: Text('פרנק-רוהל', style: TextStyle(fontFamily: 'FrankRuhlCLM'))),
+                                          child: Text('פרנק-רוהל',
+                                              style: TextStyle(
+                                                  fontFamily: 'FrankRuhlCLM'))),
                                       DropdownMenuItem(
                                           value: 'TaameyAshkenaz',
-                                          child: Text('טעמי אשכנז', style: TextStyle(fontFamily: 'TaameyAshkenaz'))),
+                                          child: Text('טעמי אשכנז',
+                                              style: TextStyle(
+                                                  fontFamily:
+                                                      'TaameyAshkenaz'))),
                                       DropdownMenuItem(
-                                          value: 'KeterYG', child: Text('כתר', style: TextStyle(fontFamily: 'KeterYG'))),
+                                          value: 'KeterYG',
+                                          child: Text('כתר',
+                                              style: TextStyle(
+                                                  fontFamily: 'KeterYG'))),
                                       DropdownMenuItem(
-                                          value: 'Shofar', child: Text('שופר', style: TextStyle(fontFamily: 'Shofar'))),
+                                          value: 'Shofar',
+                                          child: Text('שופר',
+                                              style: TextStyle(
+                                                  fontFamily: 'Shofar'))),
                                       DropdownMenuItem(
                                           value: 'NotoSerifHebrew',
-                                          child: Text('נוטו', style: TextStyle(fontFamily: 'NotoSerifHebrew'))),
+                                          child: Text('נוטו',
+                                              style: TextStyle(
+                                                  fontFamily:
+                                                      'NotoSerifHebrew'))),
                                       DropdownMenuItem(
-                                          value: 'Tinos', child: Text('טינוס', style: TextStyle(fontFamily: 'Tinos'))),
+                                          value: 'Tinos',
+                                          child: Text('טינוס',
+                                              style: TextStyle(
+                                                  fontFamily: 'Tinos'))),
                                       DropdownMenuItem(
                                           value: 'NotoRashiHebrew',
-                                          child: Text('רש"י', style: TextStyle(fontFamily: 'NotoRashiHebrew'))),
+                                          child: Text('רש"י',
+                                              style: TextStyle(
+                                                  fontFamily:
+                                                      'NotoRashiHebrew'))),
                                       DropdownMenuItem(
                                           value: 'Candara',
-                                          child: Text('קנדרה', style: TextStyle(fontFamily: 'Candara'))),
+                                          child: Text('קנדרה',
+                                              style: TextStyle(
+                                                  fontFamily: 'Candara'))),
                                       DropdownMenuItem(
                                           value: 'roboto',
-                                          child: Text('רובוטו', style: TextStyle(fontFamily: 'roboto'))),
+                                          child: Text('רובוטו',
+                                              style: TextStyle(
+                                                  fontFamily: 'roboto'))),
                                       DropdownMenuItem(
                                           value: 'Calibri',
-                                          child: Text('קליברי', style: TextStyle(fontFamily: 'Calibri'))),
+                                          child: Text('קליברי',
+                                              style: TextStyle(
+                                                  fontFamily: 'Calibri'))),
                                       DropdownMenuItem(
-                                          value: 'Arial', child: Text('אריאל', style: TextStyle(fontFamily: 'Arial'))),
+                                          value: 'Arial',
+                                          child: Text('אריאל',
+                                              style: TextStyle(
+                                                  fontFamily: 'Arial'))),
                                     ],
                                     onChanged: (value) {
                                       if (value != null) {
@@ -201,8 +234,7 @@ void showReadingSettingsDialog(BuildContext context) {
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(
-                                          FluentIcons.book_24_regular),
+                                      const Icon(FluentIcons.book_24_regular),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
@@ -216,7 +248,8 @@ void showReadingSettingsDialog(BuildContext context) {
                                   ),
                                   const SizedBox(height: 8),
                                   DropdownButtonFormField<String>(
-                                    initialValue: settingsState.commentatorsFontFamily,
+                                    initialValue:
+                                        settingsState.commentatorsFontFamily,
                                     decoration: InputDecoration(
                                       contentPadding:
                                           const EdgeInsets.symmetric(
@@ -233,42 +266,74 @@ void showReadingSettingsDialog(BuildContext context) {
                                     items: const [
                                       DropdownMenuItem(
                                           value: 'TaameyDavidCLM',
-                                          child: Text('דוד', style: TextStyle(fontFamily: 'TaameyDavidCLM'))),
+                                          child: Text('דוד',
+                                              style: TextStyle(
+                                                  fontFamily:
+                                                      'TaameyDavidCLM'))),
                                       DropdownMenuItem(
                                           value: 'FrankRuhlCLM',
-                                          child: Text('פרנק-רוהל', style: TextStyle(fontFamily: 'FrankRuhlCLM'))),
+                                          child: Text('פרנק-רוהל',
+                                              style: TextStyle(
+                                                  fontFamily: 'FrankRuhlCLM'))),
                                       DropdownMenuItem(
                                           value: 'TaameyAshkenaz',
-                                          child: Text('טעמי אשכנז', style: TextStyle(fontFamily: 'TaameyAshkenaz'))),
+                                          child: Text('טעמי אשכנז',
+                                              style: TextStyle(
+                                                  fontFamily:
+                                                      'TaameyAshkenaz'))),
                                       DropdownMenuItem(
-                                          value: 'KeterYG', child: Text('כתר', style: TextStyle(fontFamily: 'KeterYG'))),
+                                          value: 'KeterYG',
+                                          child: Text('כתר',
+                                              style: TextStyle(
+                                                  fontFamily: 'KeterYG'))),
                                       DropdownMenuItem(
-                                          value: 'Shofar', child: Text('שופר', style: TextStyle(fontFamily: 'Shofar'))),
+                                          value: 'Shofar',
+                                          child: Text('שופר',
+                                              style: TextStyle(
+                                                  fontFamily: 'Shofar'))),
                                       DropdownMenuItem(
                                           value: 'NotoSerifHebrew',
-                                          child: Text('נוטו', style: TextStyle(fontFamily: 'NotoSerifHebrew'))),
+                                          child: Text('נוטו',
+                                              style: TextStyle(
+                                                  fontFamily:
+                                                      'NotoSerifHebrew'))),
                                       DropdownMenuItem(
-                                          value: 'Tinos', child: Text('טינוס', style: TextStyle(fontFamily: 'Tinos'))),
+                                          value: 'Tinos',
+                                          child: Text('טינוס',
+                                              style: TextStyle(
+                                                  fontFamily: 'Tinos'))),
                                       DropdownMenuItem(
                                           value: 'NotoRashiHebrew',
-                                          child: Text('רש"י', style: TextStyle(fontFamily: 'NotoRashiHebrew'))),
+                                          child: Text('רש"י',
+                                              style: TextStyle(
+                                                  fontFamily:
+                                                      'NotoRashiHebrew'))),
                                       DropdownMenuItem(
                                           value: 'Candara',
-                                          child: Text('קנדרה', style: TextStyle(fontFamily: 'Candara'))),
+                                          child: Text('קנדרה',
+                                              style: TextStyle(
+                                                  fontFamily: 'Candara'))),
                                       DropdownMenuItem(
                                           value: 'roboto',
-                                          child: Text('רובוטו', style: TextStyle(fontFamily: 'roboto'))),
+                                          child: Text('רובוטו',
+                                              style: TextStyle(
+                                                  fontFamily: 'roboto'))),
                                       DropdownMenuItem(
                                           value: 'Calibri',
-                                          child: Text('קליברי', style: TextStyle(fontFamily: 'Calibri'))),
+                                          child: Text('קליברי',
+                                              style: TextStyle(
+                                                  fontFamily: 'Calibri'))),
                                       DropdownMenuItem(
-                                          value: 'Arial', child: Text('אריאל', style: TextStyle(fontFamily: 'Arial'))),
+                                          value: 'Arial',
+                                          child: Text('אריאל',
+                                              style: TextStyle(
+                                                  fontFamily: 'Arial'))),
                                     ],
                                     onChanged: (value) {
                                       if (value != null) {
-                                        context
-                                            .read<SettingsBloc>()
-                                            .add(UpdateCommentatorsFontFamily(value));
+                                        context.read<SettingsBloc>().add(
+                                            UpdateCommentatorsFontFamily(
+                                                value));
                                         setState(() {});
                                       }
                                     },
@@ -283,18 +348,50 @@ void showReadingSettingsDialog(BuildContext context) {
                   ),
                   const Divider(),
 
-                  // רוחב השוליים בצידי הטקסט
+                  // רוחב הטקסט
                   StatefulBuilder(
                     builder: (context, setState) {
-                      double currentPadding = settingsState.paddingSize;
+                      // רוחב המסך לחישוב פיקסלים
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      final currentMaxWidth = settingsState.textMaxWidth;
+                      
+                      // חישוב הרמה הנוכחית מהרוחב השמור
+                      // ערך שלילי = רמה דינמית (ברירת מחדל)
+                      // 0 = רוחב מלא
+                      // ערך חיובי = פיקסלים קבועים
+                      int currentLevel;
+                      if (currentMaxWidth < 0) {
+                        // ערך שלילי = רמה דינמית
+                        currentLevel = (-currentMaxWidth).toInt();
+                      } else if (currentMaxWidth == 0) {
+                        currentLevel = 0;
+                      } else {
+                        // ערך חיובי = פיקסלים, נחשב את הרמה המקבילה
+                        final ratio = currentMaxWidth / screenWidth;
+                        currentLevel = ((1.0 - ratio) / 0.05).round().clamp(0, 14);
+                      }
+                      
+                      // תיאור לפי אחוז הרוחב
+                      String getLevelDescription(int level) {
+                        if (level == 0) return 'מלא';
+                        final percent = 100 - (level * 5);
+                        return '$percent%';
+                      }
+
                       return Column(
                         children: [
                           ListTile(
                             leading: const Icon(
                                 FluentIcons.text_align_justify_24_regular),
-                            title: const Text('רוחב השוליים בצידי הטקסט'),
+                            title: const Text('רוחב הטקסט'),
+                            subtitle: Text(
+                              currentLevel == 0
+                                  ? 'הטקסט ימלא את כל הרוחב הזמין'
+                                  : 'הטקסט יהיה צר יותר ומרוכז במסך',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
                             trailing: Text(
-                              currentPadding.toStringAsFixed(0),
+                              getLevelDescription(currentLevel),
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontSize: 16,
@@ -306,16 +403,26 @@ void showReadingSettingsDialog(BuildContext context) {
                             padding:
                                 const EdgeInsets.symmetric(horizontal: 16.0),
                             child: Slider(
-                              value: currentPadding,
+                              value: currentLevel.toDouble(),
                               min: 0,
-                              max: 500,
-                              divisions: 250,
-                              label: currentPadding.toStringAsFixed(0),
+                              max: 14,
+                              divisions: 14,
+                              label: getLevelDescription(currentLevel),
                               onChanged: (value) {
                                 setState(() {});
+                                // שומרים פיקסלים קבועים (לא רמה דינמית)
+                                final level = value.toInt();
+                                double newMaxWidth;
+                                if (level == 0) {
+                                  newMaxWidth = 0; // רוחב מלא
+                                } else {
+                                  // מחשבים פיקסלים לפי רוחב המסך הנוכחי
+                                  final widthPercent = 1.0 - (level * 0.05);
+                                  newMaxWidth = screenWidth * widthPercent;
+                                }
                                 context
                                     .read<SettingsBloc>()
-                                    .add(UpdatePaddingSize(value));
+                                    .add(UpdateTextMaxWidth(newMaxWidth));
                               },
                             ),
                           ),
@@ -617,6 +724,90 @@ void showReadingSettingsDialog(BuildContext context) {
                       },
                     ),
                   ),
+
+                  // הגדרות פר-ספר
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10.0, horizontal: 16.0),
+                    decoration: BoxDecoration(
+                      color:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                    ),
+                    child: const Text(
+                      'הגדרות פר-ספר',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      textAlign: TextAlign.start,
+                    ),
+                  ),
+
+                  // הפעלת שמירת התאמות פר-ספר
+                  SwitchListTile(
+                    title: const Text('שמירת התאמות פר-ספר'),
+                    subtitle: Text(settingsState.enablePerBookSettings
+                        ? 'שינויים בסרגל הלחצנים יישמרו לכל ספר בנפרד'
+                        : 'כל הספרים ישתמשו בהגדרות הכלליות'),
+                    value: settingsState.enablePerBookSettings,
+                    onChanged: (value) {
+                      context
+                          .read<SettingsBloc>()
+                          .add(UpdateEnablePerBookSettings(value));
+                    },
+                  ),
+
+                  // כפתור איפוס כל ההגדרות הפר-ספריות
+                  if (settingsState.enablePerBookSettings)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 8.0),
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('אישור מחיקה'),
+                              content: const Text(
+                                  'האם אתה בטוח שברצונך למחוק את כל ההגדרות הפר-ספריות?\nפעולה זו אינה ניתנת לביטול.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(false),
+                                  child: const Text('ביטול'),
+                                ),
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(true),
+                                  child: const Text('מחק הכל'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true && context.mounted) {
+                            await PerBookSettings.deleteAllSettings();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'כל ההגדרות הפר-ספריות נמחקו בהצלחה'),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(FluentIcons.delete_24_regular),
+                        label: const Text('אפס את כל הגדרות אלו, בכל הספרים'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.errorContainer,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
+
+                  const Divider(),
 
                   // הגדרות עורך טקסטים
                   Container(

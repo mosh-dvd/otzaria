@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:kosher_dart/kosher_dart.dart';
 import 'package:otzaria/settings/settings_repository.dart';
+import 'package:otzaria/services/notification_service.dart';
 
 enum CalendarType { hebrew, gregorian, combined }
 
@@ -24,6 +25,9 @@ class CalendarState extends Equatable {
   final bool searchInDescriptions;
   final bool inIsrael;
   final bool showAllEvents;
+  final bool calendarNotificationsEnabled;
+  final int calendarNotificationTime;
+  final bool calendarNotificationSound;
 
   const CalendarState({
     required this.selectedJewishDate,
@@ -39,6 +43,9 @@ class CalendarState extends Equatable {
     this.eventSearchQuery = '',
     this.searchInDescriptions = false,
     this.showAllEvents = false,
+    this.calendarNotificationsEnabled = true,
+    this.calendarNotificationTime = 60,
+    this.calendarNotificationSound = true,
   });
 
   factory CalendarState.initial() {
@@ -74,6 +81,9 @@ class CalendarState extends Equatable {
     bool? searchInDescriptions,
     bool? inIsrael,
     bool? showAllEvents,
+    bool? calendarNotificationsEnabled,
+    int? calendarNotificationTime,
+    bool? calendarNotificationSound,
   }) {
     return CalendarState(
       selectedJewishDate: selectedJewishDate ?? this.selectedJewishDate,
@@ -90,6 +100,12 @@ class CalendarState extends Equatable {
       searchInDescriptions: searchInDescriptions ?? this.searchInDescriptions,
       inIsrael: inIsrael ?? this.inIsrael,
       showAllEvents: showAllEvents ?? this.showAllEvents,
+      calendarNotificationsEnabled:
+          calendarNotificationsEnabled ?? this.calendarNotificationsEnabled,
+      calendarNotificationTime:
+          calendarNotificationTime ?? this.calendarNotificationTime,
+      calendarNotificationSound:
+          calendarNotificationSound ?? this.calendarNotificationSound,
     );
   }
 
@@ -118,6 +134,9 @@ class CalendarState extends Equatable {
         calendarView,
         inIsrael,
         showAllEvents,
+        calendarNotificationsEnabled,
+        calendarNotificationTime,
+        calendarNotificationSound,
       ];
 }
 
@@ -138,6 +157,12 @@ class CalendarCubit extends Cubit<CalendarState> {
     final selectedCity = settings['selectedCity'] as String;
     final eventsJson = settings['calendarEvents'] as String;
     final bool inIsrael = _isCityInIsrael(selectedCity);
+    final bool calendarNotificationsEnabled =
+        settings['calendarNotificationsEnabled'] as bool;
+    final int calendarNotificationTime =
+        settings['calendarNotificationTime'] as int;
+    final bool calendarNotificationSound =
+        settings['calendarNotificationSound'] as bool;
 
     // טעינת אירועים מהאחסון
     List<CustomEvent> events = [];
@@ -155,8 +180,12 @@ class CalendarCubit extends Cubit<CalendarState> {
       selectedCity: selectedCity,
       events: events,
       inIsrael: inIsrael,
+      calendarNotificationsEnabled: calendarNotificationsEnabled,
+      calendarNotificationTime: calendarNotificationTime,
+      calendarNotificationSound: calendarNotificationSound,
     ));
     _updateTimesForDate(state.selectedGregorianDate, selectedCity);
+    _rescheduleNotifications();
   }
 
   void _updateTimesForDate(DateTime date, String city) {
@@ -172,7 +201,8 @@ class CalendarCubit extends Cubit<CalendarState> {
       selectedJewishDate: jewishDate,
       selectedGregorianDate: gregorianDate,
       dailyTimes: newTimes,
-      currentJewishDate: updateMonthAnchors ? jewishDate : state.currentJewishDate,
+      currentJewishDate:
+          updateMonthAnchors ? jewishDate : state.currentJewishDate,
       currentGregorianDate:
           updateMonthAnchors ? gregorianDate : state.currentGregorianDate,
     ));
@@ -223,7 +253,8 @@ class CalendarCubit extends Cubit<CalendarState> {
       final newTimes = _calculateDailyTimes(newGregorian, state.selectedCity);
       emit(state.copyWith(
         currentJewishDate: newJewishDate,
-        currentGregorianDate: newGregorian, // keep gregorian in sync for headers
+        currentGregorianDate:
+            newGregorian, // keep gregorian in sync for headers
         selectedGregorianDate: newGregorian,
         selectedJewishDate: newJewishDate,
         dailyTimes: newTimes,
@@ -489,9 +520,108 @@ class CalendarCubit extends Cubit<CalendarState> {
     try {
       final eventsJson = jsonEncode(events.map((e) => e.toJson()).toList());
       await _settingsRepository.updateCalendarEvents(eventsJson);
+      _rescheduleNotifications();
     } catch (e) {
       // במקרה של שגיאה, נדפיס הודעה לקונסול
       debugPrint('שגיאה בשמירת אירועים: $e');
+    }
+  }
+
+  // --- Notification Settings ---
+  Future<void> changeCalendarNotificationsEnabled(bool enabled) async {
+    emit(state.copyWith(calendarNotificationsEnabled: enabled));
+    await _settingsRepository.updateCalendarNotificationsEnabled(enabled);
+    // Reschedule only if enabling/disabling notifications
+    _rescheduleNotifications();
+  }
+
+  Future<void> changeCalendarNotificationTime(int time) async {
+    final oldTime = state.calendarNotificationTime;
+    emit(state.copyWith(calendarNotificationTime: time));
+    await _settingsRepository.updateCalendarNotificationTime(time);
+    // Reschedule only if time actually changed and notifications are enabled
+    if (oldTime != time && state.calendarNotificationsEnabled) {
+      _rescheduleNotifications();
+    }
+  }
+
+  Future<void> changeCalendarNotificationSound(bool enabled) async {
+    emit(state.copyWith(calendarNotificationSound: enabled));
+    await _settingsRepository.updateCalendarNotificationSound(enabled);
+    // No need to reschedule for sound changes - it only affects new notifications
+  }
+
+  void _rescheduleNotifications() {
+    final notificationService = NotificationService();
+    notificationService.cancelAllNotifications();
+
+    if (!state.calendarNotificationsEnabled) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    for (final event in state.events) {
+      if (event.recurring) {
+        // Schedule for the next 2 years
+        for (int i = 0; i < 2; i++) {
+          final DateTime occurrenceDate;
+          if (event.recurOnHebrew) {
+            final currentHebrewYear =
+                JewishDate.fromDateTime(now).getJewishYear();
+            final targetHebrewYear = currentHebrewYear + i;
+
+            // Handle leap years and Adar
+            final tempJd = JewishDate();
+            tempJd.setJewishDate(targetHebrewYear, 1, 1);
+            if (event.baseJewishMonth == 13 && !tempJd.isJewishLeapYear()) {
+              continue; // Skip Adar II in non-leap year
+            }
+            try {
+              final jd = JewishDate();
+              jd.setJewishDate(
+                  targetHebrewYear, event.baseJewishMonth, event.baseJewishDay);
+              occurrenceDate = jd.getGregorianCalendar();
+            } catch (e) {
+              // could be an invalid date like 30th of Cheshvan
+              continue;
+            }
+          } else {
+            occurrenceDate = DateTime(
+              now.year + i,
+              event.baseGregorianDate.month,
+              event.baseGregorianDate.day,
+            );
+          }
+
+          if (occurrenceDate.isAfter(today)) {
+            final id =
+                '${event.id}${occurrenceDate.year}${occurrenceDate.month}${occurrenceDate.day}'
+                    .hashCode;
+            notificationService.scheduleNotification(
+              id: id,
+              title: event.title,
+              body: event.description,
+              eventDate: occurrenceDate,
+              reminderMinutes: state.calendarNotificationTime,
+              soundEnabled: state.calendarNotificationSound,
+            );
+          }
+        }
+      } else {
+        // Non-recurring event
+        if (event.baseGregorianDate.isAfter(today)) {
+          notificationService.scheduleNotification(
+            id: event.id.hashCode,
+            title: event.title,
+            body: event.description,
+            eventDate: event.baseGregorianDate,
+            reminderMinutes: state.calendarNotificationTime,
+            soundEnabled: state.calendarNotificationSound,
+          );
+        }
+      }
     }
   }
 }
@@ -546,9 +676,10 @@ JewishDate _computePreviousJewishMonth(JewishDate current) {
 }
 
 // Public wrappers (for testing)
-JewishDate computeNextJewishMonth(JewishDate current) => _computeNextJewishMonth(current);
-JewishDate computePreviousJewishMonth(JewishDate current) => _computePreviousJewishMonth(current);
-
+JewishDate computeNextJewishMonth(JewishDate current) =>
+    _computeNextJewishMonth(current);
+JewishDate computePreviousJewishMonth(JewishDate current) =>
+    _computePreviousJewishMonth(current);
 
 // Simple event model kept here for scope
 class CustomEvent extends Equatable {

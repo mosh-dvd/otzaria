@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import '../services/data_collection_service.dart';
+import '../widgets/ad_popup_dialog.dart';
 import 'dart:io';
 
 class AboutScreen extends StatefulWidget {
@@ -477,6 +478,65 @@ class _AboutScreenState extends State<AboutScreen> {
     );
   }
 
+  Widget _buildSupportCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(FluentIcons.shield_task_24_filled,
+                  color: Colors.blue, size: 24),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'אוצריא מתגייסת לעזרת לומדי התורה',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'קווי חירום וארגוני סיוע ללומדי תורה',
+            style: TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (context) => const AdPopupDialog(
+                    title: 'אוצריא מתגייסת לעזרת לומדי התורה',
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(FluentIcons.shield_task_24_filled, size: 18),
+              label: const Text('לחץ לפרטים'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDonationCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -738,6 +798,18 @@ class _AboutScreenState extends State<AboutScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildSupportCard(context),
+                    const SizedBox(height: 20),
+                    _buildActionCard(
+                      title: 'אודות התוכנה',
+                      description:
+                          'מידע נוסף על התוכנה, תכונות, ומדריכים לשימוש.',
+                      buttonText: 'אודות התוכנה',
+                      icon: FluentIcons.info_24_regular,
+                      color: Colors.grey[600]!,
+                      onTap: () => _openLocalHtmlFile('index.html'),
+                    ),
+                    const SizedBox(height: 20),
                     _buildActionCard(
                       title: 'הצטרף לפיתוח!',
                       description:
@@ -777,6 +849,9 @@ class _AboutScreenState extends State<AboutScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // כרטיס אוצריא מתגייסת
+          _buildSupportCard(context),
+          const SizedBox(height: 24),
           // סמל וכותרת
           _buildHeader(),
           const SizedBox(height: 16),
@@ -789,6 +864,15 @@ class _AboutScreenState extends State<AboutScreen> {
           const SizedBox(height: 24),
 
           // כארדים של פעולות (למעלה במסכים קטנים)
+          _buildActionCard(
+            title: 'אודות התוכנה',
+            description: 'מידע נוסף על התוכנה, תכונות, ומדריכים לשימוש.',
+            buttonText: 'אודות התוכנה',
+            icon: FluentIcons.info_24_regular,
+            color: Colors.grey[600]!,
+            onTap: () => _openLocalHtmlFile('index.html'),
+          ),
+          const SizedBox(height: 16),
           _buildActionCard(
             title: 'הצטרף לפיתוח!',
             description:

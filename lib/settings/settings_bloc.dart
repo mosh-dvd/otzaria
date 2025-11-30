@@ -12,7 +12,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<LoadSettings>(_onLoadSettings);
     on<UpdateDarkMode>(_onUpdateDarkMode);
     on<UpdateSeedColor>(_onUpdateSeedColor);
-    on<UpdatePaddingSize>(_onUpdatePaddingSize);
+    on<UpdateTextMaxWidth>(_onUpdateTextMaxWidth);
     on<UpdateFontSize>(_onUpdateFontSize);
     on<UpdateFontFamily>(_onUpdateFontFamily);
     on<UpdateCommentatorsFontFamily>(_onUpdateCommentatorsFontFamily);
@@ -29,6 +29,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<UpdatePinSidebar>(_onUpdatePinSidebar);
     on<UpdateSidebarWidth>(_onUpdateSidebarWidth);
     on<UpdateFacetFilteringWidth>(_onUpdateFacetFilteringWidth);
+    on<UpdateCommentaryPaneWidth>(_onUpdateCommentaryPaneWidth);
     on<UpdateCopyWithHeaders>(_onUpdateCopyWithHeaders);
     on<UpdateCopyHeaderFormat>(_onUpdateCopyHeaderFormat);
     on<UpdateIsFullscreen>(_onUpdateIsFullscreen);
@@ -37,6 +38,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<RefreshShortcuts>(_onRefreshShortcuts);
     on<ResetShortcuts>(_onResetShortcuts);
     on<UpdateShortcut>(_onUpdateShortcut);
+    on<UpdateEnablePerBookSettings>(_onUpdateEnablePerBookSettings);
   }
 
   Future<void> _onLoadSettings(
@@ -44,10 +46,10 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     Emitter<SettingsState> emit,
   ) async {
     final settings = await _repository.loadSettings();
-  emit(SettingsState(
+    emit(SettingsState(
       isDarkMode: settings['isDarkMode'],
       seedColor: settings['seedColor'],
-      paddingSize: settings['paddingSize'],
+      textMaxWidth: settings['textMaxWidth'],
       fontSize: settings['fontSize'],
       fontFamily: settings['fontFamily'],
       commentatorsFontFamily: settings['commentatorsFontFamily'],
@@ -64,6 +66,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       pinSidebar: settings['pinSidebar'],
       sidebarWidth: settings['sidebarWidth'],
       facetFilteringWidth: settings['facetFilteringWidth'],
+      commentaryPaneWidth: settings['commentaryPaneWidth'],
       copyWithHeaders: settings['copyWithHeaders'],
       copyHeaderFormat: settings['copyHeaderFormat'],
       isFullscreen: settings['isFullscreen'],
@@ -72,7 +75,16 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       shortcuts: Map<String, String>.unmodifiable(
         Map<String, String>.from(settings['shortcuts'] as Map),
       ),
+      enablePerBookSettings: settings['enablePerBookSettings'],
     ));
+  }
+
+  Future<void> _onUpdateEnablePerBookSettings(
+    UpdateEnablePerBookSettings event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateEnablePerBookSettings(event.enablePerBookSettings);
+    emit(state.copyWith(enablePerBookSettings: event.enablePerBookSettings));
   }
 
   Future<void> _onUpdateDarkMode(
@@ -91,12 +103,12 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     emit(state.copyWith(seedColor: event.seedColor));
   }
 
-  Future<void> _onUpdatePaddingSize(
-    UpdatePaddingSize event,
+  Future<void> _onUpdateTextMaxWidth(
+    UpdateTextMaxWidth event,
     Emitter<SettingsState> emit,
   ) async {
-    await _repository.updatePaddingSize(event.paddingSize);
-    emit(state.copyWith(paddingSize: event.paddingSize));
+    await _repository.updateTextMaxWidth(event.textMaxWidth);
+    emit(state.copyWith(textMaxWidth: event.textMaxWidth));
   }
 
   Future<void> _onUpdateFontSize(
@@ -226,6 +238,14 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     await _repository.updateFacetFilteringWidth(event.facetFilteringWidth);
     emit(state.copyWith(facetFilteringWidth: event.facetFilteringWidth));
+  }
+
+  Future<void> _onUpdateCommentaryPaneWidth(
+    UpdateCommentaryPaneWidth event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateCommentaryPaneWidth(event.commentaryPaneWidth);
+    emit(state.copyWith(commentaryPaneWidth: event.commentaryPaneWidth));
   }
 
   Future<void> _onUpdateCopyWithHeaders(

@@ -1,8 +1,12 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:synchronized/extension.dart';
+import 'package:otzaria/settings/settings_bloc.dart';
+import 'package:otzaria/settings/settings_state.dart';
 import 'package:otzaria/utils/ref_helper.dart';
+import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:otzaria/widgets/search_pane_base.dart';
 
 //
@@ -173,6 +177,7 @@ class _PdfBookSearchViewState extends State<PdfBookSearchView> {
       resultsWidget: ListView.builder(
         key: Key(widget.searchController.text),
         controller: scrollController,
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: _listIndexToMatchIndex.length,
         itemBuilder: (context, index) {
           final matchIndex = _listIndexToMatchIndex[index];
@@ -192,20 +197,44 @@ class _PdfBookSearchViewState extends State<PdfBookSearchView> {
               isCurrent: matchIndex == widget.textSearcher.currentIndex,
             );
           } else {
-            return Container(
-              height: itemHeight,
-              alignment: Alignment.bottomRight,
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Text(
-                _pageTitles[-matchIndex]?.isNotEmpty == true
+            return BlocBuilder<SettingsBloc, SettingsState>(
+              builder: (context, settingsState) {
+                String text = _pageTitles[-matchIndex]?.isNotEmpty == true
                     ? _pageTitles[-matchIndex]!
-                    : 'עמוד ${-matchIndex}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                textDirection: TextDirection.rtl,
-              ),
+                    : 'עמוד ${-matchIndex}';
+                if (settingsState.replaceHolyNames) {
+                  text = utils.replaceHolyNames(text);
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(
+                    top: 8.0,
+                    bottom: 8.0,
+                    right: 20.0,
+                    left: 20.0,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.picture_as_pdf,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          text,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          textDirection: TextDirection.rtl,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             );
           }
         },
@@ -250,7 +279,7 @@ class SearchResultTile extends StatefulWidget {
     super.key,
   });
 
-  final PdfTextRangeWithFragments match;
+  final PdfPageTextRange match;
   final void Function() onTap;
   final PdfPageTextCache pageTextStore;
   final double height;
@@ -291,68 +320,97 @@ class _SearchResultTileState extends State<SearchResultTile> {
 
   @override
   Widget build(BuildContext context) {
-    final text = Text.rich(createTextSpanForMatch(pageText, widget.match));
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, settingsState) {
+        final text = Text.rich(
+            createTextSpanForMatch(pageText, widget.match, settingsState));
 
-    return SizedBox(
-      height: widget.height,
-      child: Material(
-        color: widget.isCurrent
-            ? DefaultSelectionStyle.of(context).selectionColor!
-            : null,
-        child: InkWell(
-          onTap: () => widget.onTap(),
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Container(
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: Colors.black12,
-                  width: 0.5,
-                ),
+            decoration: BoxDecoration(
+              color: widget.isCurrent
+                  ? Theme.of(context)
+                      .colorScheme
+                      .primaryContainer
+                      .withValues(alpha: 0.5)
+                  : null,
+              border: Border.all(
+                color: Theme.of(context)
+                    .colorScheme
+                    .outline
+                    .withValues(alpha: 0.3),
+                width: 1,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: InkWell(
+              onTap: () => widget.onTap(),
+              borderRadius: BorderRadius.circular(8),
+              hoverColor: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withValues(alpha: 0.3),
+              splashColor: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withValues(alpha: 0.4),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: text,
               ),
             ),
-            padding: const EdgeInsets.all(3),
-            child: text,
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  TextSpan createTextSpanForMatch(
-      PdfPageText? pageText, PdfTextRangeWithFragments match,
+  TextSpan createTextSpanForMatch(PdfPageText? pageText, PdfPageTextRange match,
+      SettingsState settingsState,
       {TextStyle? style}) {
-    style ??= const TextStyle(
-      fontSize: 14,
+    style ??= TextStyle(
+      fontSize: 16,
+      fontFamily: settingsState.fontFamily,
+      color: Theme.of(context).colorScheme.onSurface,
+      height: 1.5,
     );
     if (pageText == null) {
+      String text = match.text;
+      if (settingsState.replaceHolyNames) {
+        text = utils.replaceHolyNames(text);
+      }
       return TextSpan(
-        text: match.fragments.map((f) => f.text).join(),
+        text: text,
         style: style,
       );
     }
     final fullText = pageText.fullText;
     int first = 0;
-    for (int i = match.fragments.first.index - 1; i >= 0;) {
+    for (int i = match.start - 1; i >= 0; i--) {
       if (fullText[i] == '\n') {
         first = i + 1;
         break;
       }
-      i--;
     }
     int last = fullText.length;
-    for (int i = match.fragments.last.end; i < fullText.length; i++) {
+    for (int i = match.end; i < fullText.length; i++) {
       if (fullText[i] == '\n') {
         last = i;
         break;
       }
     }
 
-    final header =
-        fullText.substring(first, match.fragments.first.index + match.start);
-    final body = fullText.substring(match.fragments.first.index + match.start,
-        match.fragments.last.index + match.end);
-    final footer =
-        fullText.substring(match.fragments.last.index + match.end, last);
+    String header = fullText.substring(first, match.start);
+    String body = fullText.substring(match.start, match.end);
+    String footer = fullText.substring(match.end, last);
+
+    if (settingsState.replaceHolyNames) {
+      header = utils.replaceHolyNames(header);
+      body = utils.replaceHolyNames(body);
+      footer = utils.replaceHolyNames(footer);
+    }
 
     return TextSpan(
       children: [
@@ -360,7 +418,9 @@ class _SearchResultTileState extends State<SearchResultTile> {
         TextSpan(
           text: body,
           style: const TextStyle(
-            color: Colors.red,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Color(0xFFD32F2F), // צבע אדום חזק למילות החיפוש
           ),
         ),
         TextSpan(text: footer),

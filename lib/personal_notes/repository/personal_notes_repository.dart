@@ -29,6 +29,7 @@ class PersonalNotesRepository {
     required String bookId,
     required int lineNumber,
     required String content,
+    String? selectedText,
   }) async {
     final bookContent = await _loadBookContent(bookId);
     return _service.addNote(
@@ -36,6 +37,7 @@ class PersonalNotesRepository {
       bookContent: bookContent,
       lineNumber: lineNumber,
       content: content,
+      selectedText: selectedText,
     );
   }
 

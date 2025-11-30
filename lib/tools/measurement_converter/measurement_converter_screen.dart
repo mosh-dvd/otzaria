@@ -117,16 +117,15 @@ class _MeasurementConverterScreenState
         _selectedOpinion = _opinions[_selectedCategory]?.first;
       }
 
-      // Restore remembered input value or clear
-      _inputController.text = _rememberedInputValues[_selectedCategory] ?? '';
+      // Restore remembered input value or use default '1'
+      _inputController.text = _rememberedInputValues[_selectedCategory] ?? '1';
       _resultController.clear();
 
       // Update result field visibility based on input
       _showResultField = _inputController.text.isNotEmpty;
 
-      // Convert if there's a remembered input value
-      if (_rememberedInputValues[_selectedCategory] != null &&
-          _rememberedInputValues[_selectedCategory]!.isNotEmpty) {
+      // Convert if there's input
+      if (_inputController.text.isNotEmpty) {
         _convert();
       }
     });

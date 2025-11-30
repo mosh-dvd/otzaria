@@ -21,7 +21,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
   final OverridesRepository _overridesRepository;
   final ItemScrollController scrollController;
   final ItemPositionsListener positionsListener;
-  
+
   Timer? _debounceTimer;
   Timer? _highlightTimer;
   VoidCallback? _positionListenerCallback;
@@ -145,9 +145,10 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       // Set up position listener with debouncing to prevent excessive updates
       // Remove old listener if exists
       if (_positionListenerCallback != null) {
-        positionsListener.itemPositions.removeListener(_positionListenerCallback!);
+        positionsListener.itemPositions
+            .removeListener(_positionListenerCallback!);
       }
-      
+
       _positionListenerCallback = () {
         // Cancel previous timer if exists
         _debounceTimer?.cancel();
@@ -155,7 +156,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
         // Set new timer with 100ms delay
         _debounceTimer = Timer(const Duration(milliseconds: 100), () {
           if (isClosed) return;
-          
+
           final visibleIndicesNow = positionsListener.itemPositions.value
               .map((e) => e.index)
               .toList();
@@ -164,7 +165,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
           }
         });
       };
-      
+
       positionsListener.itemPositions.addListener(_positionListenerCallback!);
 
       emit(TextBookLoaded(
@@ -174,10 +175,12 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
         availableCommentators: availableCommentators,
         tableOfContents: tableOfContents,
         fontSize: event.fontSize,
-        showLeftPane: showLeftPane || searchText.isNotEmpty,
+        showLeftPane: event.forceCloseLeftPane
+            ? false
+            : (showLeftPane || searchText.isNotEmpty),
         showSplitView: event.showSplitView,
         activeCommentators: commentators,
-        commentatorGroups: event.loadCommentators 
+        commentatorGroups: event.loadCommentators
             ? _buildCommentatorGroups(eras, availableCommentators)
             : [],
         removeNikud: removeNikud,
@@ -313,13 +316,12 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       // איפוס selectedIndex רק אם היתה גלילה משמעותית (יותר מ-3 שורות)
       // כדי למנוע איפוס כשפשוט עוברים בין tabs
       if (index != null && !event.visibleIndecies.contains(index)) {
-        final oldFirst = currentState.visibleIndices.isNotEmpty 
-            ? currentState.visibleIndices.first 
+        final oldFirst = currentState.visibleIndices.isNotEmpty
+            ? currentState.visibleIndices.first
             : 0;
-        final newFirst = event.visibleIndecies.isNotEmpty 
-            ? event.visibleIndecies.first 
-            : 0;
-        
+        final newFirst =
+            event.visibleIndecies.isNotEmpty ? event.visibleIndecies.first : 0;
+
         // רק אם גללנו יותר מ-3 שורות, נאפס את הבחירה
         if ((oldFirst - newFirst).abs() > 3) {
           index = null;
@@ -377,7 +379,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
 
     // Cancel previous highlight timer if exists
     _highlightTimer?.cancel();
-    
+
     _highlightTimer = Timer(const Duration(seconds: 2), () {
       if (!isClosed) {
         add(ClearHighlightedLine(event.lineIndex));
@@ -392,7 +394,8 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     if (state is! TextBookLoaded) return;
     final currentState = state as TextBookLoaded;
     if (currentState.highlightedLine == null) return;
-    if (event.lineIndex != null && currentState.highlightedLine != event.lineIndex) {
+    if (event.lineIndex != null &&
+        currentState.highlightedLine != event.lineIndex) {
       return;
     }
     emit(currentState.copyWith(clearHighlight: true));
@@ -740,12 +743,13 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     // Cancel all timers
     _debounceTimer?.cancel();
     _highlightTimer?.cancel();
-    
+
     // Remove position listener
     if (_positionListenerCallback != null) {
-      positionsListener.itemPositions.removeListener(_positionListenerCallback!);
+      positionsListener.itemPositions
+          .removeListener(_positionListenerCallback!);
     }
-    
+
     return super.close();
   }
 

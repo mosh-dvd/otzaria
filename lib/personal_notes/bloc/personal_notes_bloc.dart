@@ -57,6 +57,7 @@ class PersonalNotesBloc extends Bloc<PersonalNotesEvent, PersonalNotesState> {
         bookId: event.bookId,
         lineNumber: event.lineNumber,
         content: event.content,
+        selectedText: event.selectedText,
       );
       _emitNotes(event.bookId, notes, emit);
     } catch (e) {

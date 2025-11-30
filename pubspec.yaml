@@ -10,7 +10,7 @@ msix_config:
   publisher_display_name: sivan22
   identity_name: sivan22.Otzaria
   description: "ספריית ספרים יהודיים עם אפשרויות חיפוש חכם"
-  msix_version: 0.9.71.0
+  msix_version: 0.9.72.0
   logo_path: assets/icon/icon.png
   publisher: CN=sivan22, O=sivan22, C=IL
   certificate_path: sivan22.pfx
@@ -36,7 +36,7 @@ msix_config:
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.9.71
+version: 0.9.72
 
 environment:
   sdk: ">=3.2.6 <4.0.0"
@@ -50,8 +50,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_bloc: ^9.0.0
-  bloc: ^9.0.0
+  flutter_bloc: ^9.1.1
+  bloc: ^9.0.1
   equatable: ^2.0.5
   flutter_localizations:
     sdk: flutter
@@ -59,41 +59,40 @@ dependencies:
   hive: ^4.0.0-dev.2
   isar_flutter_libs: ^4.0.0-dev.14
   isar: ^4.0.0-dev.14
-  msix: ^3.16.9
+  msix: ^3.16.12
   path_provider: ^2.1.5
   html: ^0.15.1
-  pdfrx: ^1.3.2
+  pdfrx: ^2.2.16
   url_launcher: ^6.3.1
   flutter_widget_from_html: ^0.17.0
   scrollable_positioned_list: ^0.3.8
   search_highlight_text: ^1.0.0+2
   fuzzywuzzy: ^1.1.6
-  flutter_svg: ^2.0.10+1  
+  flutter_svg: ^2.2.3  
   fluentui_system_icons: ^1.1.273
-  file_picker: ^10.2.1
-  flutter_launcher_icons: "^0.13.1"
+  file_picker: ^10.3.7
+  flutter_launcher_icons: "^0.14.4"
   provider: ^6.1.5
-  docx_to_text: ^1.0.1
   expandable: ^5.0.1
-  multi_split_view: ^2.4.0
+  multi_split_view: ^3.6.1
   updat: ^1.3.2
   flutter_context_menu:
     git:
       url: https://github.com/Y-PLONI/flutter_context_menu
 
   printing:
-  pdf: ^3.10.8
+  pdf: ^3.11.3
   kosher_dart: ^2.0.18
   gematria: ^1.0.0
   csv: ^6.0.0
-  archive: ^3.6.1
+  archive: ^4.0.7
   filter_list: 1.0.3
-  package_info_plus: ^8.0.2
-  crypto: ^3.0.6
+  package_info_plus: ^9.0.0
+  crypto: ^3.0.7
   path: ^1.9.0
   http: ^1.4.0
   sqflite: ^2.4.2
-  characters: ^1.3.0
+  characters: ^1.4.0
   flutter_document_picker:
     git:
       url: https://github.com/sidlatau/flutter_document_picker
@@ -105,20 +104,22 @@ dependencies:
       url: https://github.com/Sivan22/otzaria_search_engine
       ref: use-regex
   flutter_archive: ^6.0.3
-  window_manager: ^0.3.9
+  window_manager: ^0.5.1
   flutter_spinbox: ^0.13.1
   toggle_switch: ^2.3.0
   logging: ^1.3.0
   synchronized: ^3.3.1
-  sqflite_common_ffi: ^2.3.0
-  sqlite3_flutter_libs: any
+  sqflite_common_ffi: ^2.3.6
+  sqlite3_flutter_libs: 0.5.40
   shared_preferences: ^2.5.3
   super_clipboard: ^0.9.1
+  flutter_local_notifications: ^19.5.0
+  timezone: ^0.10.1
   shamor_zachor:
     path: ./packages/shamor_zachor
-  flutter_single_instance: ^1.1.2
-  xml: ^6.5.0
-  flutter_markdown: ^0.6.23
+  flutter_single_instance: ^1.7.0
+  xml: ^6.6.1
+  flutter_markdown: ^0.7.7
 
 dependency_overrides:
   #  it forces the version of the intl package to be 0.19.0 across all dependencies, even if some packages specify a different compatible version.
@@ -145,7 +146,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
-  test: ^1.25.2
+  test: ^1.5.2
   build_runner: ^2.4.11
   bloc_test: ^10.0.0
   mockito: ^5.4.4

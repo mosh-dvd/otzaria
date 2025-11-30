@@ -33,13 +33,18 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/utils/page_converter.dart';
 import 'package:flutter/gestures.dart';
 import 'package:otzaria/widgets/responsive_action_bar.dart';
+import 'pdf_zoom_bar.dart';
+import 'package:otzaria/settings/per_book_settings.dart';
+import 'package:otzaria/widgets/commentary_pane_tooltip.dart';
 
 class PdfBookScreen extends StatefulWidget {
   final PdfBookTab tab;
+  final bool isInCombinedView;
 
   const PdfBookScreen({
     super.key,
     required this.tab,
+    this.isInCombinedView = false,
   });
 
   @override
@@ -52,7 +57,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
   bool get wantKeepAlive => true;
 
   late final PdfViewerController pdfController;
-  late final PdfTextSearcher textSearcher;
+  PdfTextSearcher? textSearcher;
   TabController? _leftPaneTabController;
   int _currentLeftPaneTabIndex = 0;
   final FocusNode _searchFieldFocusNode = FocusNode();
@@ -60,7 +65,11 @@ class _PdfBookScreenState extends State<PdfBookScreen>
   late final ValueNotifier<double> _sidebarWidth;
   late final ValueNotifier<double> _rightPaneWidth;
   late final ValueNotifier<bool> _showRightPane;
+  int? _rightPaneInitialTabIndex; // אינדקס הטאב הרצוי בחלונית השמאלית
   late final StreamSubscription<SettingsState> _settingsSub;
+  bool _showZoomBar = false;
+  bool _isRightPaneHovering = false; // מצב ריחוף על הטאב של חלונית המפרשים
+  Timer? _zoomBarTimer;
 
   Future<void> _runInitialSearchIfNeeded() async {
     final controller = widget.tab.searchController;
@@ -83,7 +92,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
 
     //ברוב המקרים, שינוי הטקסט עצמו יפעיל את ה-listener של הספרייה.
     // אם לא, ייתכן שעדיין צריך לקרוא לזה ידנית:
-    textSearcher.startTextSearch(query, goToFirstMatch: false);
+    textSearcher?.startTextSearch(query, goToFirstMatch: false);
   }
 
   void _ensureSearchTabIsActive() {
@@ -101,27 +110,30 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     int? persistedIndexFromTab = widget.tab.pdfSearchCurrentMatchIndex;
 
     widget.tab.searchText = currentSearchTerm;
-    widget.tab.pdfSearchMatches = List.from(textSearcher.matches);
-    widget.tab.pdfSearchCurrentMatchIndex = textSearcher.currentIndex;
+    widget.tab.pdfSearchMatches =
+        textSearcher != null ? List.from(textSearcher!.matches) : null;
+    widget.tab.pdfSearchCurrentMatchIndex = textSearcher?.currentIndex;
 
     if (mounted) {
       setState(() {});
     }
 
-    bool isNewSearchExecution =
-        (_lastProcessedSearchSessionId != textSearcher.searchSession);
-    if (isNewSearchExecution) {
-      _lastProcessedSearchSessionId = textSearcher.searchSession;
-    }
+    if (textSearcher != null) {
+      bool isNewSearchExecution =
+          (_lastProcessedSearchSessionId != textSearcher!.searchSession);
+      if (isNewSearchExecution) {
+        _lastProcessedSearchSessionId = textSearcher!.searchSession;
+      }
 
-    if (isNewSearchExecution &&
-        currentSearchTerm.isNotEmpty &&
-        textSearcher.matches.isNotEmpty &&
-        persistedIndexFromTab != null &&
-        persistedIndexFromTab >= 0 &&
-        persistedIndexFromTab < textSearcher.matches.length &&
-        textSearcher.currentIndex != persistedIndexFromTab) {
-      textSearcher.goToMatchOfIndex(persistedIndexFromTab);
+      if (isNewSearchExecution &&
+          currentSearchTerm.isNotEmpty &&
+          textSearcher!.matches.isNotEmpty &&
+          persistedIndexFromTab != null &&
+          persistedIndexFromTab >= 0 &&
+          persistedIndexFromTab < textSearcher!.matches.length &&
+          textSearcher!.currentIndex != persistedIndexFromTab) {
+        textSearcher!.goToMatchOfIndex(persistedIndexFromTab);
+      }
     }
   }
 
@@ -130,22 +142,24 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     super.initState();
 
     pdfController = PdfViewerController();
-
-    textSearcher = PdfTextSearcher(pdfController)
-      ..addListener(_onTextSearcherUpdated);
-
     widget.tab.pdfViewerController = pdfController;
+
+    // textSearcher ייוצר ב-onDocumentChanged כשה-document מוכן
 
     debugPrint('DEBUG: אתחול PDF טאב - דף התחלתי: ${widget.tab.pageNumber}');
 
     _sidebarWidth = ValueNotifier<double>(
         Settings.getValue<double>('key-sidebar-width', defaultValue: 300)!);
 
-    _rightPaneWidth = ValueNotifier<double>(350.0);
+    // טען את רוחב החלונית הימנית מההגדרות
+    final settingsBloc = context.read<SettingsBloc>();
+    _rightPaneWidth =
+        ValueNotifier<double>(settingsBloc.state.commentaryPaneWidth);
     _showRightPane = ValueNotifier<bool>(false);
 
-    _settingsSub = context.read<SettingsBloc>().stream.listen((state) {
+    _settingsSub = settingsBloc.stream.listen((state) {
       _sidebarWidth.value = state.sidebarWidth;
+      _rightPaneWidth.value = state.commentaryPaneWidth;
     });
 
     pdfController.addListener(_onPdfViewerControllerUpdate);
@@ -189,6 +203,61 @@ class _PdfBookScreenState extends State<PdfBookScreen>
 
     // טעינת headings וlinks
     _loadPdfHeadingsAndLinks();
+
+    // טעינת הגדרות פר-ספר
+    _loadPerBookSettings();
+  }
+
+  /// טעינת הגדרות פר-ספר
+  Future<void> _loadPerBookSettings() async {
+    final settingsBloc = context.read<SettingsBloc>();
+    if (!settingsBloc.state.enablePerBookSettings) return;
+
+    final settings = await PdfBookPerBookSettings.load(widget.tab.book.title);
+    if (settings == null || !mounted) return;
+
+    // החלת ההגדרות
+    if (settings.zoom != null && widget.tab.pdfViewerController.isReady) {
+      widget.tab.pdfViewerController.setZoom(
+        widget.tab.pdfViewerController.centerPosition,
+        settings.zoom!,
+      );
+    }
+  }
+
+  /// שמירת הגדרות פר-ספר
+  Future<void> _savePerBookSettings() async {
+    final settingsBloc = context.read<SettingsBloc>();
+    if (!settingsBloc.state.enablePerBookSettings) return;
+
+    if (!widget.tab.pdfViewerController.isReady) return;
+
+    final settings = PdfBookPerBookSettings(
+      zoom: widget.tab.pdfViewerController.value.zoom,
+    );
+
+    await settings.save(widget.tab.book.title);
+  }
+
+  /// איפוס הגדרות פר-ספר
+  Future<void> _resetPerBookSettings() async {
+    await PdfBookPerBookSettings.delete(widget.tab.book.title);
+
+    // איפוס הזום לברירת מחדל
+    if (widget.tab.pdfViewerController.isReady) {
+      widget.tab.pdfViewerController.setZoom(
+        widget.tab.pdfViewerController.centerPosition,
+        1.0,
+      );
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ההגדרות הפר-ספריות אופסו בהצלחה'),
+        ),
+      );
+    }
   }
 
   Future<void> _loadPdfHeadingsAndLinks() async {
@@ -259,6 +328,10 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     if (newPage == widget.tab.pageNumber) return;
     widget.tab.pageNumber = newPage;
     final token = _lastComputedForPage = newPage;
+
+    // עדכון מיידי של הכותרת עם מספר העמוד
+    widget.tab.currentTitle.value = 'עמוד $newPage';
+
     final title = await refFromPageNumber(
         newPage, widget.tab.outline.value ?? [], widget.tab.book.title);
     if (token == _lastComputedForPage) {
@@ -294,7 +367,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
 
   @override
   void dispose() {
-    textSearcher.removeListener(_onTextSearcherUpdated);
+    _zoomBarTimer?.cancel();
+    textSearcher?.removeListener(_onTextSearcherUpdated);
     widget.tab.pdfViewerController.removeListener(_onPdfViewerControllerUpdate);
     _leftPaneTabController?.dispose();
     _searchFieldFocusNode.dispose();
@@ -513,9 +587,9 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                                         Colors.blue.withValues(alpha: 0.2),
                                   ),
                                 ),
-                                pagePaintCallbacks: [
-                                  textSearcher.pageTextMatchPaintCallback
-                                ],
+                                pagePaintCallbacks: textSearcher != null
+                                    ? [textSearcher!.pageTextMatchPaintCallback]
+                                    : null,
                                 onDocumentChanged: (document) async {
                                   if (document == null) {
                                     widget.tab.documentRef.value = null;
@@ -523,6 +597,10 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                                   }
                                 },
                                 onViewerReady: (document, controller) async {
+                                  // 0. יצירת textSearcher רק אחרי שה-controller מוכן
+                                  if (!mounted) return;
+                                  textSearcher = PdfTextSearcher(pdfController)
+                                    ..addListener(_onTextSearcherUpdated);
                                   // 1. הגדרת המידע הראשוני מהמסמך
                                   widget.tab.documentRef.value =
                                       controller.documentRef;
@@ -570,7 +648,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                           ),
                         ),
                       ),
-                      // כפתור צף לפתיחת חלונית המפרשים
+                      // טאב צף לפתיחת חלונית המפרשים - עם 3 מצבים והדרכה
                       ValueListenableBuilder(
                         valueListenable: _showRightPane,
                         builder: (context, showRightPane, child) {
@@ -578,44 +656,74 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                           if (showRightPane) return const SizedBox.shrink();
 
                           return Positioned(
-                            left: 8,
-                            top: 8,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surface
-                                    .withValues(alpha: 0.9),
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
+                            left: 0, // צמוד לקצה
+                            top: MediaQuery.of(context).size.height * 0.10, // למעלה במסך
+                            child: CommentaryPaneTooltip(
+                              child: MouseRegion(
+                                onEnter: (_) => setState(() => _isRightPaneHovering = true),
+                                onExit: (_) => setState(() => _isRightPaneHovering = false),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    _showRightPane.value = true;
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    curve: Curves.easeOut,
+                                    // מצב 1: סגור - בליטה קטנה, מצב 2: ריחוף - נשלף יותר
+                                    width: _isRightPaneHovering ? 48 : 20,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest
+                                          .withValues(alpha: _isRightPaneHovering ? 0.95 : 0.8),
+                                      borderRadius: const BorderRadius.only(
+                                        topRight: Radius.circular(40),
+                                        bottomRight: Radius.circular(40),
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.15),
+                                          blurRadius: _isRightPaneHovering ? 8 : 4,
+                                          offset: const Offset(2, 0),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: AnimatedOpacity(
+                                        duration: const Duration(milliseconds: 150),
+                                        opacity: _isRightPaneHovering ? 1.0 : 0.6,
+                                        child: Icon(
+                                          FluentIcons.chevron_right_24_regular,
+                                          size: _isRightPaneHovering ? 24 : 18,
+                                          color: Theme.of(context).colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ],
-                              ),
-                              child: IconButton(
-                                iconSize: 18,
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(
-                                  minWidth: 36,
-                                  minHeight: 36,
                                 ),
-                                icon: Icon(
-                                  FluentIcons.panel_left_contract_24_regular,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
-                                ),
-                                tooltip: 'פתח מפרשים וקישורים',
-                                onPressed: () {
-                                  _showRightPane.value = true;
-                                },
                               ),
                             ),
                           );
                         },
                       ),
+                      // סרגל זום
+                      if (_showZoomBar &&
+                          widget.tab.pdfViewerController.isReady)
+                        Positioned(
+                          top: 16,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: PdfZoomBar(
+                              currentZoom:
+                                  widget.tab.pdfViewerController.value.zoom,
+                              onZoomIn: _zoomIn,
+                              onZoomOut: _zoomOut,
+                              onResetZoom: _resetZoom,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -632,6 +740,12 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                                   (_rightPaneWidth.value + details.delta.dx)
                                       .clamp(250.0, 600.0);
                               _rightPaneWidth.value = newWidth;
+                            },
+                            onHorizontalDragEnd: (_) {
+                              // שמור את הרוחב ב-SettingsBloc
+                              context.read<SettingsBloc>().add(
+                                  UpdateCommentaryPaneWidth(
+                                      _rightPaneWidth.value));
                             },
                             child: const VerticalDivider(width: 4),
                           ),
@@ -762,15 +876,20 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                           }
                           return child!;
                         },
-                        child: PdfBookSearchView(
-                          textSearcher: textSearcher,
-                          searchController: widget.tab.searchController,
-                          focusNode: _searchFieldFocusNode,
-                          outline: widget.tab.outline.value,
-                          bookTitle: widget.tab.book.title,
-                          initialSearchText: widget.tab.searchText,
-                          onSearchResultNavigated: _ensureSearchTabIsActive,
-                        ),
+                        child: textSearcher != null
+                            ? PdfBookSearchView(
+                                textSearcher: textSearcher!,
+                                searchController: widget.tab.searchController,
+                                focusNode: _searchFieldFocusNode,
+                                outline: widget.tab.outline.value,
+                                bookTitle: widget.tab.book.title,
+                                initialSearchText: widget.tab.searchText,
+                                onSearchResultNavigated:
+                                    _ensureSearchTabIsActive,
+                              )
+                            : const Center(
+                                child: CircularProgressIndicator(),
+                              ),
                       ),
                       ValueListenableBuilder(
                         valueListenable: widget.tab.documentRef,
@@ -790,12 +909,52 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     );
   }
 
+  void _showZoomBarTemporarily() {
+    setState(() {
+      _showZoomBar = true;
+    });
+    _zoomBarTimer?.cancel();
+    _zoomBarTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _showZoomBar = false;
+        });
+      }
+    });
+  }
+
   void _zoomIn() {
-    widget.tab.pdfViewerController.zoomUp();
+    if (!widget.tab.pdfViewerController.isReady) return;
+    final currentZoom = widget.tab.pdfViewerController.value.zoom;
+    final newZoom = currentZoom * 1.1; // הגדלה ב-10%
+    widget.tab.pdfViewerController.setZoom(
+      widget.tab.pdfViewerController.centerPosition,
+      newZoom,
+    );
+    _showZoomBarTemporarily();
+    _savePerBookSettings();
   }
 
   void _zoomOut() {
-    widget.tab.pdfViewerController.zoomDown();
+    if (!widget.tab.pdfViewerController.isReady) return;
+    final currentZoom = widget.tab.pdfViewerController.value.zoom;
+    final newZoom = currentZoom / 1.1; // הקטנה ב-10%
+    widget.tab.pdfViewerController.setZoom(
+      widget.tab.pdfViewerController.centerPosition,
+      newZoom,
+    );
+    _showZoomBarTemporarily();
+    _savePerBookSettings();
+  }
+
+  void _resetZoom() {
+    if (!widget.tab.pdfViewerController.isReady) return;
+    widget.tab.pdfViewerController.setZoom(
+      widget.tab.pdfViewerController.centerPosition,
+      1.0,
+    );
+    _showZoomBarTemporarily();
+    _savePerBookSettings();
   }
 
   void _goNextPage() {
@@ -906,11 +1065,11 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         widget: IconButton(
           icon: const Icon(FluentIcons.zoom_in_24_regular),
           tooltip: 'הגדל',
-          onPressed: () => widget.tab.pdfViewerController.zoomUp(),
+          onPressed: _zoomIn,
         ),
         icon: FluentIcons.zoom_in_24_regular,
         tooltip: 'הגדל',
-        onPressed: () => widget.tab.pdfViewerController.zoomUp(),
+        onPressed: _zoomIn,
       ),
 
       // 3) Zoom Out Button
@@ -918,11 +1077,11 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         widget: IconButton(
           icon: const Icon(FluentIcons.zoom_out_24_regular),
           tooltip: 'הקטן',
-          onPressed: () => widget.tab.pdfViewerController.zoomDown(),
+          onPressed: _zoomOut,
         ),
         icon: FluentIcons.zoom_out_24_regular,
         tooltip: 'הקטן',
-        onPressed: () => widget.tab.pdfViewerController.zoomDown(),
+        onPressed: _zoomOut,
       ),
 
       // 4) Search Button
@@ -937,103 +1096,207 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         onPressed: _ensureSearchTabIsActive,
       ),
 
-      // 5) First Page Button
-      ActionButtonData(
-        widget: IconButton(
-          icon: const Icon(FluentIcons.arrow_previous_24_regular),
+      // 5-9) Navigation Buttons - רק אם לא בתצוגה משולבת
+      if (!widget.isInCombinedView) ...[
+        // 5) First Page Button
+        ActionButtonData(
+          widget: IconButton(
+            icon: const Icon(FluentIcons.arrow_previous_24_regular),
+            tooltip: 'תחילת הספר',
+            onPressed: () =>
+                widget.tab.pdfViewerController.goToPage(pageNumber: 1),
+          ),
+          icon: FluentIcons.arrow_previous_24_regular,
           tooltip: 'תחילת הספר',
-          onPressed: () =>
-              widget.tab.pdfViewerController.goToPage(pageNumber: 1),
+          onPressed: () => widget.tab.pdfViewerController.goToPage(pageNumber: 1),
         ),
-        icon: FluentIcons.arrow_previous_24_regular,
-        tooltip: 'תחילת הספר',
-        onPressed: () => widget.tab.pdfViewerController.goToPage(pageNumber: 1),
-      ),
 
-      // 6) Previous Page Button
-      ActionButtonData(
-        widget: IconButton(
-          icon: const Icon(FluentIcons.chevron_left_24_regular),
+        // 6) Previous Page Button
+        ActionButtonData(
+          widget: IconButton(
+            icon: const Icon(FluentIcons.chevron_left_24_regular),
+            tooltip: 'הקודם',
+            onPressed: () {
+              if (widget.tab.pdfViewerController.isReady) {
+                final currentPage =
+                    widget.tab.pdfViewerController.pageNumber ?? 1;
+                widget.tab.pdfViewerController.goToPage(
+                  pageNumber: max(currentPage - 1, 1),
+                );
+              }
+            },
+          ),
+          icon: FluentIcons.chevron_left_24_regular,
           tooltip: 'הקודם',
           onPressed: () {
             if (widget.tab.pdfViewerController.isReady) {
-              final currentPage =
-                  widget.tab.pdfViewerController.pageNumber ?? 1;
+              final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
               widget.tab.pdfViewerController.goToPage(
                 pageNumber: max(currentPage - 1, 1),
               );
             }
           },
         ),
-        icon: FluentIcons.chevron_left_24_regular,
-        tooltip: 'הקודם',
-        onPressed: () {
-          if (widget.tab.pdfViewerController.isReady) {
-            final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
-            widget.tab.pdfViewerController.goToPage(
-              pageNumber: max(currentPage - 1, 1),
-            );
-          }
-        },
-      ),
 
-      // 7) Page Number Display - תמיד מוצג!
-      ActionButtonData(
-        widget: PageNumberDisplay(controller: widget.tab.pdfViewerController),
-        icon: FluentIcons.text_font_24_regular,
-        tooltip: 'מספר עמוד',
-        onPressed: null, // לא ניתן ללחיצה
-      ),
+        // 7) Page Number Display - תמיד מוצג!
+        ActionButtonData(
+          widget: PageNumberDisplay(controller: widget.tab.pdfViewerController),
+          icon: FluentIcons.text_font_24_regular,
+          tooltip: 'מספר עמוד',
+          onPressed: null, // לא ניתן ללחיצה
+        ),
 
-      // 8) Next Page Button
-      ActionButtonData(
-        widget: IconButton(
+        // 8) Next Page Button
+        ActionButtonData(
+          widget: IconButton(
+            onPressed: () {
+              if (widget.tab.pdfViewerController.isReady) {
+                final currentPage =
+                    widget.tab.pdfViewerController.pageNumber ?? 1;
+                widget.tab.pdfViewerController.goToPage(
+                  pageNumber: min(
+                      currentPage + 1, widget.tab.pdfViewerController.pageCount),
+                );
+              }
+            },
+            icon: const Icon(FluentIcons.chevron_right_24_regular),
+            tooltip: 'הבא',
+          ),
+          icon: FluentIcons.chevron_right_24_regular,
+          tooltip: 'הבא',
           onPressed: () {
             if (widget.tab.pdfViewerController.isReady) {
-              final currentPage =
-                  widget.tab.pdfViewerController.pageNumber ?? 1;
+              final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
               widget.tab.pdfViewerController.goToPage(
                 pageNumber: min(
                     currentPage + 1, widget.tab.pdfViewerController.pageCount),
               );
             }
           },
-          icon: const Icon(FluentIcons.chevron_right_24_regular),
-          tooltip: 'הבא',
         ),
-        icon: FluentIcons.chevron_right_24_regular,
-        tooltip: 'הבא',
-        onPressed: () {
-          if (widget.tab.pdfViewerController.isReady) {
-            final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
-            widget.tab.pdfViewerController.goToPage(
-              pageNumber: min(
-                  currentPage + 1, widget.tab.pdfViewerController.pageCount),
-            );
-          }
-        },
-      ),
 
-      // 9) Last Page Button
-      ActionButtonData(
-        widget: IconButton(
-          icon: const Icon(FluentIcons.arrow_next_24_filled),
+        // 9) Last Page Button
+        ActionButtonData(
+          widget: IconButton(
+            icon: const Icon(FluentIcons.arrow_next_24_filled),
+            tooltip: 'סוף הספר',
+            onPressed: () => widget.tab.pdfViewerController
+                .goToPage(pageNumber: widget.tab.pdfViewerController.pageCount),
+          ),
+          icon: FluentIcons.arrow_next_24_filled,
           tooltip: 'סוף הספר',
           onPressed: () => widget.tab.pdfViewerController
               .goToPage(pageNumber: widget.tab.pdfViewerController.pageCount),
         ),
-        icon: FluentIcons.arrow_next_24_filled,
-        tooltip: 'סוף הספר',
-        onPressed: () => widget.tab.pdfViewerController
-            .goToPage(pageNumber: widget.tab.pdfViewerController.pageCount),
-      ),
+      ],
     ];
   }
 
   /// כפתורים שתמיד יהיו בתפריט "..."
   List<ActionButtonData> _buildAlwaysInMenuPdfActions(BuildContext context) {
     return [
-      // 1) הוספת הערה
+      // כפתורי ניווט - רק בתצוגה משולבת
+      if (widget.isInCombinedView) ...[
+        ActionButtonData(
+          widget: IconButton(
+            icon: const Icon(FluentIcons.arrow_previous_24_regular),
+            tooltip: 'תחילת הספר',
+            onPressed: () =>
+                widget.tab.pdfViewerController.goToPage(pageNumber: 1),
+          ),
+          icon: FluentIcons.arrow_previous_24_regular,
+          tooltip: 'תחילת הספר',
+          onPressed: () => widget.tab.pdfViewerController.goToPage(pageNumber: 1),
+        ),
+        ActionButtonData(
+          widget: IconButton(
+            icon: const Icon(FluentIcons.chevron_left_24_regular),
+            tooltip: 'הקודם',
+            onPressed: () {
+              if (widget.tab.pdfViewerController.isReady) {
+                final currentPage =
+                    widget.tab.pdfViewerController.pageNumber ?? 1;
+                widget.tab.pdfViewerController.goToPage(
+                  pageNumber: max(currentPage - 1, 1),
+                );
+              }
+            },
+          ),
+          icon: FluentIcons.chevron_left_24_regular,
+          tooltip: 'הקודם',
+          onPressed: () {
+            if (widget.tab.pdfViewerController.isReady) {
+              final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
+              widget.tab.pdfViewerController.goToPage(
+                pageNumber: max(currentPage - 1, 1),
+              );
+            }
+          },
+        ),
+        ActionButtonData(
+          widget: IconButton(
+            onPressed: () {
+              if (widget.tab.pdfViewerController.isReady) {
+                final currentPage =
+                    widget.tab.pdfViewerController.pageNumber ?? 1;
+                widget.tab.pdfViewerController.goToPage(
+                  pageNumber: min(
+                      currentPage + 1, widget.tab.pdfViewerController.pageCount),
+                );
+              }
+            },
+            icon: const Icon(FluentIcons.chevron_right_24_regular),
+            tooltip: 'הבא',
+          ),
+          icon: FluentIcons.chevron_right_24_regular,
+          tooltip: 'הבא',
+          onPressed: () {
+            if (widget.tab.pdfViewerController.isReady) {
+              final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
+              widget.tab.pdfViewerController.goToPage(
+                pageNumber: min(
+                    currentPage + 1, widget.tab.pdfViewerController.pageCount),
+              );
+            }
+          },
+        ),
+        ActionButtonData(
+          widget: IconButton(
+            icon: const Icon(FluentIcons.arrow_next_24_filled),
+            tooltip: 'סוף הספר',
+            onPressed: () => widget.tab.pdfViewerController
+                .goToPage(pageNumber: widget.tab.pdfViewerController.pageCount),
+          ),
+          icon: FluentIcons.arrow_next_24_filled,
+          tooltip: 'סוף הספר',
+          onPressed: () => widget.tab.pdfViewerController
+              .goToPage(pageNumber: widget.tab.pdfViewerController.pageCount),
+        ),
+      ],
+
+      // 1) הצג הערות אישיות
+      ActionButtonData(
+        widget: IconButton(
+          icon: const Icon(FluentIcons.note_24_regular),
+          tooltip: 'הצג הערות אישיות',
+          onPressed: () {
+            setState(() {
+              _rightPaneInitialTabIndex = 2; // טאב הערות אישיות
+            });
+            _showRightPane.value = true;
+          },
+        ),
+        icon: FluentIcons.note_24_regular,
+        tooltip: 'הצג הערות אישיות',
+        onPressed: () {
+          setState(() {
+            _rightPaneInitialTabIndex = 2; // טאב הערות אישיות
+          });
+          _showRightPane.value = true;
+        },
+      ),
+
+      // 2) הוספת הערה
       ActionButtonData(
         widget: IconButton(
           icon: const Icon(FluentIcons.note_add_24_regular),
@@ -1045,7 +1308,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         onPressed: () => _handleAddNotePress(context),
       ),
 
-      // 2) הוספת סימניה
+      // 3) הוספת סימניה
       ActionButtonData(
         widget: IconButton(
           icon: const Icon(FluentIcons.bookmark_add_24_regular),
@@ -1057,17 +1320,57 @@ class _PdfBookScreenState extends State<PdfBookScreen>
         onPressed: () => _handleBookmarkPress(context),
       ),
 
-      // 3) הדפסה
-      ActionButtonData(
-        widget: IconButton(
-          icon: const Icon(FluentIcons.print_24_regular),
+      // 4) איפוס הגדרות פר-ספר - לא בתצוגה משולבת
+      if (!widget.isInCombinedView &&
+          context.read<SettingsBloc>().state.enablePerBookSettings)
+        ActionButtonData(
+          widget: IconButton(
+            icon: const Icon(FluentIcons.arrow_reset_24_regular),
+            tooltip: 'אפס הגדרות ספר זה',
+            onPressed: () => _resetPerBookSettings(),
+          ),
+          icon: FluentIcons.arrow_reset_24_regular,
+          tooltip: 'אפס הגדרות ספר זה',
+          onPressed: () => _resetPerBookSettings(),
+        ),
+
+      // 5) הדפסה - לא בתצוגה משולבת
+      if (!widget.isInCombinedView)
+        ActionButtonData(
+          widget: IconButton(
+            icon: const Icon(FluentIcons.print_24_regular),
+            tooltip: 'הדפס',
+            onPressed: () => _handlePrintPress(context),
+          ),
+          icon: FluentIcons.print_24_regular,
           tooltip: 'הדפס',
           onPressed: () => _handlePrintPress(context),
         ),
-        icon: FluentIcons.print_24_regular,
-        tooltip: 'הדפס',
-        onPressed: () => _handlePrintPress(context),
-      ),
+
+      // תת-תפריט "פעולות נוספות" - רק בתצוגה משולבת
+      if (widget.isInCombinedView)
+        ActionButtonData(
+          widget: const SizedBox.shrink(), // לא נראה כי זה בתפריט
+          icon: FluentIcons.more_horizontal_24_regular,
+          tooltip: 'פעולות נוספות',
+          onPressed: null, // לא ניתן ללחיצה - זה submenu
+          submenuItems: [
+            // איפוס הגדרות פר-ספר (מוצג רק כשההגדרה מופעלת)
+            if (context.read<SettingsBloc>().state.enablePerBookSettings)
+              ActionButtonData(
+                widget: const SizedBox.shrink(),
+                icon: FluentIcons.arrow_reset_24_regular,
+                tooltip: 'אפס הגדרות ספר זה',
+                onPressed: () => _resetPerBookSettings(),
+              ),
+            ActionButtonData(
+              widget: const SizedBox.shrink(),
+              icon: FluentIcons.print_24_regular,
+              tooltip: 'הדפס',
+              onPressed: () => _handlePrintPress(context),
+            ),
+          ],
+        ),
     ];
   }
 
@@ -1098,15 +1401,62 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     int index = widget.tab.pdfViewerController.isReady
         ? (widget.tab.pdfViewerController.pageNumber ?? 1)
         : 1;
+
+    // נסה למצוא כותרת מה-outline
+    String ref;
+    final outline = widget.tab.outline.value;
+    debugPrint(
+        'DEBUG Bookmark: outline is ${outline == null ? "null" : "not null"}, isEmpty: ${outline?.isEmpty}, page: $index');
+    if (outline != null && outline.isNotEmpty) {
+      final heading = _findHeadingForPage(outline, index);
+      debugPrint('DEBUG Bookmark: heading found: $heading');
+      if (heading != null) {
+        ref = '${widget.tab.title} $heading'; // שם הספר + הכותרת
+      } else {
+        ref =
+            '${widget.tab.title} עמוד $index'; // אם אין כותרת, הצג עם מספר עמוד
+      }
+    } else {
+      ref =
+          '${widget.tab.title} עמוד $index'; // אם אין outline, הצג עם מספר עמוד
+    }
+
     bool bookmarkAdded = Provider.of<BookmarkBloc>(context, listen: false)
-        .addBookmark(
-            ref: '${widget.tab.title} עמוד $index',
-            book: widget.tab.book,
-            index: index);
+        .addBookmark(ref: ref, book: widget.tab.book, index: index);
     if (mounted) {
       UiSnack.show(
           bookmarkAdded ? 'הסימניה נוספה בהצלחה' : 'הסימניה כבר קיימת');
     }
+  }
+
+  /// מוצא את הכותרת המתאימה לעמוד מסוים ב-outline
+  String? _findHeadingForPage(List<PdfOutlineNode> outline, int page) {
+    PdfOutlineNode? bestMatch;
+
+    void searchNodes(List<PdfOutlineNode> nodes) {
+      for (final node in nodes) {
+        final nodePage = node.dest?.pageNumber;
+        debugPrint(
+            'DEBUG: checking node "${node.title}" with page $nodePage against target page $page');
+        if (nodePage != null && nodePage <= page) {
+          // אם זה העמוד המדויק או קרוב יותר מהמצא הקודם
+          if (bestMatch == null ||
+              nodePage > (bestMatch!.dest?.pageNumber ?? 0)) {
+            bestMatch = node;
+            debugPrint(
+                'DEBUG: new bestMatch: "${node.title}" at page $nodePage');
+          }
+          // חפש גם בילדים
+          if (node.children.isNotEmpty) {
+            searchNodes(node.children);
+          }
+        }
+      }
+    }
+
+    searchNodes(outline);
+    debugPrint('DEBUG: final bestMatch: ${bestMatch?.title}');
+    return bestMatch?.title;
   }
 
   /// טיפול בלחיצה על כפתור הוספת הערה
@@ -1114,6 +1464,10 @@ class _PdfBookScreenState extends State<PdfBookScreen>
     final currentPage = widget.tab.pdfViewerController.isReady
         ? (widget.tab.pdfViewerController.pageNumber ?? 1)
         : 1;
+
+    // שמירת הערכים מה-context לפני ה-async gap
+    final notesBloc = context.read<PersonalNotesBloc>();
+    final dialogContext = context;
 
     // קבלת טווח השורות של העמוד הנוכחי
     final library = await DataRepository.instance.library;
@@ -1148,16 +1502,20 @@ class _PdfBookScreenState extends State<PdfBookScreen>
       }
     }
 
+    if (!mounted) return;
+
     final controller = TextEditingController();
-    final notesBloc = context.read<PersonalNotesBloc>();
 
     final noteContent = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => PersonalNoteEditorDialog(
+      // ignore: use_build_context_synchronously
+      context: dialogContext,
+      builder: (context) => PersonalNoteEditorDialog(
         title: dialogTitle,
         controller: controller,
       ),
     );
+
+    if (!mounted) return;
 
     if (noteContent == null) {
       debugPrint('Note dialog cancelled');
@@ -1186,6 +1544,9 @@ class _PdfBookScreenState extends State<PdfBookScreen>
       ));
 
       // פתיחת חלונית המפרשים בטאב ההערות
+      setState(() {
+        _rightPaneInitialTabIndex = 2; // טאב הערות אישיות
+      });
       _showRightPane.value = true;
 
       // המתנה קצרה לעדכון ה-bloc
@@ -1214,6 +1575,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
       filename: fileName,
     );
   }
+
+
 
   Widget _buildTextButton(
       BuildContext context, PdfBook book, PdfViewerController controller) {
@@ -1272,6 +1635,7 @@ class _PdfBookScreenState extends State<PdfBookScreen>
             onClose: () {
               _showRightPane.value = false;
             },
+            initialTabIndex: _rightPaneInitialTabIndex,
           ),
         ),
       ),

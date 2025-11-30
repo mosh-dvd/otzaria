@@ -55,11 +55,19 @@ app.*.map.json
 
 .git/
 .vscode/
-android/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/captures/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/app/.cxx/
+android/app/google-services.json
 build/
 fonts/
 
-installer/otzaria-0.9.71-windows.exe
-installer/otzaria-0.9.71-windows-full.exe
+installer/otzaria-0.9.72-windows.exe
+installer/otzaria-0.9.72-windows-full.exe
 pubspec.lock
 flutter/

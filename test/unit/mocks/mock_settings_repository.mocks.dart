@@ -60,9 +60,9 @@ class MockSettingsRepository extends _i1.Mock
       ) as _i3.Future<void>);
 
   @override
-  _i3.Future<void> updatePaddingSize(double? value) => (super.noSuchMethod(
+  _i3.Future<void> updateTextMaxWidth(double? value) => (super.noSuchMethod(
         Invocation.method(
-          #updatePaddingSize,
+          #updateTextMaxWidth,
           [value],
         ),
         returnValue: _i3.Future<void>.value(),
@@ -83,6 +83,17 @@ class MockSettingsRepository extends _i1.Mock
   _i3.Future<void> updateFontFamily(String? value) => (super.noSuchMethod(
         Invocation.method(
           #updateFontFamily,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateCommentatorsFontFamily(String? value) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateCommentatorsFontFamily,
           [value],
         ),
         returnValue: _i3.Future<void>.value(),
@@ -216,6 +227,180 @@ class MockSettingsRepository extends _i1.Mock
         Invocation.method(
           #updateFacetFilteringWidth,
           [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateCommentaryPaneWidth(double? value) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateCommentaryPaneWidth,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateCalendarType(String? value) => (super.noSuchMethod(
+        Invocation.method(
+          #updateCalendarType,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateSelectedCity(String? value) => (super.noSuchMethod(
+        Invocation.method(
+          #updateSelectedCity,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateCalendarEvents(String? eventsJson) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateCalendarEvents,
+          [eventsJson],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateCopyWithHeaders(String? value) => (super.noSuchMethod(
+        Invocation.method(
+          #updateCopyWithHeaders,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateCopyHeaderFormat(String? value) => (super.noSuchMethod(
+        Invocation.method(
+          #updateCopyHeaderFormat,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateIsFullscreen(bool? value) => (super.noSuchMethod(
+        Invocation.method(
+          #updateIsFullscreen,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateLibraryViewMode(String? value) => (super.noSuchMethod(
+        Invocation.method(
+          #updateLibraryViewMode,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateLibraryShowPreview(bool? value) => (super.noSuchMethod(
+        Invocation.method(
+          #updateLibraryShowPreview,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateEnablePerBookSettings(bool? value) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateEnablePerBookSettings,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateCalendarNotificationsEnabled(bool? value) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateCalendarNotificationsEnabled,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateCalendarNotificationTime(int? value) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateCalendarNotificationTime,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateCalendarNotificationSound(bool? value) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateCalendarNotificationSound,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<Map<String, String>> getShortcuts() => (super.noSuchMethod(
+        Invocation.method(
+          #getShortcuts,
+          [],
+        ),
+        returnValue: _i3.Future<Map<String, String>>.value(<String, String>{}),
+        returnValueForMissingStub:
+            _i3.Future<Map<String, String>>.value(<String, String>{}),
+      ) as _i3.Future<Map<String, String>>);
+
+  @override
+  _i3.Future<void> resetShortcuts() => (super.noSuchMethod(
+        Invocation.method(
+          #resetShortcuts,
+          [],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateShortcut(
+    String? key,
+    String? value,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateShortcut,
+          [
+            key,
+            value,
+          ],
         ),
         returnValue: _i3.Future<void>.value(),
         returnValueForMissingStub: _i3.Future<void>.value(),

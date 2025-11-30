@@ -375,7 +375,9 @@ class _OutlineViewState extends State<OutlineView>
                     fontWeight: level == 0
                         ? FontWeight.w600
                         : (selected ? FontWeight.w600 : FontWeight.normal),
-                    color: level == 0 ? Theme.of(context).colorScheme.primary : null,
+                    color: level == 0
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
                   ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 2,
@@ -480,9 +482,7 @@ class _OutlineViewState extends State<OutlineView>
             ),
           ),
           if (isExpanded)
-            ...node.children
-                .map((c) => _buildOutlineItem(c, level: level + 1))
-                .toList(),
+            ...node.children.map((c) => _buildOutlineItem(c, level: level + 1)),
         ],
       );
     }

@@ -13,6 +13,8 @@ class LoadContent extends TextBookEvent {
   final bool removeNikud;
   final bool preserveState; // Whether to preserve current state during reload
   final bool loadCommentators; // Whether to load commentators
+  final bool
+      forceCloseLeftPane; // Force close left pane (for side-by-side mode)
 
   const LoadContent({
     required this.fontSize,
@@ -20,10 +22,18 @@ class LoadContent extends TextBookEvent {
     required this.removeNikud,
     this.preserveState = false, // Default to false for backward compatibility
     this.loadCommentators = true, // Default to true for backward compatibility
+    this.forceCloseLeftPane = false, // Default to false
   });
 
   @override
-  List<Object?> get props => [fontSize, showSplitView, removeNikud, preserveState, loadCommentators];
+  List<Object?> get props => [
+        fontSize,
+        showSplitView,
+        removeNikud,
+        preserveState,
+        loadCommentators,
+        forceCloseLeftPane
+      ];
 }
 
 class UpdateFontSize extends TextBookEvent {

@@ -71,17 +71,27 @@ class AppPaths {
   }
 
   /// Creates necessary directories for the application
+  /// Note: Does NOT create the library path itself - only index directories
+  /// The library path should be created by the user or during library download
   static Future<void> createNecessaryDirectories() async {
-    final dirs = [
-      await getLibraryPath(),
-      await getIndexPath(),
-      await getRefIndexPath(),
-    ];
+    // רק ניצור את תיקיות האינדקס, לא את תיקיית הספרייה עצמה
+    // תיקיית הספרייה תיווצר רק כשמורידים ספרייה או כשהמשתמש בוחר תיקייה קיימת
+    final libraryPath = await getLibraryPath();
+    final libraryDir = Directory(libraryPath);
+    
+    // אם תיקיית הספרייה לא קיימת, לא ניצור אותה
+    // רק נוודא שתיקיות האינדקס קיימות אם תיקיית הספרייה קיימת
+    if (await libraryDir.exists()) {
+      final dirs = [
+        await getIndexPath(),
+        await getRefIndexPath(),
+      ];
 
-    for (final dirPath in dirs) {
-      final directory = Directory(dirPath);
-      if (!await directory.exists()) {
-        await directory.create(recursive: true);
+      for (final dirPath in dirs) {
+        final directory = Directory(dirPath);
+        if (!await directory.exists()) {
+          await directory.create(recursive: true);
+        }
       }
     }
   }

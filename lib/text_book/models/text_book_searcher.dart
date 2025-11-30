@@ -66,14 +66,39 @@ class TextBookSearcher {
       if (index >= 0) {
         // if there is a match
         // מסנן את רמה 1 (<h1>) - שם הספר
-        final filteredAddress = address.where((h) => !h.startsWith('<h1')).toList();
-        
+        final filteredAddress =
+            address.where((h) => !h.startsWith('<h1')).toList();
+
+        // Calculate start and end indices with word boundaries
+        int start = max(0, index - 40);
+        int end = min(section.length, index + query.length + 40);
+
+        // Adjust start to beginning of word
+        if (start > 0) {
+          int spaceIndex = section.lastIndexOf(' ', start);
+          if (spaceIndex != -1) {
+            start = spaceIndex + 1;
+          } else {
+            start = 0;
+          }
+        }
+
+        // Adjust end to end of word
+        if (end < section.length) {
+          int spaceIndex = section.indexOf(' ', end);
+          if (spaceIndex != -1) {
+            end = spaceIndex;
+          } else {
+            end = section.length;
+          }
+        }
+
         results.add(TextSearchResult(
-            snippet: section.substring(max(0, index - 40),
-                min(section.length - 1, index + query.length + 40)),
+            snippet: section.substring(start, end),
             index: sectionIndex,
             query: query,
-            address: removeVolwels(stripHtmlIfNeeded(filteredAddress.join(', ')))));
+            address: removeVolwels(
+                stripHtmlIfNeeded(filteredAddress.join(', ')))));
       }
     }
     return results;

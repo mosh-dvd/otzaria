@@ -4,11 +4,13 @@ a tab is either a pdf book or a text book, or a full text search window*/
 import 'package:otzaria/tabs/models/pdf_tab.dart';
 import 'package:otzaria/tabs/models/searching_tab.dart';
 import 'package:otzaria/tabs/models/text_tab.dart';
+import 'package:otzaria/tabs/models/combined_tab.dart';
 import 'package:otzaria/models/books.dart';
 
 abstract class OpenedTab {
   String title;
-  OpenedTab(this.title);
+  bool isPinned;
+  OpenedTab(this.title, {this.isPinned = false});
 
   /// Called when the tab is being disposed.
   /// Override this method to perform cleanup.
@@ -21,11 +23,20 @@ abstract class OpenedTab {
         book: tab.book,
         searchText: tab.searchText,
         commentators: tab.commentators,
+        isPinned: tab.isPinned,
       );
     } else if (tab is PdfBookTab) {
       return PdfBookTab(
         book: tab.book,
         pageNumber: tab.pageNumber,
+        isPinned: tab.isPinned,
+      );
+    } else if (tab is CombinedTab) {
+      return CombinedTab(
+        rightTab: OpenedTab.from(tab.rightTab),
+        leftTab: OpenedTab.from(tab.leftTab),
+        splitRatio: tab.splitRatio,
+        isPinned: tab.isPinned,
       );
     }
     return tab;
@@ -34,13 +45,15 @@ abstract class OpenedTab {
   factory OpenedTab.fromBook(Book book, int index,
       {String searchText = '',
       List<String>? commentators,
-      bool openLeftPane = false}) {
+      bool openLeftPane = false,
+      bool isPinned = false}) {
     if (book is PdfBook) {
       return PdfBookTab(
         book: book,
         pageNumber: index,
         openLeftPane: openLeftPane,
         searchText: searchText,
+        isPinned: isPinned,
       );
     } else if (book is TextBook) {
       return TextBookTab(
@@ -49,6 +62,7 @@ abstract class OpenedTab {
         searchText: searchText,
         commentators: commentators,
         openLeftPane: openLeftPane,
+        isPinned: isPinned,
       );
     }
     throw UnsupportedError("Unsupported book type: ${book.runtimeType}");
@@ -60,6 +74,8 @@ abstract class OpenedTab {
       return TextBookTab.fromJson(json);
     } else if (type == 'PdfBookTab') {
       return PdfBookTab.fromJson(json);
+    } else if (type == 'CombinedTab') {
+      return CombinedTab.fromJson(json);
     }
     return SearchingTab.fromJson(json);
   }

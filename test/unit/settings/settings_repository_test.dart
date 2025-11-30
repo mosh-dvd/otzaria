@@ -26,9 +26,9 @@ void main() {
               defaultValue: '#ff2c1b02'))
           .thenReturn('#ff2c1b02');
       when(mockSettingsWrapper.getValue<double>(
-              SettingsRepository.keyPaddingSize,
-              defaultValue: 10))
-          .thenReturn(10);
+              SettingsRepository.keyTextMaxWidth,
+              defaultValue: 0))
+          .thenReturn(0.0);
       when(mockSettingsWrapper.getValue<double>(SettingsRepository.keyFontSize,
               defaultValue: 16))
           .thenReturn(16);
@@ -85,7 +85,7 @@ void main() {
       // Verify default values are returned
       expect(settings['isDarkMode'], false);
       expect(settings['seedColor'], ColorUtils.colorFromString('#ff2c1b02'));
-      expect(settings['paddingSize'], 10.0);
+      expect(settings['textMaxWidth'], 0.0);
       expect(settings['fontSize'], 16.0);
       expect(settings['fontFamily'], 'FrankRuhlCLM');
       expect(settings['showOtzarHachochma'], false);
@@ -111,9 +111,9 @@ void main() {
               defaultValue: '#ff2c1b02'))
           .thenReturn('#ff0000ff'); // Blue
       when(mockSettingsWrapper.getValue<double>(
-              SettingsRepository.keyPaddingSize,
-              defaultValue: 10))
-          .thenReturn(15);
+              SettingsRepository.keyTextMaxWidth,
+              defaultValue: 0))
+          .thenReturn(800.0);
       when(mockSettingsWrapper.getValue<double>(SettingsRepository.keyFontSize,
               defaultValue: 16))
           .thenReturn(20);
@@ -170,7 +170,7 @@ void main() {
       // Verify custom values are returned
       expect(settings['isDarkMode'], true);
       expect(settings['seedColor'], ColorUtils.colorFromString('#ff0000ff'));
-      expect(settings['paddingSize'], 15.0);
+      expect(settings['textMaxWidth'], 800.0);
       expect(settings['fontSize'], 20.0);
       expect(settings['fontFamily'], 'Rubik');
       expect(settings['showOtzarHachochma'], true);
@@ -253,9 +253,9 @@ when(mockSettingsWrapper.getValue<String?>(
               defaultValue: '#ff2c1b02'))
           .thenReturn('#ff2c1b02');
       when(mockSettingsWrapper.getValue<double>(
-              SettingsRepository.keyPaddingSize,
-              defaultValue: 10))
-          .thenReturn(10);
+              SettingsRepository.keyTextMaxWidth,
+              defaultValue: 0))
+          .thenReturn(0.0);
       when(mockSettingsWrapper.getValue<double>(SettingsRepository.keyFontSize,
               defaultValue: 16))
           .thenReturn(16);
@@ -304,7 +304,7 @@ when(mockSettingsWrapper.getValue<String?>(
       // Verify that all defaults were written to storage
       verify(mockSettingsWrapper.setValue(SettingsRepository.keyDarkMode, false)).called(1);
       verify(mockSettingsWrapper.setValue(SettingsRepository.keySwatchColor, '#ff2c1b02')).called(1);
-      verify(mockSettingsWrapper.setValue(SettingsRepository.keyPaddingSize, 10.0)).called(1);
+      verify(mockSettingsWrapper.setValue(SettingsRepository.keyTextMaxWidth, 0)).called(1);
       verify(mockSettingsWrapper.setValue(SettingsRepository.keyFontSize, 16.0)).called(1);
       verify(mockSettingsWrapper.setValue(SettingsRepository.keyFontFamily, 'FrankRuhlCLM')).called(1);
       verify(mockSettingsWrapper.setValue(SettingsRepository.keyShowOtzarHachochma, false)).called(1);
@@ -338,9 +338,9 @@ when(mockSettingsWrapper.getValue<String?>(
               defaultValue: '#ff2c1b02'))
           .thenReturn('#ff2c1b02');
       when(mockSettingsWrapper.getValue<double>(
-              SettingsRepository.keyPaddingSize,
-              defaultValue: 10))
-          .thenReturn(10);
+              SettingsRepository.keyTextMaxWidth,
+              defaultValue: 0))
+          .thenReturn(0.0);
       when(mockSettingsWrapper.getValue<double>(SettingsRepository.keyFontSize,
               defaultValue: 16))
           .thenReturn(16);
