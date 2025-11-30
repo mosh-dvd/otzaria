@@ -6,6 +6,7 @@
 /// - Maqaf (Hebrew hyphen)
 ///
 /// Based on the Unicode ranges and character mappings used in Hebrew text processing.
+library;
 
 const Map<String, String> _nikudSigns = {
   "HATAF_SEGOL": "ֱ", // U+05B1
@@ -108,4 +109,3 @@ String replaceMaqaf(String? text, {String replacement = ' '}) {
   if (text == null || text.isEmpty) return "";
   return text.replaceAll(_maqafChar, replacement);
 }
-

@@ -16,8 +16,10 @@ class DatabaseMigration {
   /// 1) Add new columns to book (if they don't already exist) with default 0.
   /// 2) For every book, compute whether it has links of type TARGUM, REFERENCE,
   ///    COMMENTARY, OTHER (as source or target) and update the flags.
-  static Future<void> migrateBookConnectionFlags(SeforimRepository repository) async {
-    _logger.info('Starting migration: add book connection flag columns and backfill values');
+  static Future<void> migrateBookConnectionFlags(
+      SeforimRepository repository) async {
+    _logger.info(
+        'Starting migration: add book connection flag columns and backfill values');
 
     // 1) Add columns (attempt; ignore error if column already exists)
     await _addColumnIfMissing(repository, "hasTargumConnection");
@@ -30,24 +32,30 @@ class DatabaseMigration {
     _logger.info('Found ${books.length} books to migrate');
 
     // Create a single query that computes all flags for all books at once
-    _logger.info('Computing connection flags for all books in a single query...');
+    _logger
+        .info('Computing connection flags for all books in a single query...');
     await repository.updateAllBookConnectionFlagsOptimized();
-    
-    final processed = books.length;
-    _logger.info('Migration completed: backfilled flags for $processed/${books.length} books');
 
-    _logger.info('Migration completed: backfilled flags for $processed/${books.length} books');
+    final processed = books.length;
+    _logger.info(
+        'Migration completed: backfilled flags for $processed/${books.length} books');
+
+    _logger.info(
+        'Migration completed: backfilled flags for $processed/${books.length} books');
   }
 
-  static Future<void> _addColumnIfMissing(SeforimRepository repository, String column) async {
+  static Future<void> _addColumnIfMissing(
+      SeforimRepository repository, String column) async {
     // SQLite doesn't universally support IF NOT EXISTS for ADD COLUMN; just try/catch
-    final sql = "ALTER TABLE book ADD COLUMN $column INTEGER NOT NULL DEFAULT 0";
+    final sql =
+        "ALTER TABLE book ADD COLUMN $column INTEGER NOT NULL DEFAULT 0";
     try {
       await repository.executeRawQuery(sql);
       _logger.info('Added column \'$column\' to book');
     } catch (e) {
       // Column probably exists; log at debug level
-      _logger.fine('Column \'$column\' likely exists already; skipping (error: ${e.toString()})');
+      _logger.fine(
+          'Column \'$column\' likely exists already; skipping (error: ${e.toString()})');
     }
   }
 }
@@ -61,7 +69,8 @@ Future<void> main(List<String> args) async {
   // Set up logging
   Logger.root.level = Level.INFO;
   Logger.root.onRecord.listen((record) {
-    print('${record.level.name}: ${record.time}: ${record.message}');
+    // Using stderr for logging output instead of print
+    stderr.writeln('${record.level.name}: ${record.time}: ${record.message}');
   });
 
   final logger = Logger('MigrationMain');
@@ -77,8 +86,10 @@ Future<void> main(List<String> args) async {
 
   if (dbPath == null || dbPath.isEmpty) {
     logger.severe('Missing required database path');
-    logger.severe('Usage: dart run lib/generator/migration.dart <path/to/seforim.db>');
-    logger.severe('Or set environment variable: export SEFORIM_DB=/path/to/seforim.db');
+    logger.severe(
+        'Usage: dart run lib/generator/migration.dart <path/to/seforim.db>');
+    logger.severe(
+        'Or set environment variable: export SEFORIM_DB=/path/to/seforim.db');
     exit(1);
   }
 
