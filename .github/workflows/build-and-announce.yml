@@ -159,16 +159,11 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Downloading Visual C++ Redistributable for full installer..."
-          $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/abbodi1406/vcredist/releases/latest"
-          $asset = $latestRelease.assets | Where-Object { $_.name -eq "VisualCppRedist_AIO_x86_x64.exe" }
-          if (-not $asset) {
-            Write-Host "::error::Could not find VisualCppRedist_AIO_x86_x64.exe in latest release"
-            exit 1
-          }
-          Write-Host "Downloading from: $($asset.browser_download_url)"
-          Write-Host "Size: $([math]::Round($asset.size / 1MB, 2)) MB"
-          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "installer\VisualCppRedist_AIO_x86_x64.exe"
-          Write-Host "Visual C++ Redistributable downloaded successfully"
+          $downloadUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+          Write-Host "Downloading from official Microsoft link: $downloadUrl"
+          Invoke-WebRequest -Uri $downloadUrl -OutFile "installer\VisualCppRedist_AIO_x86_x64.exe" -UseBasicParsing
+          $fileSize = (Get-Item "installer\VisualCppRedist_AIO_x86_x64.exe").Length
+          Write-Host "Visual C++ Redistributable downloaded successfully. Size: $([math]::Round($fileSize / 1MB, 2)) MB"
 
       - name: Build Inno Setup installer
         shell: pwsh
