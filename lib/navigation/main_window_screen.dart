@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,6 +12,7 @@ import 'package:otzaria/navigation/bloc/navigation_event.dart';
 import 'package:otzaria/navigation/bloc/navigation_state.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/settings/settings_event.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/empty_library/empty_library_screen.dart';
 import 'package:otzaria/find_ref/find_ref_dialog.dart';
@@ -26,6 +29,8 @@ import 'package:otzaria/tabs/bloc/tabs_bloc.dart';
 import 'package:otzaria/tabs/bloc/tabs_event.dart';
 import 'package:otzaria/tabs/models/searching_tab.dart';
 import 'package:otzaria/navigation/calendar_cubit.dart';
+import 'package:window_manager/window_manager.dart';
+import 'package:otzaria/main.dart' show appWindowListener;
 
 class MainWindowScreen extends StatefulWidget {
   const MainWindowScreen({super.key});
@@ -61,6 +66,7 @@ class MainWindowScreenState extends State<MainWindowScreen>
   bool? _previousLibraryEmptyState;
 
   bool _hasCheckedAutoIndex = false;
+  bool _hasRestoredFullscreen = false;
 
   @override
   void initState() {
@@ -72,6 +78,41 @@ class MainWindowScreenState extends State<MainWindowScreen>
         Screen.library.index;
     _currentPageIndex = initialPage;
     pageController = PageController(initialPage: initialPage);
+    
+    // Setup fullscreen sync with window manager
+    _setupFullscreenSync();
+  }
+
+  /// Setup synchronization between window fullscreen state and settings
+  void _setupFullscreenSync() {
+    if (kIsWeb || (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS)) {
+      return;
+    }
+    
+    // Listen for fullscreen changes from the window manager (e.g., user presses F11 in OS)
+    appWindowListener?.onFullscreenChanged = (isFullscreen) {
+      if (!mounted) return;
+      final settingsBloc = context.read<SettingsBloc>();
+      // Only update if the state is different to avoid loops
+      if (settingsBloc.state.isFullscreen != isFullscreen) {
+        settingsBloc.add(UpdateIsFullscreen(isFullscreen));
+      }
+    };
+  }
+
+  /// Restore fullscreen state from settings when app starts
+  Future<void> _restoreFullscreenState(BuildContext context) async {
+    if (_hasRestoredFullscreen) return;
+    _hasRestoredFullscreen = true;
+    
+    if (kIsWeb || (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS)) {
+      return;
+    }
+    
+    final settingsState = context.read<SettingsBloc>().state;
+    if (settingsState.isFullscreen) {
+      await windowManager.setFullScreen(true);
+    }
   }
 
   void _checkAndStartIndexing(BuildContext context) {
@@ -90,6 +131,8 @@ class MainWindowScreenState extends State<MainWindowScreen>
 
   @override
   void dispose() {
+    // Clean up fullscreen callback
+    appWindowListener?.onFullscreenChanged = null;
     _calendarCubit.close();
     pageController.dispose();
     super.dispose();
@@ -268,6 +311,8 @@ class MainWindowScreenState extends State<MainWindowScreen>
           listener: (context, state) {
             // When settings are loaded for the first time, check if we should start indexing
             _checkAndStartIndexing(context);
+            // Also restore fullscreen state
+            _restoreFullscreenState(context);
           },
         ),
       ],

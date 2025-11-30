@@ -2,8 +2,29 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
 
+/// Callback type for fullscreen state changes
+typedef FullscreenCallback = void Function(bool isFullscreen);
+
 /// Window listener that handles window events properly to prevent crashes
 class AppWindowListener extends WindowListener {
+  FullscreenCallback? onFullscreenChanged;
+
+  @override
+  void onWindowEnterFullScreen() {
+    if (kDebugMode) {
+      print('Window entered fullscreen');
+    }
+    onFullscreenChanged?.call(true);
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    if (kDebugMode) {
+      print('Window left fullscreen');
+    }
+    onFullscreenChanged?.call(false);
+  }
+
   @override
   void onWindowClose() {
     if (kDebugMode) {

@@ -61,6 +61,9 @@ import 'package:otzaria/services/notification_service.dart';
 // Global reference to window listener for cleanup
 AppWindowListener? _appWindowListener;
 
+/// Getter for accessing the window listener from other parts of the app
+AppWindowListener? get appWindowListener => _appWindowListener;
+
 // Global reference to the dynamic data loader service for Shamor Zachor
 DynamicDataLoaderService? _shamorZachorDataLoader;
 
