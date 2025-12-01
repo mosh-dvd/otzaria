@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_event.dart';
 import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/utils/fullscreen_helper.dart';
 
 class WindowControls extends StatefulWidget {
   const WindowControls({super.key});
@@ -73,16 +74,8 @@ class _WindowControlsState extends State<WindowControls> with WindowListener {
             IconButton(
               onPressed: () async {
                 final newFullscreenState = !settingsState.isFullscreen;
-                context
-                    .read<SettingsBloc>()
-                    .add(UpdateIsFullscreen(newFullscreenState));
-                if (newFullscreenState) {
-                  await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-                }
-                await windowManager.setFullScreen(newFullscreenState);
-                if (!newFullscreenState) {
-                  await windowManager.setTitleBarStyle(TitleBarStyle.normal);
-                }
+                await FullscreenHelper.toggleFullscreen(
+                    context, newFullscreenState);
               },
               icon: Icon(settingsState.isFullscreen
                   ? FluentIcons.full_screen_minimize_24_regular

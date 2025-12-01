@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:otzaria/focus/focus_repository.dart';
 import 'package:otzaria/navigation/bloc/navigation_bloc.dart';
 import 'package:otzaria/navigation/bloc/navigation_event.dart';
@@ -18,7 +17,8 @@ import 'package:otzaria/workspaces/view/workspace_switcher_dialog.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
-import 'package:otzaria/settings/settings_event.dart';
+import 'package:otzaria/utils/shortcut_helper.dart';
+import 'package:otzaria/utils/fullscreen_helper.dart';
 
 class KeyboardShortcuts extends StatefulWidget {
   final Widget child;
@@ -30,124 +30,6 @@ class KeyboardShortcuts extends StatefulWidget {
 }
 
 class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
-  /// בודק אם הקיצור שנלחץ תואם להגדרה
-  bool _matchesShortcut(KeyEvent event, String shortcutSetting) {
-    if (event is! KeyDownEvent) return false;
-
-    final parts = shortcutSetting.toLowerCase().split('+');
-    final requiresCtrl = parts.contains('ctrl') || parts.contains('control');
-    final requiresShift = parts.contains('shift');
-    final requiresAlt = parts.contains('alt');
-
-    // בדיקת modifiers
-    if (requiresCtrl != HardwareKeyboard.instance.isControlPressed) return false;
-    if (requiresShift != HardwareKeyboard.instance.isShiftPressed) return false;
-    if (requiresAlt != HardwareKeyboard.instance.isAltPressed) return false;
-
-    // מציאת המקש הראשי (לא modifier)
-    final mainKey = parts
-        .where((p) =>
-            p != 'ctrl' &&
-            p != 'control' &&
-            p != 'shift' &&
-            p != 'alt' &&
-            p != 'meta')
-        .firstOrNull;
-
-    if (mainKey == null) return false;
-
-    // מיפוי שם המקש ל-LogicalKeyboardKey
-    final pressedKeyLabel = event.logicalKey.keyLabel.toLowerCase();
-
-    // בדיקת אותיות
-    if (mainKey.length == 1 &&
-        mainKey.codeUnitAt(0) >= 97 &&
-        mainKey.codeUnitAt(0) <= 122) {
-      return pressedKeyLabel == mainKey;
-    }
-
-    // בדיקת מספרים
-    if (mainKey.length == 1 &&
-        mainKey.codeUnitAt(0) >= 48 &&
-        mainKey.codeUnitAt(0) <= 57) {
-      return event.logicalKey == _digitKeyFromChar(mainKey);
-    }
-
-    // בדיקת מקשים מיוחדים
-    return _matchesSpecialKey(event.logicalKey, mainKey);
-  }
-
-  LogicalKeyboardKey? _digitKeyFromChar(String digit) {
-    switch (digit) {
-      case '0':
-        return LogicalKeyboardKey.digit0;
-      case '1':
-        return LogicalKeyboardKey.digit1;
-      case '2':
-        return LogicalKeyboardKey.digit2;
-      case '3':
-        return LogicalKeyboardKey.digit3;
-      case '4':
-        return LogicalKeyboardKey.digit4;
-      case '5':
-        return LogicalKeyboardKey.digit5;
-      case '6':
-        return LogicalKeyboardKey.digit6;
-      case '7':
-        return LogicalKeyboardKey.digit7;
-      case '8':
-        return LogicalKeyboardKey.digit8;
-      case '9':
-        return LogicalKeyboardKey.digit9;
-      default:
-        return null;
-    }
-  }
-
-  bool _matchesSpecialKey(LogicalKeyboardKey key, String keyName) {
-    switch (keyName) {
-      case 'comma':
-        return key == LogicalKeyboardKey.comma;
-      case 'period':
-        return key == LogicalKeyboardKey.period;
-      case 'slash':
-        return key == LogicalKeyboardKey.slash;
-      case 'semicolon':
-        return key == LogicalKeyboardKey.semicolon;
-      case 'tab':
-        return key == LogicalKeyboardKey.tab;
-      case 'escape':
-        return key == LogicalKeyboardKey.escape;
-      case 'f1':
-        return key == LogicalKeyboardKey.f1;
-      case 'f2':
-        return key == LogicalKeyboardKey.f2;
-      case 'f3':
-        return key == LogicalKeyboardKey.f3;
-      case 'f4':
-        return key == LogicalKeyboardKey.f4;
-      case 'f5':
-        return key == LogicalKeyboardKey.f5;
-      case 'f6':
-        return key == LogicalKeyboardKey.f6;
-      case 'f7':
-        return key == LogicalKeyboardKey.f7;
-      case 'f8':
-        return key == LogicalKeyboardKey.f8;
-      case 'f9':
-        return key == LogicalKeyboardKey.f9;
-      case 'f10':
-        return key == LogicalKeyboardKey.f10;
-      case 'f11':
-        return key == LogicalKeyboardKey.f11;
-      case 'f12':
-        return key == LogicalKeyboardKey.f12;
-      default:
-        return false;
-    }
-  }
-
-
   /// מטפל באירועי מקלדת ברמה הגלובלית - עובד גם כשיש TextField עם focus
   KeyEventResult _handleKeyEvent(
       FocusNode node, KeyEvent event, Map<String, String> shortcutSettings) {
@@ -168,8 +50,7 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
         shortcutSettings['key-shortcut-open-new-search'] ?? 'ctrl+q';
     final settingsShortcut =
         shortcutSettings['key-shortcut-open-settings'] ?? 'ctrl+comma';
-    final moreShortcut =
-        shortcutSettings['key-shortcut-open-more'] ?? 'ctrl+m';
+    final moreShortcut = shortcutSettings['key-shortcut-open-more'] ?? 'ctrl+m';
     final bookmarksShortcut =
         shortcutSettings['key-shortcut-open-bookmarks'] ?? 'ctrl+shift+b';
     final historyShortcut =
@@ -178,20 +59,24 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
         shortcutSettings['key-shortcut-switch-workspace'] ?? 'ctrl+k';
 
     // ספרייה
-    if (_matchesShortcut(event, libraryShortcut)) {
-      context.read<NavigationBloc>().add(const NavigateToScreen(Screen.library));
-      context.read<FocusRepository>().requestLibrarySearchFocus(selectAll: true);
+    if (ShortcutHelper.matchesShortcut(event, libraryShortcut)) {
+      context
+          .read<NavigationBloc>()
+          .add(const NavigateToScreen(Screen.library));
+      context
+          .read<FocusRepository>()
+          .requestLibrarySearchFocus(selectAll: true);
       return KeyEventResult.handled;
     }
 
     // איתור
-    if (_matchesShortcut(event, findRefShortcut)) {
+    if (ShortcutHelper.matchesShortcut(event, findRefShortcut)) {
       showDialog(context: context, builder: (context) => FindRefDialog());
       return KeyEventResult.handled;
     }
 
     // סגור טאב
-    if (_matchesShortcut(event, closeTabShortcut)) {
+    if (ShortcutHelper.matchesShortcut(event, closeTabShortcut)) {
       final tabsBloc = context.read<TabsBloc>();
       final historyBloc = context.read<HistoryBloc>();
       if (tabsBloc.state.tabs.isNotEmpty) {
@@ -203,7 +88,7 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
     }
 
     // סגור כל הטאבים
-    if (_matchesShortcut(event, closeAllTabsShortcut)) {
+    if (ShortcutHelper.matchesShortcut(event, closeAllTabsShortcut)) {
       final tabsBloc = context.read<TabsBloc>();
       final historyBloc = context.read<HistoryBloc>();
       for (final tab in tabsBloc.state.tabs) {
@@ -216,13 +101,15 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
     }
 
     // עיון
-    if (_matchesShortcut(event, readingScreenShortcut)) {
-      context.read<NavigationBloc>().add(const NavigateToScreen(Screen.reading));
+    if (ShortcutHelper.matchesShortcut(event, readingScreenShortcut)) {
+      context
+          .read<NavigationBloc>()
+          .add(const NavigateToScreen(Screen.reading));
       return KeyEventResult.handled;
     }
 
     // חיפוש חדש
-    if (_matchesShortcut(event, newSearchShortcut)) {
+    if (ShortcutHelper.matchesShortcut(event, newSearchShortcut)) {
       final useFastSearch = context.read<SettingsBloc>().state.useFastSearch;
       if (!useFastSearch) {
         _openLegacySearchTab(context);
@@ -236,19 +123,21 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
     }
 
     // הגדרות
-    if (_matchesShortcut(event, settingsShortcut)) {
-      context.read<NavigationBloc>().add(const NavigateToScreen(Screen.settings));
+    if (ShortcutHelper.matchesShortcut(event, settingsShortcut)) {
+      context
+          .read<NavigationBloc>()
+          .add(const NavigateToScreen(Screen.settings));
       return KeyEventResult.handled;
     }
 
     // כלים
-    if (_matchesShortcut(event, moreShortcut)) {
+    if (ShortcutHelper.matchesShortcut(event, moreShortcut)) {
       context.read<NavigationBloc>().add(const NavigateToScreen(Screen.more));
       return KeyEventResult.handled;
     }
 
     // סימניות
-    if (_matchesShortcut(event, bookmarksShortcut)) {
+    if (ShortcutHelper.matchesShortcut(event, bookmarksShortcut)) {
       showDialog(
         context: context,
         builder: (context) => const BookmarksDialog(),
@@ -257,7 +146,7 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
     }
 
     // היסטוריה
-    if (_matchesShortcut(event, historyShortcut)) {
+    if (ShortcutHelper.matchesShortcut(event, historyShortcut)) {
       showDialog(
         context: context,
         builder: (context) => const HistoryDialog(),
@@ -266,7 +155,7 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
     }
 
     // החלף שולחן עבודה
-    if (_matchesShortcut(event, workspaceShortcut)) {
+    if (ShortcutHelper.matchesShortcut(event, workspaceShortcut)) {
       showDialog(
         context: context,
         builder: (context) => const WorkspaceSwitcherDialog(),
@@ -275,39 +164,30 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
     }
 
     // Ctrl+Tab - טאב הבא
-    if (_matchesShortcut(event, 'ctrl+tab')) {
+    if (ShortcutHelper.matchesShortcut(event, 'ctrl+tab')) {
       context.read<TabsBloc>().add(NavigateToNextTab());
       return KeyEventResult.handled;
     }
 
     // Ctrl+Shift+Tab - טאב קודם
-    if (_matchesShortcut(event, 'ctrl+shift+tab')) {
+    if (ShortcutHelper.matchesShortcut(event, 'ctrl+shift+tab')) {
       context.read<TabsBloc>().add(NavigateToPreviousTab());
       return KeyEventResult.handled;
     }
 
     // F11 - מסך מלא
-    if (_matchesShortcut(event, 'f11')) {
+    if (ShortcutHelper.matchesShortcut(event, 'f11')) {
       final settingsBloc = context.read<SettingsBloc>();
       final newFullscreenState = !settingsBloc.state.isFullscreen;
-      settingsBloc.add(UpdateIsFullscreen(newFullscreenState));
-      if (newFullscreenState) {
-        windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-      }
-      windowManager.setFullScreen(newFullscreenState);
-      if (!newFullscreenState) {
-        windowManager.setTitleBarStyle(TitleBarStyle.normal);
-      }
+      FullscreenHelper.toggleFullscreen(context, newFullscreenState);
       return KeyEventResult.handled;
     }
 
     // ESC - יציאה ממסך מלא
-    if (_matchesShortcut(event, 'escape')) {
+    if (ShortcutHelper.matchesShortcut(event, 'escape')) {
       final settingsBloc = context.read<SettingsBloc>();
       if (settingsBloc.state.isFullscreen) {
-        settingsBloc.add(const UpdateIsFullscreen(false));
-        windowManager.setFullScreen(false);
-        windowManager.setTitleBarStyle(TitleBarStyle.normal);
+        FullscreenHelper.toggleFullscreen(context, false);
         return KeyEventResult.handled;
       }
     }

@@ -26,10 +26,9 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'dart:convert';
 import 'package:otzaria/widgets/scrollable_tab_bar.dart';
 import 'package:otzaria/settings/reading_settings_dialog.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
-import 'package:otzaria/settings/settings_event.dart';
+import 'package:otzaria/utils/fullscreen_helper.dart';
 
 class ReadingScreen extends StatefulWidget {
   const ReadingScreen({super.key});
@@ -174,19 +173,8 @@ class _ReadingScreenState extends State<ReadingScreen>
                             onPressed: () async {
                               final newFullscreenState =
                                   !settingsState.isFullscreen;
-                              context
-                                  .read<SettingsBloc>()
-                                  .add(UpdateIsFullscreen(newFullscreenState));
-                              if (newFullscreenState) {
-                                await windowManager
-                                    .setTitleBarStyle(TitleBarStyle.hidden);
-                              }
-                              await windowManager
-                                  .setFullScreen(newFullscreenState);
-                              if (!newFullscreenState) {
-                                await windowManager
-                                    .setTitleBarStyle(TitleBarStyle.normal);
-                              }
+                              await FullscreenHelper.toggleFullscreen(
+                                  context, newFullscreenState);
                             },
                           );
                         },
@@ -369,19 +357,8 @@ class _ReadingScreenState extends State<ReadingScreen>
                           onPressed: () async {
                             final newFullscreenState =
                                 !settingsState.isFullscreen;
-                            context
-                                .read<SettingsBloc>()
-                                .add(UpdateIsFullscreen(newFullscreenState));
-                            if (newFullscreenState) {
-                              await windowManager
-                                  .setTitleBarStyle(TitleBarStyle.hidden);
-                            }
-                            await windowManager
-                                .setFullScreen(newFullscreenState);
-                            if (!newFullscreenState) {
-                              await windowManager
-                                  .setTitleBarStyle(TitleBarStyle.normal);
-                            }
+                            await FullscreenHelper.toggleFullscreen(
+                                context, newFullscreenState);
                           },
                         );
                       },
@@ -412,9 +389,8 @@ class _ReadingScreenState extends State<ReadingScreen>
                   child: TabBarView(
                     key: const ValueKey('normal_tab_view'),
                     controller: controller,
-                    children: state.tabs
-                        .map((tab) => _buildTabView(tab))
-                        .toList(),
+                    children:
+                        state.tabs.map((tab) => _buildTabView(tab)).toList(),
                   ),
                 ),
               );
@@ -456,18 +432,21 @@ class _ReadingScreenState extends State<ReadingScreen>
 
   Widget _buildCombinedTabView(CombinedTab combinedTab) {
     return _SideBySideViewWidget(
-      key: ValueKey('combined_${combinedTab.rightTab.title}_${combinedTab.leftTab.title}'),
+      key: ValueKey(
+          'combined_${combinedTab.rightTab.title}_${combinedTab.leftTab.title}'),
       rightTab: combinedTab.rightTab,
       leftTab: combinedTab.leftTab,
       initialSplitRatio: combinedTab.splitRatio,
       onSplitRatioChanged: (ratio) {
         context.read<TabsBloc>().add(UpdateSplitRatio(ratio));
       },
-      buildTabView: (tab) => _buildSingleTabContent(tab, isInCombinedView: true),
+      buildTabView: (tab) =>
+          _buildSingleTabContent(tab, isInCombinedView: true),
     );
   }
 
-  Widget _buildSingleTabContent(OpenedTab tab, {bool isInCombinedView = false}) {
+  Widget _buildSingleTabContent(OpenedTab tab,
+      {bool isInCombinedView = false}) {
     if (tab is PdfBookTab) {
       return PdfBookScreen(
         key: PageStorageKey(tab),
@@ -644,9 +623,8 @@ class _ReadingScreenState extends State<ReadingScreen>
                           ? _TabBackgroundPainter(
                               Theme.of(context).colorScheme.surfaceContainer)
                           : null,
-                      foregroundPainter: isSelected
-                          ? _TabBorderPainter()
-                          : null,
+                      foregroundPainter:
+                          isSelected ? _TabBorderPainter() : null,
                       child: Tab(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -670,7 +648,8 @@ class _ReadingScreenState extends State<ReadingScreen>
                                       const Padding(
                                         padding: EdgeInsets.all(8.0),
                                         child: Icon(
-                                            FluentIcons.panel_left_text_24_regular,
+                                            FluentIcons
+                                                .panel_left_text_24_regular,
                                             size: 16),
                                       ),
                                       Text(truncate(tab.title, 20)),
@@ -869,8 +848,6 @@ class _ReadingScreenState extends State<ReadingScreen>
       builder: (context) => const BookmarksDialog(),
     );
   }
-
-
 }
 
 // Widget להצגת 2 ספרים זה לצד זה

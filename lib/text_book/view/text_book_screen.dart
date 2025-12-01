@@ -37,7 +37,8 @@ import 'package:otzaria/personal_notes/personal_notes_system.dart';
 import 'package:otzaria/models/phone_report_data.dart';
 import 'package:otzaria/services/phone_report_service.dart';
 import 'package:otzaria/services/sources_books_service.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:otzaria/utils/shortcut_helper.dart';
+import 'package:otzaria/utils/fullscreen_helper.dart';
 
 import 'package:otzaria/widgets/responsive_action_bar.dart';
 import 'package:shamor_zachor/providers/shamor_zachor_data_provider.dart';
@@ -443,7 +444,9 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
     super.initState();
 
     // רישום ה-FocusNode ב-FocusRepository
-    context.read<FocusRepository>().registerBookContentFocusNode(_bookContentFocusNode);
+    context
+        .read<FocusRepository>()
+        .registerBookContentFocusNode(_bookContentFocusNode);
 
     // טעינת הגדרות פר-ספר
     _loadPerBookSettings();
@@ -580,8 +583,10 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
   @override
   void dispose() {
     // ביטול רישום ה-FocusNode מ-FocusRepository
-    context.read<FocusRepository>().unregisterBookContentFocusNode(_bookContentFocusNode);
-    
+    context
+        .read<FocusRepository>()
+        .unregisterBookContentFocusNode(_bookContentFocusNode);
+
     tabController.dispose();
     textSearchFocusNode.dispose();
     navigationSearchFocusNode.dispose();
@@ -862,7 +867,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
                       _bookContentFocusNode.requestFocus();
                     }
                   });
-                  
+
                   return LayoutBuilder(
                     builder: (context, constrains) {
                       final wideScreen =
@@ -1575,8 +1580,6 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
     );
   }
 
-
-
   Widget _buildShamorZachorButton(BuildContext context, TextBookLoaded state) {
     // Always show button - either for marking progress or for adding to tracking
     final isTracked = _isBookTrackedInShamorZachor(state.book.title);
@@ -2198,91 +2201,6 @@ void _handleFullFileEditorPress(BuildContext context, TextBookLoaded state) {
   context.read<TextBookBloc>().add(OpenFullFileEditor());
 }
 
-/// בודק אם הקיצור שנלחץ תואם להגדרה
-bool _matchesShortcut(KeyEvent event, String shortcutSetting) {
-  if (event is! KeyDownEvent) return false;
-  
-  final parts = shortcutSetting.toLowerCase().split('+');
-  final requiresCtrl = parts.contains('ctrl') || parts.contains('control');
-  final requiresShift = parts.contains('shift');
-  final requiresAlt = parts.contains('alt');
-  
-  // בדיקת modifiers
-  if (requiresCtrl != HardwareKeyboard.instance.isControlPressed) return false;
-  if (requiresShift != HardwareKeyboard.instance.isShiftPressed) return false;
-  if (requiresAlt != HardwareKeyboard.instance.isAltPressed) return false;
-  
-  // מציאת המקש הראשי (לא modifier)
-  final mainKey = parts.where((p) => 
-    p != 'ctrl' && p != 'control' && p != 'shift' && p != 'alt' && p != 'meta'
-  ).firstOrNull;
-  
-  if (mainKey == null) return false;
-  
-  // מיפוי שם המקש ל-LogicalKeyboardKey
-  final pressedKeyLabel = event.logicalKey.keyLabel.toLowerCase();
-  
-  // בדיקת אותיות
-  if (mainKey.length == 1 && mainKey.codeUnitAt(0) >= 97 && mainKey.codeUnitAt(0) <= 122) {
-    return pressedKeyLabel == mainKey;
-  }
-  
-  // בדיקת מספרים
-  if (mainKey.length == 1 && mainKey.codeUnitAt(0) >= 48 && mainKey.codeUnitAt(0) <= 57) {
-    return event.logicalKey == _digitKeyFromChar(mainKey);
-  }
-  
-  // בדיקת מקשים מיוחדים
-  return _matchesSpecialKey(event.logicalKey, mainKey);
-}
-
-LogicalKeyboardKey? _digitKeyFromChar(String digit) {
-  switch (digit) {
-    case '0': return LogicalKeyboardKey.digit0;
-    case '1': return LogicalKeyboardKey.digit1;
-    case '2': return LogicalKeyboardKey.digit2;
-    case '3': return LogicalKeyboardKey.digit3;
-    case '4': return LogicalKeyboardKey.digit4;
-    case '5': return LogicalKeyboardKey.digit5;
-    case '6': return LogicalKeyboardKey.digit6;
-    case '7': return LogicalKeyboardKey.digit7;
-    case '8': return LogicalKeyboardKey.digit8;
-    case '9': return LogicalKeyboardKey.digit9;
-    default: return null;
-  }
-}
-
-bool _matchesSpecialKey(LogicalKeyboardKey key, String keyName) {
-  switch (keyName) {
-    case 'comma': return key == LogicalKeyboardKey.comma;
-    case 'period': return key == LogicalKeyboardKey.period;
-    case 'slash': return key == LogicalKeyboardKey.slash;
-    case 'semicolon': return key == LogicalKeyboardKey.semicolon;
-    case 'quote': return key == LogicalKeyboardKey.quote;
-    case 'bracketleft': return key == LogicalKeyboardKey.bracketLeft;
-    case 'bracketright': return key == LogicalKeyboardKey.bracketRight;
-    case 'minus': return key == LogicalKeyboardKey.minus;
-    case 'equal': return key == LogicalKeyboardKey.equal;
-    case 'space': return key == LogicalKeyboardKey.space;
-    case 'tab': return key == LogicalKeyboardKey.tab;
-    case 'enter': return key == LogicalKeyboardKey.enter;
-    case 'escape': return key == LogicalKeyboardKey.escape;
-    case 'f1': return key == LogicalKeyboardKey.f1;
-    case 'f2': return key == LogicalKeyboardKey.f2;
-    case 'f3': return key == LogicalKeyboardKey.f3;
-    case 'f4': return key == LogicalKeyboardKey.f4;
-    case 'f5': return key == LogicalKeyboardKey.f5;
-    case 'f6': return key == LogicalKeyboardKey.f6;
-    case 'f7': return key == LogicalKeyboardKey.f7;
-    case 'f8': return key == LogicalKeyboardKey.f8;
-    case 'f9': return key == LogicalKeyboardKey.f9;
-    case 'f10': return key == LogicalKeyboardKey.f10;
-    case 'f11': return key == LogicalKeyboardKey.f11;
-    case 'f12': return key == LogicalKeyboardKey.f12;
-    default: return false;
-  }
-}
-
 bool _handleGlobalKeyEvent(
     KeyEvent event, BuildContext context, TextBookLoaded state) {
   // קריאת קיצורים מההגדרות
@@ -2298,7 +2216,7 @@ bool _handleGlobalKeyEvent(
       Settings.getValue<String>('key-shortcut-add-note') ?? 'ctrl+n';
 
   // עריכת קטע
-  if (_matchesShortcut(event, editSectionShortcut)) {
+  if (ShortcutHelper.matchesShortcut(event, editSectionShortcut)) {
     if (!state.isEditorOpen) {
       if (HardwareKeyboard.instance.isShiftPressed) {
         _handleFullFileEditorPress(context, state);
@@ -2310,7 +2228,7 @@ bool _handleGlobalKeyEvent(
   }
 
   // חיפוש בספר
-  if (_matchesShortcut(event, searchInBookShortcut)) {
+  if (ShortcutHelper.matchesShortcut(event, searchInBookShortcut)) {
     context.read<TextBookBloc>().add(const ToggleLeftPane(true));
     final tabController = context
         .findAncestorStateOfType<_TextBookViewerBlocState>()
@@ -2322,7 +2240,7 @@ bool _handleGlobalKeyEvent(
   }
 
   // הדפסה
-  if (_matchesShortcut(event, printShortcut)) {
+  if (ShortcutHelper.matchesShortcut(event, printShortcut)) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => PrintingScreen(
@@ -2336,13 +2254,13 @@ bool _handleGlobalKeyEvent(
   }
 
   // הוספת סימניה
-  if (_matchesShortcut(event, addBookmarkShortcut)) {
+  if (ShortcutHelper.matchesShortcut(event, addBookmarkShortcut)) {
     _addBookmarkFromKeyboard(context, state);
     return true;
   }
 
   // הוספת הערה
-  if (_matchesShortcut(event, addNoteShortcut)) {
+  if (ShortcutHelper.matchesShortcut(event, addNoteShortcut)) {
     _addNoteFromKeyboard(context, state);
     return true;
   }
@@ -2401,8 +2319,7 @@ bool _handleGlobalKeyEvent(
         if (!Platform.isAndroid && !Platform.isIOS) {
           final settingsBloc = context.read<SettingsBloc>();
           final newFullscreenState = !settingsBloc.state.isFullscreen;
-          settingsBloc.add(UpdateIsFullscreen(newFullscreenState));
-          windowManager.setFullScreen(newFullscreenState);
+          FullscreenHelper.toggleFullscreen(context, newFullscreenState);
           return true;
         }
         break;
@@ -2412,8 +2329,7 @@ bool _handleGlobalKeyEvent(
         if (!Platform.isAndroid && !Platform.isIOS) {
           final settingsBloc = context.read<SettingsBloc>();
           if (settingsBloc.state.isFullscreen) {
-            settingsBloc.add(const UpdateIsFullscreen(false));
-            windowManager.setFullScreen(false);
+            FullscreenHelper.toggleFullscreen(context, false);
             return true;
           }
         }
@@ -2449,8 +2365,8 @@ void _addBookmarkFromKeyboard(
 Future<void> _addNoteFromKeyboard(
     BuildContext context, TextBookLoaded state) async {
   // משתמש בשורה הנבחרת אם קיימת, אחרת בשורה הראשונה הנראית
-  final currentIndex = state.selectedIndex ?? 
-                       (state.visibleIndices.isNotEmpty ? state.visibleIndices.first : 0);
+  final currentIndex = state.selectedIndex ??
+      (state.visibleIndices.isNotEmpty ? state.visibleIndices.first : 0);
   // לא צריך טקסט נבחר - ההערה חלה על כל השורה
   final controller = TextEditingController();
   final notesBloc = context.read<PersonalNotesBloc>();
