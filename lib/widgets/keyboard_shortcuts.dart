@@ -514,7 +514,13 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
       final settingsBloc = context.read<SettingsBloc>();
       final newFullscreenState = !settingsBloc.state.isFullscreen;
       settingsBloc.add(UpdateIsFullscreen(newFullscreenState));
+      if (newFullscreenState) {
+        await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      }
       await windowManager.setFullScreen(newFullscreenState);
+      if (!newFullscreenState) {
+        await windowManager.setTitleBarStyle(TitleBarStyle.normal);
+      }
     });
 
     // ESC - Exit fullscreen
@@ -523,6 +529,7 @@ class _KeyboardShortcutsState extends State<KeyboardShortcuts> {
       if (settingsBloc.state.isFullscreen) {
         settingsBloc.add(const UpdateIsFullscreen(false));
         await windowManager.setFullScreen(false);
+        await windowManager.setTitleBarStyle(TitleBarStyle.normal);
       }
     });
 

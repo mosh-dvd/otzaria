@@ -13,18 +13,48 @@ class WindowControls extends StatefulWidget {
   State<WindowControls> createState() => _WindowControlsState();
 }
 
-class _WindowControlsState extends State<WindowControls> {
+class _WindowControlsState extends State<WindowControls> with WindowListener {
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _restoreFullscreenStatus();
     });
   }
 
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowEnterFullScreen() async {
+    if (!mounted) return;
+    final settingsBloc = context.read<SettingsBloc>();
+    if (!settingsBloc.state.isFullscreen) {
+      settingsBloc.add(const UpdateIsFullscreen(true));
+    }
+    await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+  }
+
+  @override
+  void onWindowLeaveFullScreen() async {
+    if (!mounted) return;
+    final settingsBloc = context.read<SettingsBloc>();
+    if (settingsBloc.state.isFullscreen) {
+      settingsBloc.add(const UpdateIsFullscreen(false));
+    }
+    await windowManager.setTitleBarStyle(TitleBarStyle.normal);
+  }
+
   Future<void> _restoreFullscreenStatus() async {
     if (!mounted) return;
     final settingsState = context.read<SettingsBloc>().state;
+    if (settingsState.isFullscreen) {
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+    }
     await windowManager.setFullScreen(settingsState.isFullscreen);
   }
 
@@ -46,7 +76,13 @@ class _WindowControlsState extends State<WindowControls> {
                 context
                     .read<SettingsBloc>()
                     .add(UpdateIsFullscreen(newFullscreenState));
+                if (newFullscreenState) {
+                  await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+                }
                 await windowManager.setFullScreen(newFullscreenState);
+                if (!newFullscreenState) {
+                  await windowManager.setTitleBarStyle(TitleBarStyle.normal);
+                }
               },
               icon: Icon(settingsState.isFullscreen
                   ? FluentIcons.full_screen_minimize_24_regular

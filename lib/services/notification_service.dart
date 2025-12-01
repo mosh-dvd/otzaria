@@ -18,6 +18,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _permissionsGranted = false;
+  bool _isInitialized = false;
 
   Future<void> init() async {
     // Initialize timezone database
@@ -48,9 +49,13 @@ class NotificationService {
     await flutterLocalNotificationsPlugin.initialize(initializationSettings,
         onDidReceiveNotificationResponse: onDidReceiveNotificationResponse);
 
+    _isInitialized = true;
+
     // Request permissions
     await requestPermissions();
   }
+
+  bool get isInitialized => _isInitialized;
 
   /// Request notification permissions (Android 13+ and iOS)
   Future<bool> requestPermissions() async {
@@ -107,6 +112,14 @@ class NotificationService {
     required int reminderMinutes,
     bool soundEnabled = true,
   }) async {
+    // Check if initialized before scheduling
+    if (!_isInitialized) {
+      if (kDebugMode) {
+        debugPrint('Cannot schedule notification: service not initialized');
+      }
+      return;
+    }
+
     // Check permissions before scheduling
     if (!_permissionsGranted) {
       if (kDebugMode) {
@@ -162,6 +175,7 @@ class NotificationService {
   }
 
   Future<void> cancelAllNotifications() async {
+    if (!_isInitialized) return;
     await flutterLocalNotificationsPlugin.cancelAll();
   }
 }

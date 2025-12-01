@@ -177,8 +177,16 @@ class _ReadingScreenState extends State<ReadingScreen>
                               context
                                   .read<SettingsBloc>()
                                   .add(UpdateIsFullscreen(newFullscreenState));
+                              if (newFullscreenState) {
+                                await windowManager
+                                    .setTitleBarStyle(TitleBarStyle.hidden);
+                              }
                               await windowManager
                                   .setFullScreen(newFullscreenState);
+                              if (!newFullscreenState) {
+                                await windowManager
+                                    .setTitleBarStyle(TitleBarStyle.normal);
+                              }
                             },
                           );
                         },
@@ -364,8 +372,16 @@ class _ReadingScreenState extends State<ReadingScreen>
                             context
                                 .read<SettingsBloc>()
                                 .add(UpdateIsFullscreen(newFullscreenState));
+                            if (newFullscreenState) {
+                              await windowManager
+                                  .setTitleBarStyle(TitleBarStyle.hidden);
+                            }
                             await windowManager
                                 .setFullScreen(newFullscreenState);
+                            if (!newFullscreenState) {
+                              await windowManager
+                                  .setTitleBarStyle(TitleBarStyle.normal);
+                            }
                           },
                         );
                       },
