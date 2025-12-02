@@ -488,6 +488,7 @@ class _ReadingScreenState extends State<ReadingScreen>
       },
       child: ContextMenuRegion(
         contextMenu: ContextMenu(
+          maxHeight: 400,
           entries: <ContextMenuEntry>[
             MenuItem(
               label: tab.isPinned ? 'בטל הצמדת כרטיסיה' : 'הצמד כרטיסיה',
