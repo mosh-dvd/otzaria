@@ -8,6 +8,8 @@ import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/library/models/library.dart' as lib;
 import 'package:otzaria/migration/generator/generator.dart';
+import 'package:otzaria/migration/generator/progress_generator.dart';
+import 'package:otzaria/migration/core/models/generation_progress.dart';
 import 'package:otzaria/migration/dao/drift/database.dart';
 import 'package:otzaria/migration/dao/repository/seforim_repository.dart';
 import 'package:otzaria/data/constants/database_constants.dart';
@@ -284,11 +286,15 @@ class DatabaseMigrationBloc extends Bloc<DatabaseMigrationEvent, DatabaseMigrati
     Emitter<DatabaseMigrationState> emit,
   ) async {
     _isCancelled = false;
+    final startTime = DateTime.now();
     
-    emit(state.copyWith(status: DatabaseMigrationStatus.checking));
+    emit(state.copyWith(
+      status: DatabaseMigrationStatus.checking,
+      currentBook: 'בודק תקייה...',
+    ));
 
     try {
-      // Get all text files from the folder recursively
+      // Validate folder exists
       final folder = Directory(event.folderPath);
       if (!await folder.exists()) {
         emit(state.copyWith(
@@ -298,31 +304,12 @@ class DatabaseMigrationBloc extends Bloc<DatabaseMigrationEvent, DatabaseMigrati
         return;
       }
 
-      final bookFiles = <File>[];
-      await for (final entity in folder.list(recursive: true)) {
-        if (entity is File) {
-          final filePath = entity.path.toLowerCase();
-          if (filePath.endsWith('.txt') || filePath.endsWith('.docx')) {
-            bookFiles.add(entity);
-          }
-        }
-      }
-
-      if (bookFiles.isEmpty) {
-        emit(state.copyWith(
-          status: DatabaseMigrationStatus.error,
-          errorMessage: 'לא נמצאו קבצי טקסט בתקייה',
-        ));
-        return;
-      }
-
-      debugPrint('📚 Found ${bookFiles.length} books to migrate from folder');
-
-      // Start migration immediately
+      // Start migration
       emit(state.copyWith(
         status: DatabaseMigrationStatus.migrating,
+        currentBook: 'מאתחל מסד נתונים...',
         booksToMigrate: [],
-        totalCount: bookFiles.length,
+        totalCount: 0,
         processedCount: 0,
       ));
 
@@ -343,85 +330,75 @@ class DatabaseMigrationBloc extends Bloc<DatabaseMigrationEvent, DatabaseMigrati
       final repository = SeforimRepository(database);
       await repository.ensureInitialized();
 
-      // Create generator
-      final generator = DatabaseGenerator(
-        _fileSystemData.libraryPath,
+      // Create progress generator with the folder path as source directory
+      final generator = ProgressDatabaseGenerator(
+        event.folderPath,
         repository,
+        createIndexes: true,
       );
 
-      final startTime = DateTime.now();
-      int processedCount = 0;
-
-      // Load metadata once
-      final metadata = await generator.loadMetadata();
-
-      // Process each book file
-      for (final bookFile in bookFiles) {
-        if (_isCancelled) {
-          await repository.close();
-          emit(state.copyWith(
-            status: DatabaseMigrationStatus.cancelled,
-            currentBook: null,
-          ));
-          return;
-        }
-
-        final bookTitle = path.basenameWithoutExtension(bookFile.path);
-        
-        emit(state.copyWith(
-          currentBook: bookTitle,
-          processedCount: processedCount,
-        ));
-
-        try {
-          // For now, use a default category ID (1)
-          // In a full implementation, we'd properly map categories from the library
-          final categoryId = 1;
-
-          // Process the book
-          await generator.createAndProcessBook(
-            bookFile.path,
-            categoryId,
-            metadata,
+      // Listen to progress updates
+      StreamSubscription<GenerationProgress>? progressSubscription;
+      
+      try {
+        progressSubscription = generator.progressStream.listen((progress) {
+          // Map GenerationProgress to DatabaseMigrationState
+          final currentState = state.copyWith(
+            status: DatabaseMigrationStatus.migrating,
+            currentBook: progress.currentBook.isNotEmpty ? progress.currentBook : progress.message,
+            processedCount: progress.processedBooks,
+            totalCount: progress.totalBooks,
           );
-
-          // Move the file to "קבצים שטופלו" folder after successful migration
-          if (await bookFile.exists()) {
-            await _moveToProcessedFolder(bookFile.path);
-            debugPrint('📦 Moved file to processed folder: ${bookFile.path}');
-          }
-
-          // Clear cache for this book
-          _fileSystemData.clearBookCache();
-
-          processedCount++;
-
+          
           // Calculate estimated time remaining
-          final elapsed = DateTime.now().difference(startTime);
-          final avgTimePerBook = elapsed.inMilliseconds / processedCount;
-          final remaining = bookFiles.length - processedCount;
-          final estimatedMs = (avgTimePerBook * remaining).round();
-          final estimatedTime = Duration(milliseconds: estimatedMs);
+          if (progress.processedBooks > 0 && progress.totalBooks > 0) {
+            final elapsed = DateTime.now().difference(startTime);
+            final avgTimePerBook = elapsed.inMilliseconds / progress.processedBooks;
+            final remaining = progress.totalBooks - progress.processedBooks;
+            final estimatedMs = (avgTimePerBook * remaining).round();
+            final estimatedTime = Duration(milliseconds: estimatedMs);
+            
+            emit(currentState.copyWith(estimatedTimeRemaining: estimatedTime));
+          } else {
+            emit(currentState);
+          }
+        });
 
-          emit(state.copyWith(
-            processedCount: processedCount,
-            estimatedTimeRemaining: estimatedTime,
-          ));
-        } catch (e) {
-          debugPrint('⚠️ Error migrating book "$bookTitle": $e');
-          // Continue with next book
+        // Run the generation
+        await generator.generate();
+
+        // Close subscription
+        await progressSubscription.cancel();
+        generator.dispose();
+
+        // Clear cache
+        _fileSystemData.clearBookCache();
+
+        // Close database
+        await repository.close();
+
+        emit(state.copyWith(
+          status: DatabaseMigrationStatus.completed,
+          currentBook: 'הושלם בהצלחה!',
+        ));
+      } catch (e) {
+        // Clean up subscription
+        await progressSubscription?.cancel();
+        generator.dispose();
+        
+        // Restore settings on error
+        try {
+          await repository.executeRawQuery('PRAGMA foreign_keys = ON');
+          await repository.restoreNormalMode();
+        } catch (innerEx) {
+          debugPrint('⚠️ Error restoring database settings: $innerEx');
         }
+        
+        await repository.close();
+        rethrow;
       }
-
-      // Close database
-      await repository.close();
-
-      emit(state.copyWith(
-        status: DatabaseMigrationStatus.completed,
-        currentBook: null,
-        processedCount: bookFiles.length,
-      ));
     } catch (e) {
+      debugPrint('❌ Error during migration: $e');
       emit(state.copyWith(
         status: DatabaseMigrationStatus.error,
         errorMessage: 'שגיאה בתהליך ההמרה: $e',

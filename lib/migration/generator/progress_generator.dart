@@ -18,6 +18,8 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
   int _processedBooks = 0;
   int _totalLinks = 0;
   int _processedLinks = 0;
+  String _currentBookTitle = '';
+  Timer? _progressTimer;
 
   ProgressDatabaseGenerator(
     super.sourceDirectory,
@@ -28,6 +30,20 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
 
   @override
   Future<void> generate() async {
+    // Start a periodic timer to emit progress updates every 500ms
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (_currentBookTitle.isNotEmpty) {
+        _emitProgress(GenerationProgress(
+          phase: GenerationPhase.processingBooks,
+          currentBook: _currentBookTitle,
+          processedBooks: _processedBooks,
+          totalBooks: _totalBooks,
+          message: 'מעבד: $_currentBookTitle',
+          progress: _totalBooks > 0 ? 0.1 + (0.5 * (_processedBooks / _totalBooks)) : 0.1,
+        ));
+      }
+    });
+    
     try {
       _emitProgress(GenerationProgress(
         phase: GenerationPhase.initializing,
@@ -53,7 +69,6 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
       ));
 
       final metadata = await loadMetadata();
-      _totalBooks = metadata.length;
 
       // Check if the selected directory is already "אוצריא" or if it contains "אוצריא"
       String libraryPath;
@@ -70,9 +85,18 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
         throw StateError('התיקייה "אוצריא" לא נמצאה. נא לבחור את התיקייה "אוצריא" או את התיקייה האב שלה.');
       }
 
+      // Count actual txt files for accurate progress tracking
       _emitProgress(GenerationProgress(
         phase: GenerationPhase.processingBooks,
-        message: 'מתחיל לעבד ספרים...',
+        message: 'סופר ספרים...',
+        progress: 0.08,
+      ));
+      
+      _totalBooks = await _countTxtFiles(libraryPath);
+
+      _emitProgress(GenerationProgress(
+        phase: GenerationPhase.processingBooks,
+        message: 'מתחיל לעבד $_totalBooks ספרים...',
         totalBooks: _totalBooks,
         progress: 0.1,
       ));
@@ -127,6 +151,9 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
       } catch (_) {}
       
       rethrow;
+    } finally {
+      _progressTimer?.cancel();
+      _progressTimer = null;
     }
   }
 
@@ -140,16 +167,9 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
     final filename = path.basename(bookPath);
     final title = path.basenameWithoutExtension(filename);
     
+    // Update current book title (will be picked up by timer)
+    _currentBookTitle = title;
     _processedBooks++;
-    
-    _emitProgress(GenerationProgress(
-      phase: GenerationPhase.processingBooks,
-      currentBook: title,
-      processedBooks: _processedBooks,
-      totalBooks: _totalBooks,
-      message: 'מעבד: $title',
-      progress: 0.1 + (0.5 * (_processedBooks / _totalBooks)),
-    ));
 
     await super.createAndProcessBook(bookPath, categoryId, metadata, isBaseBook: isBaseBook);
   }
@@ -175,6 +195,8 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
     return result;
   }
 
+
+
   @override
   Future<void> processLinks() async {
     // Check if links directory is in sourceDirectory or in parent directory
@@ -197,7 +219,28 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
     }
   }
 
+  /// Count txt files in directory for progress tracking
+  Future<int> _countTxtFiles(String dirPath) async {
+    try {
+      final dir = Directory(dirPath);
+      var count = 0;
+      await for (final entity in dir.list(recursive: true)) {
+        if (entity is File && path.extension(entity.path) == '.txt') {
+          final filename = path.basename(entity.path);
+          final titleNoExt = path.basenameWithoutExtension(filename);
+          if (!titleNoExt.startsWith('הערות על ')) {
+            count++;
+          }
+        }
+      }
+      return count;
+    } catch (e) {
+      return 0;
+    }
+  }
+
   void dispose() {
+    _progressTimer?.cancel();
     _progressController.close();
   }
 }

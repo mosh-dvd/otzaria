@@ -89,7 +89,7 @@ class DatabaseMigrationDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'מעביר ספר ${state.processedCount + 1} מתוך ${state.totalCount}',
+              'מעבד ספר ${state.processedCount} מתוך ${state.totalCount}',
               style: const TextStyle(fontSize: 14),
               textAlign: TextAlign.right,
             ),

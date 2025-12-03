@@ -93,7 +93,7 @@ class DatabaseGenerator {
     _log.info('Source directory: $sourceDirectory');
 
     try {
-      // Disable foreign keys for better performance during bulk insertion
+      // Disable foreign keys for better performance
       _log.info('Disabling foreign keys for better performance...');
       await _disableForeignKeys();
 
@@ -101,56 +101,53 @@ class DatabaseGenerator {
       _log.info('Setting maximum performance mode for bulk generation');
       await repository.setMaxPerformanceMode();
 
-      // Wrap the entire generation in a single transaction
-      await repository.runInTransaction(() async {
-        // Load metadata
-        final metadata = await loadMetadata();
-        _log.info('Metadata loaded: ${metadata.length} entries');
+      // Load metadata
+      final metadata = await loadMetadata();
+      _log.info('Metadata loaded: ${metadata.length} entries');
 
-        // Load sources from files_manifest.json and upsert source table
-        await _loadSourcesFromManifest();
-        await _precreateSourceEntries();
+      // Load sources from files_manifest.json and upsert source table
+      await _loadSourcesFromManifest();
+      await _precreateSourceEntries();
 
-        // Process hierarchy
-        String libraryPath;
-        if (path.basename(sourceDirectory) == 'אוצריא') {
-          libraryPath = sourceDirectory;
-        } else {
-          libraryPath = path.join(sourceDirectory, 'אוצריא');
-        }
-        
-        final libraryDir = Directory(libraryPath);
-        if (!await libraryDir.exists()) {
-          throw StateError('התיקייה "אוצריא" לא נמצאה. נא לבחור את התיקייה "אוצריא" או את התיקייה האב שלה.');
-        }
+      // Process hierarchy
+      String libraryPath;
+      if (path.basename(sourceDirectory) == 'אוצריא') {
+        libraryPath = sourceDirectory;
+      } else {
+        libraryPath = path.join(sourceDirectory, 'אוצריא');
+      }
+      
+      final libraryDir = Directory(libraryPath);
+      if (!await libraryDir.exists()) {
+        throw StateError('התיקייה "אוצריא" לא נמצאה. נא לבחור את התיקייה "אוצריא" או את התיקייה האב שלה.');
+      }
 
-        _libraryRoot = libraryPath;
+      _libraryRoot = libraryPath;
 
-        // Estimate total number of books for progress tracking
-        _totalBooksToProcess = await _countTxtFiles(libraryPath);
-        _log.info('Planned to process approximately $_totalBooksToProcess books');
+      // Estimate total number of books for progress tracking
+      _totalBooksToProcess = await _countTxtFiles(libraryPath);
+      _log.info('Planned to process approximately $_totalBooksToProcess books');
 
-        // Process priority books first (if any)
-        try {
-          await _processPriorityBooks(metadata);
-        } catch (e) {
-          _log.warning('Failed processing priority list; continuing with full generation', e);
-        }
+      // Process priority books first (if any)
+      try {
+        await _processPriorityBooks(metadata);
+      } catch (e) {
+        _log.warning('Failed processing priority list; continuing with full generation', e);
+      }
 
-        _log.info('🚀 Starting to process library directory: $libraryPath');
-        // Preload all book contents into RAM
-        await _preloadAllBookContents(libraryPath);
-        await processDirectory(libraryPath, null, 0, metadata);
+      _log.info('🚀 Starting to process library directory: $libraryPath');
+      // Preload all book contents into RAM
+      await _preloadAllBookContents(libraryPath);
+      await processDirectory(libraryPath, null, 0, metadata);
 
-        // Process links
-        await processLinks();
+      // Process links
+      await processLinks();
 
-        // Build category closure table
-        _log.info('Building category_closure (ancestor-descendant) table...');
-        await repository.rebuildCategoryClosure();
-      });
+      // Build category closure table
+      _log.info('Building category_closure (ancestor-descendant) table...');
+      await repository.rebuildCategoryClosure();
 
-      // Restore PRAGMAs after commit
+      // Restore PRAGMAs
       _log.info('Re-enabling foreign keys...');
       await _enableForeignKeys();
       _log.info('Restoring normal performance mode');
@@ -165,7 +162,7 @@ class DatabaseGenerator {
         _log.info('   Duplicate rate: $dupRate%');
       }
     } catch (e, stackTrace) {
-      // Make sure to re-enable foreign keys even if an error occurs
+      // Restore settings on error
       try {
         await _enableForeignKeys();
         await repository.restoreNormalMode();
