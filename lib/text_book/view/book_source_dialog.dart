@@ -27,6 +27,8 @@ Map<String, String> getSourceDisplayInfo(String source) {
       return {'text': 'תורת אמת', 'url': 'http://www.toratemetfreeware.com/index.html?downloads;1;'};
     case 'wikiSource':
       return {'text': 'ויקיטקסט', 'url': 'https://he.wikisource.org/wiki'};
+    case 'Pninim':
+      return {'text': 'פנינים', 'url': 'https://pninim.org/'};
     default:
       return {'text': source, 'url': ''};
   }
