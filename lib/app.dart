@@ -19,6 +19,31 @@ class AppColors {
 class App extends StatelessWidget {
   const App({super.key});
 
+  /// Check if a color is neutral (white/gray) based on its saturation
+  bool _isNeutralColor(Color color) {
+    final hslColor = HSLColor.fromColor(color);
+    // If saturation is very low, it's a neutral color (white/gray/black)
+    return hslColor.saturation < 0.1;
+  }
+
+  /// Create a ColorScheme that respects neutral colors
+  ColorScheme _createColorScheme(Color seedColor, Brightness brightness) {
+    if (_isNeutralColor(seedColor)) {
+      // For neutral colors, use monochrome variant to avoid color tinting
+      return ColorScheme.fromSeed(
+        seedColor: seedColor,
+        brightness: brightness,
+        dynamicSchemeVariant: DynamicSchemeVariant.monochrome,
+      );
+    } else {
+      // For colored seeds, use default behavior
+      return ColorScheme.fromSeed(
+        seedColor: seedColor,
+        brightness: brightness,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<SettingsBloc, SettingsState>(
@@ -88,9 +113,8 @@ class App extends StatelessWidget {
               : ThemeData(
                   visualDensity: VisualDensity.adaptivePlatformDensity,
                   fontFamily: 'Roboto',
-                  colorScheme: ColorScheme.fromSeed(
-                    seedColor: state.seedColor,
-                  ),
+                  colorScheme:
+                      _createColorScheme(state.seedColor, Brightness.light),
                   textTheme: const TextTheme(
                     bodyMedium:
                         TextStyle(fontSize: 18.0, fontFamily: 'candara'),
@@ -99,9 +123,8 @@ class App extends StatelessWidget {
                   dialogTheme: DialogThemeData(
                     barrierColor: AppColors.dialogBarrier,
                     backgroundColor: ThemeData(
-                      colorScheme: ColorScheme.fromSeed(
-                        seedColor: state.seedColor,
-                      ),
+                      colorScheme:
+                          _createColorScheme(state.seedColor, Brightness.light),
                     ).scaffoldBackgroundColor,
                   ),
                 ),
