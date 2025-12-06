@@ -271,3 +271,12 @@ class UpdateEnablePerBookSettings extends SettingsEvent {
   @override
   List<Object?> get props => [enablePerBookSettings];
 }
+
+class UpdateOfflineMode extends SettingsEvent {
+  final bool isOfflineMode;
+
+  const UpdateOfflineMode(this.isOfflineMode);
+
+  @override
+  List<Object?> get props => [isOfflineMode];
+}

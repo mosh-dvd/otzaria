@@ -40,6 +40,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<ResetShortcuts>(_onResetShortcuts);
     on<UpdateShortcut>(_onUpdateShortcut);
     on<UpdateEnablePerBookSettings>(_onUpdateEnablePerBookSettings);
+    on<UpdateOfflineMode>(_onUpdateOfflineMode);
   }
 
   Future<void> _onLoadSettings(
@@ -78,6 +79,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         Map<String, String>.from(settings['shortcuts'] as Map),
       ),
       enablePerBookSettings: settings['enablePerBookSettings'],
+      isOfflineMode: settings['isOfflineMode'] ?? false,
     ));
   }
 
@@ -87,6 +89,14 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     await _repository.updateEnablePerBookSettings(event.enablePerBookSettings);
     emit(state.copyWith(enablePerBookSettings: event.enablePerBookSettings));
+  }
+
+  Future<void> _onUpdateOfflineMode(
+    UpdateOfflineMode event,
+    Emitter<SettingsState> emit,
+  ) async {
+    await _repository.updateOfflineMode(event.isOfflineMode);
+    emit(state.copyWith(isOfflineMode: event.isOfflineMode));
   }
 
   Future<void> _onUpdateDarkMode(

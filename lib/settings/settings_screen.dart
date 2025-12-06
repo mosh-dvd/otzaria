@@ -963,9 +963,8 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                         defaultValue: false,
                         activeColor: Theme.of(context).cardColor,
                         onChange: (value) {
-                          // עדכון המצב כדי לרענן את הממשק
-                          // נאלץ את כל המסכים להתעדכן על ידי שליחת event ריק
-                          context.read<LibraryBloc>().add(RefreshLibrary());
+                          // עדכון המצב דרך ה-Bloc כדי לרענן את כל הממשק
+                          context.read<SettingsBloc>().add(UpdateOfflineMode(value));
                           setState(() {});
                         },
                       ),

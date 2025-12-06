@@ -58,6 +58,8 @@ class _LibraryBrowserState extends State<LibraryBrowser>
   
   // FileSyncBloc יווצר פעם אחת בלבד
   late final FileSyncBloc _fileSyncBloc;
+  
+
 
   @override
   void initState() {
@@ -73,6 +75,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         branch: "main",
       ),
     );
+    
   }
 
   void _loadViewPreferences() {
@@ -94,6 +97,8 @@ class _LibraryBrowserState extends State<LibraryBrowser>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+    
     return BlocBuilder<SettingsBloc, SettingsState>(
       builder: (context, settingsState) {
         return BlocBuilder<LibraryBloc, LibraryState>(
@@ -1033,6 +1038,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
     }
 
     return ResponsiveActionBar(
+      key: ValueKey('action-bar-offline-${settingsState.isOfflineMode}'),
       actions: _buildPrioritizedLibraryActions(context, state, settingsState),
       originalOrder:
           _buildOriginalOrderLibraryActions(context, state, settingsState),
@@ -1123,7 +1129,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
       ),
 
       // סינכרון - מוצג רק אם מצב אופליין לא מופעל
-      if (!(Settings.getValue<bool>('key-offline-mode') ?? false))
+      if (!settingsState.isOfflineMode)
         ActionButtonData(
           widget: BlocProvider.value(
             value: _fileSyncBloc,
@@ -1325,7 +1331,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
       ),
 
       // 4) סינכרון - מוצג רק אם מצב אופליין לא מופעל
-      if (!(Settings.getValue<bool>('key-offline-mode') ?? false))
+      if (!settingsState.isOfflineMode)
         ActionButtonData(
           widget: BlocProvider.value(
             value: _fileSyncBloc,

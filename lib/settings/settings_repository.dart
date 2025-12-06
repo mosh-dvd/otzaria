@@ -35,6 +35,7 @@ class SettingsRepository {
   static const String keyLibraryViewMode = 'key-library-view-mode';
   static const String keyLibraryShowPreview = 'key-library-show-preview';
   static const String keyEnablePerBookSettings = 'key-enable-per-book-settings';
+  static const String keyOfflineMode = 'key-offline-mode';
 
   // Calendar Notification Settings
   static const String keyCalendarNotificationsEnabled =
@@ -158,6 +159,10 @@ class SettingsRepository {
       'enablePerBookSettings': _settings.getValue<bool>(
         keyEnablePerBookSettings,
         defaultValue: true,
+      ),
+      'isOfflineMode': _settings.getValue<bool>(
+        keyOfflineMode,
+        defaultValue: false,
       ),
 
       // Calendar Notification Settings
@@ -294,6 +299,10 @@ class SettingsRepository {
 
   Future<void> updateEnablePerBookSettings(bool value) async {
     await _settings.setValue(keyEnablePerBookSettings, value);
+  }
+
+  Future<void> updateOfflineMode(bool value) async {
+    await _settings.setValue(keyOfflineMode, value);
   }
 
   // Calendar Notification Settings
