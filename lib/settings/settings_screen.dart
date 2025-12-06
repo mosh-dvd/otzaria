@@ -26,6 +26,7 @@ import 'package:otzaria/widgets/confirmation_dialog.dart';
 import 'package:otzaria/file_sync/database_migration_bloc.dart';
 import 'package:otzaria/file_sync/database_migration_event.dart';
 import 'package:otzaria/file_sync/database_migration_dialog.dart';
+import 'package:otzaria/ui/database_generation_screen.dart';
 import 'dart:async';
 
 class MySettingsScreen extends StatefulWidget {
@@ -987,6 +988,18 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                             if (context.mounted) {
                               context.read<LibraryBloc>().add(LoadLibrary());
                             }
+                          },
+                        ),
+                        SimpleSettingsTile(
+                          title: 'יצירת מסד נתונים',
+                          subtitle: 'צור מסד נתונים חדש מתיקיית אוצריא',
+                          leading: const Icon(FluentIcons.database_arrow_right_24_regular),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const DatabaseGenerationScreen(),
+                              ),
+                            );
                           },
                         ),
                       if (!(Platform.isAndroid || Platform.isIOS))

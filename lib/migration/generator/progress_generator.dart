@@ -51,8 +51,6 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
         progress: 0.0,
       ));
 
-      await repository.disableForeignKeys();
-      
       if (createIndexes) {
         _emitProgress(GenerationProgress(
           phase: GenerationPhase.initializing,
@@ -68,65 +66,8 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
         progress: 0.05,
       ));
 
-      final metadata = await loadMetadata();
-
-      // Check if the selected directory is already "אוצריא" or if it contains "אוצריא"
-      String libraryPath;
-      if (path.basename(sourceDirectory) == 'אוצריא') {
-        // User selected the "אוצריא" directory directly
-        libraryPath = sourceDirectory;
-      } else {
-        // User selected the parent directory, look for "אוצריא" inside
-        libraryPath = path.join(sourceDirectory, 'אוצריא');
-      }
-      
-      final libraryDir = Directory(libraryPath);
-      if (!await libraryDir.exists()) {
-        throw StateError('התיקייה "אוצריא" לא נמצאה. נא לבחור את התיקייה "אוצריא" או את התיקייה האב שלה.');
-      }
-
-      // Count actual txt files for accurate progress tracking
-      _emitProgress(GenerationProgress(
-        phase: GenerationPhase.processingBooks,
-        message: 'סופר ספרים...',
-        progress: 0.08,
-      ));
-      
-      _totalBooks = await _countTxtFiles(libraryPath);
-
-      _emitProgress(GenerationProgress(
-        phase: GenerationPhase.processingBooks,
-        message: 'מתחיל לעבד $_totalBooks ספרים...',
-        totalBooks: _totalBooks,
-        progress: 0.1,
-      ));
-
-      await processDirectory(libraryPath, null, 0, metadata);
-
-      _emitProgress(GenerationProgress(
-        phase: GenerationPhase.processingLinks,
-        message: 'מתחיל לעבד קישורים...',
-        processedBooks: _processedBooks,
-        totalBooks: _totalBooks,
-        progress: 0.6,
-      ));
-
-      await processLinks();
-
-      _emitProgress(GenerationProgress(
-        phase: GenerationPhase.finalizing,
-        message: 'משלים את התהליך...',
-        processedBooks: _processedBooks,
-        totalBooks: _totalBooks,
-        processedLinks: _processedLinks,
-        totalLinks: _totalLinks,
-        progress: 0.9,
-      ));
-
-      await repository.enableForeignKeys();
-      await repository.finalizeDatabase();
-      // FTS5 removed - no longer rebuilding FTS5 index
-      // await repository.rebuildFts5Index();
+      // Call the parent class generate() method which does all the work
+      await super.generate();
 
       if (!createIndexes) {
         _emitProgress(GenerationProgress(
@@ -144,12 +85,6 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
     } catch (e, stackTrace) {
       Logger('ProgressDatabaseGenerator').severe('Error during generation', e, stackTrace);
       _emitProgress(GenerationProgress.error(e.toString()));
-      
-      try {
-        await repository.enableForeignKeys();
-        await repository.finalizeDatabase();
-      } catch (_) {}
-      
       rethrow;
     } finally {
       _progressTimer?.cancel();
@@ -216,26 +151,6 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
   void _emitProgress(GenerationProgress progress) {
     if (!_progressController.isClosed) {
       _progressController.add(progress);
-    }
-  }
-
-  /// Count txt files in directory for progress tracking
-  Future<int> _countTxtFiles(String dirPath) async {
-    try {
-      final dir = Directory(dirPath);
-      var count = 0;
-      await for (final entity in dir.list(recursive: true)) {
-        if (entity is File && path.extension(entity.path) == '.txt') {
-          final filename = path.basename(entity.path);
-          final titleNoExt = path.basenameWithoutExtension(filename);
-          if (!titleNoExt.startsWith('הערות על ')) {
-            count++;
-          }
-        }
-      }
-      return count;
-    } catch (e) {
-      return 0;
     }
   }
 

@@ -27,6 +27,9 @@ class DatabaseGenerator {
   /// The path to the source directory containing the data files
   final String sourceDirectory;
 
+  /// Cache for acronym data loaded from acronym.json
+  Map<String, dynamic>? _acronymData;
+
   /// The repository used to store the generated data
   final SeforimRepository repository;
 
@@ -227,26 +230,20 @@ class DatabaseGenerator {
     int level,
     Map<String, BookMetadata> metadata,
   ) async {
-    _log.info('=== Processing directory: ${path.basename(directory)} with parentCategoryId: $parentCategoryId (level: $level) ===');
 
     final dir = Directory(directory);
     final entities = await dir.list().toList();
     final sortedEntities = entities
       ..sort((a, b) => path.basename(a.path).compareTo(path.basename(b.path)));
 
-    _log.fine('Found ${sortedEntities.length} entries in directory ${path.basename(directory)}');
-
     for (final entity in sortedEntities) {
       if (entity is Directory) {
-        _log.fine('Processing subdirectory: ${path.basename(entity.path)} with parentId: $parentCategoryId');
         final categoryId = await createCategory(entity.path, parentCategoryId, level);
-        _log.info('✅ Created category \'${path.basename(entity.path)}\' with ID: $categoryId (parent: $parentCategoryId)');
         await processDirectory(entity.path, categoryId, level + 1, metadata);
       } else if (entity is File && path.extension(entity.path) == '.txt') {
         // Skip if already processed from priority list
         final key = _toLibraryRelativeKey(entity.path);
         if (_processedPriorityBookKeys.contains(key)) {
-          _log.info('⏭️ Skipping already-processed priority book: $key');
           continue;
         }
         
@@ -312,7 +309,6 @@ class DatabaseGenerator {
     final filename = path.basename(bookPath);
     final title = path.basenameWithoutExtension(filename);
     final meta = metadata[title];
-
     _log.info('Processing book: $title with categoryId: $categoryId');
 
     // Apply source blacklist
@@ -330,25 +326,19 @@ class DatabaseGenerator {
     final existingBook = await repository.checkBookExists(title);
     if (existingBook != null) {
       _duplicatesFound++;
-      _log.info('⚠️ Duplicate book found: $title (ID: ${existingBook.id}) - skipping');
       
       // Call the callback if provided
       if (onDuplicateBook != null) {
         final shouldReplace = await onDuplicateBook!(title);
         if (!shouldReplace) {
           _processedBooksCount++;
-          final pct = _totalBooksToProcess > 0 ? (_processedBooksCount * 100 ~/ _totalBooksToProcess) : 0;
-          _log.info('Books progress: $_processedBooksCount/$_totalBooksToProcess ($pct%)');
           return;
         }
-        _log.info('Replacing duplicate book: $title');
         // Delete the existing book and continue with insertion
         await repository.deleteBookCompletely(existingBook.id);
       } else {
         // Default behavior: skip duplicates
         _processedBooksCount++;
-        final pct = _totalBooksToProcess > 0 ? (_processedBooksCount * 100 ~/ _totalBooksToProcess) : 0;
-        _log.info('Books progress: $_processedBooksCount/$_totalBooksToProcess ($pct%)');
         return;
       }
     }
@@ -407,7 +397,26 @@ class DatabaseGenerator {
 
     _log.fine('Inserting book \'${book.title}\' with ID: ${book.id} and categoryId: ${book.categoryId}');
     final insertedBookId = await repository.insertBook(book);
+
+    // ✅ Important verification: ensure that ID and categoryId are correct
+    final insertedBook = await repository.getBook(insertedBookId);
+    if (insertedBook?.categoryId != categoryId) {
+      _log.warning('WARNING: Book inserted with wrong categoryId! Expected: $categoryId, Got: ${insertedBook?.categoryId}');
+      // Correct the categoryId if necessary
+      await repository.updateBookCategoryId(insertedBookId, categoryId);
+    }
     _log.fine('Book \'${book.title}\' inserted with ID: $insertedBookId and categoryId: $categoryId');
+
+    // Insert acronyms for this book
+    try {
+      final terms = await fetchAcronymsForTitle(title);
+      if (terms.isNotEmpty) {
+        await repository.bulkInsertBookAcronyms(insertedBookId, terms);
+        _log.info('Inserted ${terms.length} acronyms for \'$title\'');
+      }
+    } catch (e) {
+      _log.warning('Failed to insert acronyms for \'$title\'', e);
+    }
 
     // Process content of the book
     await processBookContent(bookPath, insertedBookId);
@@ -806,12 +815,75 @@ class DatabaseGenerator {
   /// Updates the book_has_links table to indicate which books have source links, target links, or both.
   /// This should be called after all links have been processed.
   Future<void> updateBookHasLinksTable() async {
-    _log.info('Updating book_has_links table with separate source and target link flags...');
 
-    // Use optimized single-query approach
-    await repository.updateAllBookConnectionFlagsOptimized();
-    
-    _log.info('Book_has_links table updated successfully');
+    // שליפת כל סוגי ההקשרים מטבלת connection_type
+    final connectionTypes = await repository.getAllConnectionTypesObj();
+    final connectionTypeMap = <String, int>{};
+    for (final type in connectionTypes) {
+      connectionTypeMap[type.name.toUpperCase()] = type.id;
+    }
+
+    // Get all books
+    final books = await repository.getAllBooks();
+
+    var booksWithSourceLinks = 0;
+    var booksWithTargetLinks = 0;
+    var booksWithAnyLinks = 0;
+    var processedBooks = 0;
+
+    // For each book, check if it has source links and/or target links
+    for (final book in books) {
+      // Check if the book has any links as source
+      final hasSourceLinks = await repository.countLinksBySourceBook(book.id) > 0;
+
+      // Check if the book has any links as target
+      final hasTargetLinks = await repository.countLinksByTargetBook(book.id) > 0;
+
+      // Update the book_has_links table with separate flags for source and target links
+      await repository.updateBookHasLinks(book.id, hasSourceLinks, hasTargetLinks);
+
+      // Additionally: compute per-connection-type flags across source and target, then update book row
+      final targumId = connectionTypeMap['TARGUM'];
+      final referenceId = connectionTypeMap['REFERENCE'];
+      final commentaryId = connectionTypeMap['COMMENTARY'];
+      final otherId = connectionTypeMap['OTHER'];
+
+      final targumCount = (targumId != null ? await repository.countLinksBySourceBookAndTypeId(book.id, targumId) : 0) +
+          (targumId != null ? await repository.countLinksByTargetBookAndTypeId(book.id, targumId) : 0);
+      final referenceCount = (referenceId != null ? await repository.countLinksBySourceBookAndTypeId(book.id, referenceId) : 0) +
+          (referenceId != null ? await repository.countLinksByTargetBookAndTypeId(book.id, referenceId) : 0);
+      final commentaryCount = (commentaryId != null ? await repository.countLinksBySourceBookAndTypeId(book.id, commentaryId) : 0) +
+          (commentaryId != null ? await repository.countLinksByTargetBookAndTypeId(book.id, commentaryId) : 0);
+      final otherCount = (otherId != null ? await repository.countLinksBySourceBookAndTypeId(book.id, otherId) : 0) +
+          (otherId != null ? await repository.countLinksByTargetBookAndTypeId(book.id, otherId) : 0);
+
+      final hasTargum = targumCount > 0;
+      final hasReference = referenceCount > 0;
+      final hasCommentary = commentaryCount > 0;
+      final hasOther = otherCount > 0;
+
+      await repository.updateBookConnectionFlags(book.id, hasTargum, hasReference, hasCommentary, hasOther);
+
+      // Update counters
+      if (hasSourceLinks) booksWithSourceLinks++;
+      if (hasTargetLinks) booksWithTargetLinks++;
+      if (hasSourceLinks || hasTargetLinks) booksWithAnyLinks++;
+      processedBooks++;
+
+      // Log progress every 100 books
+      if (processedBooks % 100 == 0) {
+        _log.fine('Processed $processedBooks/${books.length} books: '
+            '$booksWithSourceLinks with source links, '
+            '$booksWithTargetLinks with target links, '
+            '$booksWithAnyLinks with any links');
+      }
+    }
+
+    _log.info('Book_has_links table updated. Found:');
+    _log.info('- $booksWithSourceLinks books with source links');
+    _log.info('- $booksWithTargetLinks books with target links');
+    _log.info('- $booksWithAnyLinks books with any links (source or target)');
+    _log.info('- ${books.length} total books');
   }
 
   /// Helper methods for source management and priority processing
@@ -879,7 +951,8 @@ class DatabaseGenerator {
   }
   
   /// Resolve a source id for a book file using the manifest mapping
-  Future<int> _resolveSourceIdFor(String filePath) async {
+  Future<int> 
+  _resolveSourceIdFor(String filePath) async {
     final rel = _toLibraryRelativeKey(filePath);
     final sourceName = _manifestSourcesByRel[rel] ?? 'Unknown';
     final cached = _sourceNameToId[sourceName];
@@ -1036,10 +1109,64 @@ class DatabaseGenerator {
   }
   
   /// Load priority list from resources
+  /// Reads the priority list from file and returns normalized relative paths under the library root.
   Future<List<String>> _loadPriorityList() async {
-    // In Dart, we don't have resources like in Kotlin/Java
-    // For now, return empty list - can be implemented later if needed
-    return [];
+    try {
+      // priority.txt is typically in the parent directory of sourceDirectory
+      final priorityPath = path.join(path.dirname(sourceDirectory), 'priority.txt');
+      final priorityFile = File(priorityPath);
+      
+      if (!await priorityFile.exists()) {
+        _log.fine('priority.txt not found at $priorityPath');
+        return [];
+      }
+      
+      _log.info('Loading priority list from: ${priorityFile.path}');
+      
+      final content = await priorityFile.readAsString(encoding: utf8);
+      final lines = content.split('\n');
+      
+      final result = <String>[];
+      for (var line in lines) {
+        var s = line.trim();
+        
+        // Skip empty lines and comments
+        if (s.isEmpty || s.startsWith('#')) continue;
+        
+        // Normalize separators
+        s = s.replaceAll('\\', '/');
+        
+        // Remove BOM if present
+        if (s.isNotEmpty && s.codeUnitAt(0) == 0xFEFF) {
+          s = s.substring(1);
+        }
+        
+        // Remove leading slash
+        if (s.startsWith('/')) {
+          s = s.substring(1);
+        }
+        
+        // Try to start from 'אוצריא' if present
+        final idx = s.indexOf('אוצריא');
+        if (idx >= 0) {
+          s = s.substring(idx + 'אוצריא'.length);
+          if (s.startsWith('/')) {
+            s = s.substring(1);
+          }
+        }
+        
+        // Filter for .txt files
+        if (s.toLowerCase().endsWith('.txt')) {
+          result.add(s);
+        }
+      }
+      
+      _log.info('Loaded ${result.length} priority entries from ${priorityFile.path}');
+      return result;
+    } catch (e) {
+      _log.warning('Unable to read priority.txt', e);
+      return [];
+    }
   }
   
   /// Disables foreign key constraints
@@ -1052,6 +1179,119 @@ class DatabaseGenerator {
   Future<void> _enableForeignKeys() async {
     _log.fine('Re-enabling foreign key constraints');
     await repository.executeRawQuery('PRAGMA foreign_keys = ON');
+  }
+
+  /// Sanitizes an acronym term by removing diacritics, maqaf, gershayim and geresh.
+  ///
+  /// [raw] The raw acronym term to sanitize.
+  /// Returns the sanitized term.
+  String sanitizeAcronymTerm(String raw) {
+    var s = raw.trim();
+    if (s.isEmpty) return '';
+    
+    s = hebrew_text_utils.removeAllDiacritics(s);
+    s = hebrew_text_utils.replaceMaqaf(s, replacement: ' ');
+    s = s.replaceAll('\u05F4', ''); // remove Hebrew gershayim (״)
+    s = s.replaceAll('\u05F3', ''); // remove Hebrew geresh (׳)
+    s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+    
+    return s;
+  }
+
+  /// Fetches and sanitizes acronym terms for a given book title from acronym.json.
+  ///
+  /// The acronym.json file is expected to be in the parent directory of [sourceDirectory].
+  /// [title] The book title to look up.
+  /// Returns a list of sanitized acronym terms, or empty list if not found.
+  Future<List<String>> fetchAcronymsForTitle(String title) async {
+    // Determine the path to acronym.json (in parent of sourceDirectory)
+    final acronymPath = path.join(path.dirname(sourceDirectory), 'acronym.json');
+    
+    try {
+      // Load acronym data if not already cached
+      if (_acronymData == null) {
+        final file = File(acronymPath);
+        if (!await file.exists()) {
+          _log.fine('acronym.json not found at $acronymPath');
+          return [];
+        }
+        
+        final content = await file.readAsString();
+        final decoded = _json.decode(content);
+        
+        // Handle both Map and List formats
+        if (decoded is Map<String, dynamic>) {
+          _acronymData = decoded;
+        } else if (decoded is List) {
+          // Convert list to map using 'title' field as key
+          _acronymData = <String, dynamic>{};
+          for (final item in decoded) {
+            if (item is Map<String, dynamic>) {
+              final itemTitle = item['book_title'] as String?;
+              if (itemTitle != null) {
+                _acronymData![itemTitle] = item;
+              }
+            }
+          }
+        } else {
+          _log.warning('Unexpected acronym.json format');
+          _acronymData = <String, dynamic>{};
+        }
+        _log.info('Loaded acronym data with ${_acronymData!.length} entries');
+      }
+      
+      // Look up the title in the acronym data
+      final entry = _acronymData![title];
+      if (entry == null) {
+        return [];
+      }
+      
+      // Extract terms - handle both string and list formats
+      String? raw;
+      if (entry is String) {
+        raw = entry;
+      } else if (entry is Map<String, dynamic>) {
+        raw = entry['terms'] as String?;
+      } else if (entry is List) {
+        // If it's already a list, process each item
+        final parts = entry.map((e) => e.toString()).toList();
+        final clean = parts
+            .map((t) => sanitizeAcronymTerm(t))
+            .map((t) => t.trim())
+            .where((t) => t.isNotEmpty)
+            .toList();
+        
+        final titleNormalized = sanitizeAcronymTerm(title);
+        return clean
+            .where((t) => !t.toLowerCase().contains(title.toLowerCase()))
+            .where((t) => !t.toLowerCase().contains(titleNormalized.toLowerCase()))
+            .toSet()
+            .toList();
+      }
+      
+      if (raw == null || raw.isEmpty) {
+        return [];
+      }
+      
+      // Split by comma and sanitize each term
+      final parts = raw.split(',');
+      final clean = parts
+          .map((t) => sanitizeAcronymTerm(t))
+          .map((t) => t.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
+      
+      // De-duplicate and drop items identical to the title after normalization
+      final titleNormalized = sanitizeAcronymTerm(title);
+      return clean
+          .where((t) => !t.toLowerCase().contains(title.toLowerCase()))
+          .where((t) => !t.toLowerCase().contains(titleNormalized.toLowerCase()))
+          .toSet()
+          .toList();
+    } catch (e) {
+      _log.warning('Error reading acronyms for \'$title\' from $acronymPath', e);
+      return [];
+    }
   }
 }
 

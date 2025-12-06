@@ -12,6 +12,7 @@ import '../../core/models/search_result.dart';
 import '../../core/models/source.dart';
 import '../../core/models/toc_entry.dart';
 import '../../core/models/topic.dart';
+import '../drift/connection_type_dao.dart';
 import '../drift/database.dart';
 
 /// Repository class for accessing and manipulating the Seforim database.
@@ -771,6 +772,8 @@ class SeforimRepository {
         book.heShortDesc,
         book.order,
         book.totalLines,
+        book.isBaseBook,
+        book.notesContent
       );
       _logger.fine('Used insertWithId for book \'${book.title}\' with ID: ${book.id} and categoryId: ${book.categoryId}');
 
@@ -812,6 +815,8 @@ class SeforimRepository {
         book.heShortDesc,
         book.order,
         book.totalLines,
+        book.isBaseBook,
+        book.notesContent
       );
       _logger.fine('Used insert for book \'${book.title}\', got ID: $id with categoryId: ${book.categoryId}');
 
@@ -1286,6 +1291,13 @@ class SeforimRepository {
     return result.map((row) => row['name'] as String).toList();
   }
 
+
+
+  /// שליפת כל סוגי ההקשרים מטבלת connection_type
+  Future<List<ConnectionTypeEntry>> getAllConnectionTypesObj() async {
+    return await _database.connectionTypeDao.getAllConnectionTypes();
+  }
+
   // --- Links ---
 
   Future<Link?> getLink(int id) async {
@@ -1660,6 +1672,8 @@ class SeforimRepository {
 
   // --- Connection type specific helpers ---
 
+
+
   Future<int> countLinksBySourceBookAndType(int bookId, String typeName) async {
     final db = await _database.database;
     final result = await db.rawQuery('''
@@ -1677,6 +1691,25 @@ class SeforimRepository {
       JOIN connection_type ct ON l.connectionTypeId = ct.id
       WHERE l.targetBookId = ? AND ct.name = ?
     ''', [bookId, typeName]);
+    return result.first.values.first as int;
+  }
+
+  /// ספירת קישורים לפי מזהה סוג הקישור (במקום שם)
+  Future<int> countLinksBySourceBookAndTypeId(int bookId, int typeId) async {
+    final db = await _database.database;
+    final result = await db.rawQuery('''
+      SELECT COUNT(*) FROM link
+      WHERE sourceBookId = ? AND connectionTypeId = ?
+    ''', [bookId, typeId]);
+    return result.first.values.first as int;
+  }
+
+  Future<int> countLinksByTargetBookAndTypeId(int bookId, int typeId) async {
+    final db = await _database.database;
+    final result = await db.rawQuery('''
+      SELECT COUNT(*) FROM link
+      WHERE targetBookId = ? AND connectionTypeId = ?
+    ''', [bookId, typeId]);
     return result.first.values.first as int;
   }
 
@@ -2181,4 +2214,53 @@ class LineTocMapping {
     required this.lineId,
     required this.tocEntryId,
   });
+}
+
+/// Extension methods for book acronyms
+extension BookAcronymRepository on SeforimRepository {
+  /// Bulk inserts acronym terms for a book.
+  /// 
+  /// [bookId] The ID of the book
+  /// [terms] List of acronym terms to associate with the book
+  Future<void> bulkInsertBookAcronyms(int bookId, List<String> terms) async {
+    if (terms.isEmpty) return;
+    
+    final db = await _database.database;
+    final batch = db.batch();
+    
+    for (final term in terms) {
+      batch.rawInsert('''
+        INSERT OR IGNORE INTO book_acronym (bookId, term)
+        VALUES (?, ?)
+      ''', [bookId, term]);
+    }
+    
+    await batch.commit(noResult: true);
+  }
+  
+  /// Gets all acronym terms for a book.
+  Future<List<String>> getBookAcronyms(int bookId) async {
+    final db = await _database.database;
+    final result = await db.rawQuery(
+      'SELECT term FROM book_acronym WHERE bookId = ?',
+      [bookId]
+    );
+    return result.map((row) => row['term'] as String).toList();
+  }
+  
+  /// Searches for books by acronym term.
+  Future<List<int>> searchBooksByAcronym(String term) async {
+    final db = await _database.database;
+    final result = await db.rawQuery(
+      'SELECT bookId FROM book_acronym WHERE term LIKE ?',
+      ['%$term%']
+    );
+    return result.map((row) => row['bookId'] as int).toList();
+  }
+  
+  /// Deletes all acronyms for a book.
+  Future<void> deleteBookAcronyms(int bookId) async {
+    final db = await _database.database;
+    await db.rawDelete('DELETE FROM book_acronym WHERE bookId = ?', [bookId]);
+  }
 }

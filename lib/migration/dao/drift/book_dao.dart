@@ -47,20 +47,20 @@ class BookDao {
     return result.map((row) => Book.fromJson(row)).toList();
   }
 
-  Future<int> insertBook(int categoryId, int sourceId, String title, String? heShortDesc, double orderIndex, int totalLines) async {
+  Future<int> insertBook(int categoryId, int sourceId, String title, String? heShortDesc, double orderIndex, int totalLines,bool isBaseBook,String? notesContent) async {
     final db = await database;
     return await db.rawInsert('''
-      INSERT INTO book (categoryId, sourceId, title, heShortDesc, orderIndex, totalLines)
-      VALUES (?, ?, ?, ?, ?, ?)
-    ''', [categoryId, sourceId, title, heShortDesc, orderIndex, totalLines]);
+      INSERT INTO book (categoryId, sourceId, title, heShortDesc, orderIndex, totalLines, isBaseBook,notesContent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', [categoryId, sourceId, title, heShortDesc, orderIndex, totalLines,(isBaseBook ? 1 : 0),notesContent]);
   }
 
-  Future<int> insertBookWithId(int id, int categoryId, int sourceId, String title, String? heShortDesc, double orderIndex, int totalLines) async {
+  Future<int> insertBookWithId(int id, int categoryId, int sourceId, String title, String? heShortDesc, double orderIndex, int totalLines,bool isBaseBook,String? notesContent) async {
     final db = await database;
     return await db.rawInsert('''
-      INSERT INTO book (id, categoryId, sourceId, title, heShortDesc, orderIndex, totalLines)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', [id, categoryId, sourceId, title, heShortDesc, orderIndex, totalLines]);
+      INSERT INTO book (id, categoryId, sourceId, title, heShortDesc, orderIndex, totalLines, isBaseBook,notesContent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', [id, categoryId, sourceId, title, heShortDesc, orderIndex, totalLines,(isBaseBook ? 1 : 0),notesContent]);
   }
 
   Future<int> updateBookTotalLines(int id, int totalLines) async {
