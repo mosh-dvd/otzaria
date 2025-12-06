@@ -4,11 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/file_sync/file_sync_bloc.dart';
 import 'package:otzaria/file_sync/file_sync_event.dart';
 import 'package:otzaria/file_sync/file_sync_state.dart';
-import 'package:otzaria/file_sync/database_migration_bloc.dart';
-import 'package:otzaria/file_sync/database_migration_dialog.dart';
-import 'package:otzaria/file_sync/database_migration_event.dart';
-import 'package:otzaria/file_sync/database_migration_state.dart';
-import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 
 class SyncIconButton extends StatefulWidget {
   final double size;
