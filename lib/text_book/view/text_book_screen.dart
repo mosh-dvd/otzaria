@@ -925,6 +925,22 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
             ),
       ),
 
+      // Tzurat HaDaf View Button
+      ActionButtonData(
+        widget: IconButton(
+          icon: const Icon(FluentIcons.table_24_regular),
+          tooltip: 'צורת הדף',
+          onPressed: () => context.read<TextBookBloc>().add(
+                ToggleTzuratHadafView(!state.showTzuratHadafView),
+              ),
+        ),
+        icon: FluentIcons.table_24_regular,
+        tooltip: 'צורת הדף',
+        onPressed: () => context.read<TextBookBloc>().add(
+              ToggleTzuratHadafView(!state.showTzuratHadafView),
+            ),
+      ),
+
       // 3) Nikud Button
       ActionButtonData(
         widget: _buildNikudButton(context, state),

@@ -53,6 +53,15 @@ class ToggleSplitView extends TextBookEvent {
   List<Object?> get props => [show];
 }
 
+class ToggleTzuratHadafView extends TextBookEvent {
+  final bool show;
+
+  const ToggleTzuratHadafView(this.show);
+
+  @override
+  List<Object?> get props => [show];
+}
+
 class UpdateCommentators extends TextBookEvent {
   final List<String> commentators;
 

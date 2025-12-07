@@ -16,24 +16,24 @@ import 'package:otzaria/text_book/editing/repository/overrides_repository.dart';
 import 'package:otzaria/text_book/editing/models/section_identifier.dart';
 
 class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
-  final TextBookRepository _repository;
+  final TextBookRepository repository;
   final OverridesRepository _overridesRepository;
   final ItemScrollController scrollController;
   final ItemPositionsListener positionsListener;
 
   TextBookBloc({
-    required TextBookRepository repository,
+    required this.repository,
     required OverridesRepository overridesRepository,
     required TextBookInitial initialState,
     required this.scrollController,
     required this.positionsListener,
-  })  : _repository = repository,
-        _overridesRepository = overridesRepository,
+  })  : _overridesRepository = overridesRepository,
         super(initialState) {
     on<LoadContent>(_onLoadContent);
     on<UpdateFontSize>(_onUpdateFontSize);
     on<ToggleLeftPane>(_onToggleLeftPane);
     on<ToggleSplitView>(_onToggleSplitView);
+    on<ToggleTzuratHadafView>(_onToggleTzuratHadafView);
     on<UpdateCommentators>(_onUpdateCommentators);
     on<ToggleNikud>(_onToggleNikud);
     on<UpdateVisibleIndecies>(_onUpdateVisibleIndecies);
@@ -96,9 +96,9 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     }
 
     try {
-      final content = await _repository.getBookContent(book);
-      final links = await _repository.getBookLinks(book);
-      final tableOfContents = await _repository.getTableOfContents(book);
+      final content = await repository.getBookContent(book);
+      final links = await repository.getBookLinks(book);
+      final tableOfContents = await repository.getTableOfContents(book);
 
       // Update current title if we're preserving state
       String? currentTitle;
@@ -116,7 +116,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       final Map<String, List<String>> eras;
       if (event.loadCommentators) {
         availableCommentators =
-            await _repository.getAvailableCommentators(links);
+            await repository.getAvailableCommentators(links);
         eras = await utils.splitByEra(availableCommentators);
       } else {
         availableCommentators = [];
@@ -238,6 +238,19 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       final currentState = state as TextBookLoaded;
       emit(currentState.copyWith(
         showSplitView: event.show,
+        selectedIndex: currentState.selectedIndex,
+      ));
+    }
+  }
+
+  void _onToggleTzuratHadafView(
+    ToggleTzuratHadafView event,
+    Emitter<TextBookState> emit,
+  ) {
+    if (state is TextBookLoaded) {
+      final currentState = state as TextBookLoaded;
+      emit(currentState.copyWith(
+        showTzuratHadafView: event.show,
         selectedIndex: currentState.selectedIndex,
       ));
     }
@@ -569,7 +582,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       // Handle full file editing differently
       if (event.sectionId == 'full_file' && event.index == -1) {
         // For full file editing, save the entire content to the original file
-        await _repository.saveBookContent(currentState.book, event.markdown);
+        await repository.saveBookContent(currentState.book, event.markdown);
 
         // Split the content back into sections for display
         final sections = event.markdown
@@ -599,7 +612,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
 
       // Join all sections back together and save to original file
       final fullContent = updatedContent.join('\n\n');
-      await _repository.saveBookContent(currentState.book, fullContent);
+      await repository.saveBookContent(currentState.book, fullContent);
 
       // Close editor immediately
       emit(currentState.copyWith(
