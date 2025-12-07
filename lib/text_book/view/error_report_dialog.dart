@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/models/phone_report_data.dart';
 import 'package:otzaria/services/data_collection_service.dart';
@@ -257,7 +258,8 @@ $detailsSection
             ),
             const SizedBox(width: 8),
             // הכפתור "שלח עכשיו בדוא"ל" מוסתר במצב אופליין
-            if (!(Settings.getValue<bool>('key-offline-mode') ?? false))
+            if (!(Settings.getValue<bool>(SettingsRepository.keyOfflineMode) ??
+                false))
               TextButton(
                 onPressed: () {
                   launchMail(_fallbackMail, context);
@@ -821,7 +823,8 @@ class _RegularReportTabState extends State<RegularReportTab> {
 
   Widget _buildActionButtons() {
     // בדיקת מצב אופליין
-    final isOfflineMode = Settings.getValue<bool>('key-offline-mode') ?? false;
+    final isOfflineMode =
+        Settings.getValue<bool>(SettingsRepository.keyOfflineMode) ?? false;
     
     return FutureBuilder<bool>(
       future: _isPhoneReportDisabled(),

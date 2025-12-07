@@ -4,13 +4,15 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/file_sync/file_sync_event.dart';
 import 'package:otzaria/file_sync/file_sync_state.dart';
 import 'package:otzaria/file_sync/file_sync_repository.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 
 class FileSyncBloc extends Bloc<FileSyncEvent, FileSyncState> {
   final FileSyncRepository repository;
   Timer? _progressTimer;
 
   // Getter לבדיקת מצב אופליין
-  bool get _isOffline => Settings.getValue<bool>('key-offline-mode') ?? false;
+  bool get _isOffline =>
+      Settings.getValue<bool>(SettingsRepository.keyOfflineMode) ?? false;
 
   FileSyncBloc({required this.repository}) : super(const FileSyncState()) {
     on<StartSync>(_onStartSync);

@@ -21,6 +21,7 @@ import 'package:otzaria/settings/library_settings_dialog.dart';
 import 'package:otzaria/settings/calendar_settings_dialog.dart';
 import 'package:otzaria/settings/gematria_settings_dialog.dart';
 import 'package:otzaria/settings/backup_service.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 import 'package:otzaria/widgets/shortcut_dropdown_tile.dart';
 import 'package:otzaria/widgets/confirmation_dialog.dart';
 import 'dart:async';
@@ -954,7 +955,7 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                           ),
                       // הגדרת מצב אופליין - תמיד מוצגת
                       SwitchSettingsTile(
-                        settingKey: 'key-offline-mode',
+                        settingKey: SettingsRepository.keyOfflineMode,
                         title: 'מצב אופליין',
                         enabledLabel:
                             'התוכנה מנותקת לגמרי מהרשת, כל התכונות המקוונות מושבתות',
