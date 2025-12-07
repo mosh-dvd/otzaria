@@ -36,6 +36,7 @@ class SettingsRepository {
   static const String keyLibraryShowPreview = 'key-library-show-preview';
   static const String keyEnablePerBookSettings = 'key-enable-per-book-settings';
   static const String keyOfflineMode = 'key-offline-mode';
+  static const String keyAutoSync = 'key-auto-sync';
 
   // Calendar Notification Settings
   static const String keyCalendarNotificationsEnabled =

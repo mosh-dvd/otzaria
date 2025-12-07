@@ -21,7 +21,8 @@ class FileSyncBloc extends Bloc<FileSyncEvent, FileSyncState> {
     on<ResetState>(_onResetState);
 
     // Check for auto-sync setting and offline mode
-    final isAutoSync = Settings.getValue<bool>('key-auto-sync') ?? false;
+    final isAutoSync =
+        Settings.getValue<bool>(SettingsRepository.keyAutoSync) ?? false;
     if (isAutoSync && !_isOffline) {
       add(const StartSync());
     }
