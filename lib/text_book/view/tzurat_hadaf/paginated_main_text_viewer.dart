@@ -51,37 +51,55 @@ class _PaginatedMainTextViewerState extends State<PaginatedMainTextViewer> {
   }
 
   void _calculatePages() {
+    final availableWidth = context.size?.width;
     final availableHeight = context.size?.height;
-    if (availableHeight == null || availableHeight == 0) return;
+    if (availableWidth == null ||
+        availableWidth == 0 ||
+        availableHeight == null ||
+        availableHeight == 0) return;
 
     final settingsState = context.read<SettingsBloc>().state;
     final textStyle = TextStyle(
       fontSize: widget.textBookState.fontSize,
       fontFamily: settingsState.fontFamily,
       height: 1.5,
+      color: Colors.black,
     );
-
-    // Estimate line height
-    final singleLineHeight =
-        (textStyle.fontSize! * (textStyle.height ?? 1.5)) * 1.2;
+    final textDirection = Directionality.of(context);
 
     List<List<int>> pages = [];
     List<int> currentPage = [];
     double currentPageHeight = 0;
 
     for (int i = 0; i < widget.textBookState.content.length; i++) {
-      // a simple heuristic for line height. A more accurate measurement is needed
-      final line = widget.textBookState.content[i];
-      final estimatedLineHeight = (line.length / 50 + 1) * singleLineHeight;
+      String data = widget.textBookState.content[i];
+      // Note: text manipulations should be consistent with _buildLine
+      if (!settingsState.showTeamim) {
+        data = utils.removeTeamim(data);
+      }
+      if (settingsState.replaceHolyNames) {
+        data = utils.replaceHolyNames(data);
+      }
+      if (widget.textBookState.removeNikud) {
+        data = utils.removeVolwels(data);
+      }
+      String strippedData = _stripHtmlTags(data);
 
-      if (currentPageHeight + estimatedLineHeight > availableHeight &&
+      final painter = _NonLinearTextPainter(
+        text: strippedData,
+        style: textStyle,
+        textDirection: textDirection,
+      );
+      final lineHeight = painter.calculateHeight(availableWidth);
+
+      if (currentPageHeight + lineHeight > availableHeight &&
           currentPage.isNotEmpty) {
         pages.add(currentPage);
         currentPage = [];
         currentPageHeight = 0;
       }
       currentPage.add(i);
-      currentPageHeight += estimatedLineHeight;
+      currentPageHeight += lineHeight;
     }
     if (currentPage.isNotEmpty) {
       pages.add(currentPage);
@@ -107,12 +125,10 @@ class _PaginatedMainTextViewerState extends State<PaginatedMainTextViewer> {
       itemCount: _pages.length,
       itemBuilder: (context, pageIndex) {
         final pageLines = _pages[pageIndex];
-        return ListView.builder(
-          itemCount: pageLines.length,
-          itemBuilder: (context, lineIndexInPage) {
-            final lineIndex = pageLines[lineIndexInPage];
+        return Column(
+          children: pageLines.map((lineIndex) {
             return _buildLine(lineIndex);
-          },
+          }).toList(),
         );
       },
     );
