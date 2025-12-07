@@ -13,14 +13,23 @@ class NonLinearText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size.infinite,
-      painter: _NonLinearTextPainter(
+    return LayoutBuilder(builder: (context, constraints) {
+      final painter = _NonLinearTextPainter(
         text: text,
         style: style,
         textDirection: Directionality.of(context),
-      ),
-    );
+      );
+
+      final height = painter.calculateHeight(constraints.maxWidth);
+
+      return SizedBox(
+        height: height,
+        child: CustomPaint(
+          size: Size(constraints.maxWidth, height),
+          painter: painter,
+        ),
+      );
+    });
   }
 }
 
@@ -35,23 +44,22 @@ class _NonLinearTextPainter extends CustomPainter {
     required this.textDirection,
   });
 
-  @override
-  void paint(Canvas canvas, Size size) {
+  double calculateHeight(double width) {
+    if (width <= 0) return 0;
+
     final words = text.split(' ');
     double y = 0;
     int wordIndex = 0;
 
     while (wordIndex < words.length) {
-      // Calculate the available width for the current line
-      final double horizontalPadding = _calculateHorizontalPadding(y, size.height);
-      final double availableWidth = size.width - 2 * horizontalPadding;
+      final double horizontalPadding = _calculateHorizontalPadding(y);
+      final double availableWidth = width - 2 * horizontalPadding;
 
       if (availableWidth <= 0) {
         y += style.fontSize! * 1.5;
         continue;
       }
 
-      // Get the words for the current line
       final lineInfo = _getLine(
         words.sublist(wordIndex),
         availableWidth,
@@ -59,35 +67,83 @@ class _NonLinearTextPainter extends CustomPainter {
       final line = lineInfo.$1;
       final wordsInLine = lineInfo.$2;
 
-      // Paint the line
-      final textSpan = TextSpan(text: line, style: style);
+      if (wordsInLine == 0) {
+        // Handle case where a single word is wider than the available width
+        y += style.fontSize! * 1.5;
+        wordIndex++;
+        continue;
+      }
+
       final textPainter = TextPainter(
-        text: textSpan,
+        text: TextSpan(text: line, style: style),
+        textDirection: textDirection,
+      );
+      textPainter.layout(minWidth: 0, maxWidth: availableWidth);
+
+      y += textPainter.height;
+      wordIndex += wordsInLine;
+    }
+    return y;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final words = text.split(' ');
+    double y = 0;
+    int wordIndex = 0;
+
+    while (wordIndex < words.length) {
+      final double horizontalPadding = _calculateHorizontalPadding(y);
+      final double availableWidth = size.width - 2 * horizontalPadding;
+
+      if (availableWidth <= 0) {
+        y += style.fontSize! * 1.5;
+        continue;
+      }
+
+      final lineInfo = _getLine(
+        words.sublist(wordIndex),
+        availableWidth,
+      );
+      final line = lineInfo.$1;
+      final wordsInLine = lineInfo.$2;
+
+      if (wordsInLine == 0) {
+        // Handle case where a single word is wider than the available width
+        y += style.fontSize! * 1.5;
+        wordIndex++;
+        continue;
+      }
+
+      final textPainter = TextPainter(
+        text: TextSpan(text: line, style: style),
         textDirection: textDirection,
         textAlign: TextAlign.justify,
       );
       textPainter.layout(minWidth: 0, maxWidth: availableWidth);
-      
+
       final x = (textDirection == TextDirection.rtl)
           ? size.width - horizontalPadding - textPainter.width
           : horizontalPadding;
 
       textPainter.paint(canvas, Offset(x, y));
 
-      // Move to the next line
       y += textPainter.height;
       wordIndex += wordsInLine;
 
-      if(y > size.height){
+      if (y > size.height) {
         break;
       }
     }
   }
 
-  // Tuple<String, int>
   (String, int) _getLine(List<String> words, double maxWidth) {
     String line = '';
     int wordCount = 0;
+
+    if (words.isEmpty) {
+      return ('', 0);
+    }
 
     for (final word in words) {
       final testLine = line.isEmpty ? word : '$line $word';
@@ -97,7 +153,7 @@ class _NonLinearTextPainter extends CustomPainter {
       );
       textPainter.layout(minWidth: 0, maxWidth: maxWidth);
 
-      if (textPainter.width > maxWidth) {
+      if (textPainter.width > maxWidth && line.isNotEmpty) {
         break;
       }
       line = testLine;
@@ -106,11 +162,11 @@ class _NonLinearTextPainter extends CustomPainter {
     return (line, wordCount);
   }
 
-  double _calculateHorizontalPadding(double y, double height) {
+  double _calculateHorizontalPadding(double y) {
     // Parabolic function for the "belly" effect
-    final double midPoint = height / 2;
-    final double normalizedY = (y - midPoint) / midPoint; // from -1 to 1
-    final double padding = 30 * (1 - normalizedY * normalizedY); // adjust 30 for more curve
+    final double midPoint = 100; // Assume a mid point for the curve
+    final double normalizedY = (y - midPoint) / midPoint;
+    final double padding = 30 * (1 - normalizedY * normalizedY);
     return padding > 0 ? padding : 0;
   }
 
