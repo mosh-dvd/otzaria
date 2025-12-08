@@ -136,7 +136,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
 
       try {
         // קבלת נתיב הספר
-        final titleToPath = await state.book.data.titleToPath;
+        final titleToPath = await FileSystemData.instance.titleToPath;
         final bookPath = titleToPath[bookTitle];
 
         if (bookPath != null) {
@@ -1584,7 +1584,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       }
 
       // 1. Get book path from library
-      final titleToPath = await state.book.data.titleToPath;
+      final titleToPath = await FileSystemData.instance.titleToPath;
       final bookPath = titleToPath[bookTitle];
 
       if (bookPath == null) {

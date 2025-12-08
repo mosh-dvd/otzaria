@@ -157,9 +157,6 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
 
   void _onSetCurrentTab(SetCurrentTab event, Emitter<TabsState> emit) {
     if (event.index >= 0 && event.index < state.tabs.length) {
-      debugPrint(
-          'DEBUG: מעבר לטאב ${event.index} - ${state.tabs[event.index].title}');
-
       // לא מבטלים את מצב side-by-side - פשוט עוברים לטאב
       // הפונקציה _shouldShowSideBySideView תחליט אם להציג side-by-side או TabBarView
       _repository.saveTabs(state.tabs, event.index, state.sideBySideMode);
@@ -354,7 +351,6 @@ class TabsBloc extends Bloc<TabsEvent, TabsState> {
 
   void _onDisableSideBySideMode(
       DisableSideBySideMode event, Emitter<TabsState> emit) {
-    debugPrint('DEBUG: ביטול מצב side-by-side');
 
     // אם הטאב הנוכחי הוא CombinedTab, נפרק אותו לשני טאבים נפרדים
     if (state.currentTab is CombinedTab) {

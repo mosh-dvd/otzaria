@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/data/data_providers/library_provider.dart';
 import 'package:otzaria/models/books.dart';
+import 'package:otzaria/models/links.dart';
 import 'package:otzaria/library/models/library.dart';
 import 'package:otzaria/utils/docx_to_otzaria.dart';
 import 'package:otzaria/utils/text_manipulation.dart';
@@ -495,5 +496,73 @@ class FileSystemLibraryProvider implements LibraryProvider {
     for (final subCat in category.subCategories) {
       _sortLibraryRecursive(subCat);
     }
+  }
+
+  @override
+  Future<List<Link>> getAllLinksForBook(String title) async {
+    if (!_isInitialized) await initialize();
+    
+    try {
+      final linksPath = '$_libraryPath${Platform.pathSeparator}links${Platform.pathSeparator}${title}_links.json';
+      final file = File(linksPath);
+      
+      if (!await file.exists()) {
+        return [];
+      }
+      
+      final jsonString = await file.readAsString();
+      final jsonList = await Isolate.run(() => jsonDecode(jsonString) as List);
+      return jsonList.map((json) => Link.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('⚠️ Error loading links for book "$title": $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<String> getLinkContent(Link link) async {
+    if (!_isInitialized) await initialize();
+
+    try {
+      if (link.path2.isEmpty) {
+        return 'שגיאה: נתיב ריק';
+      }
+
+      if (link.index2 <= 0) {
+        return 'שגיאה: אינדקס לא תקין';
+      }
+
+      final title = getTitleFromPath(link.path2);
+      final path = await _getBookPath(title);
+      
+      if (path == null) {
+        return 'שגיאה: הספר לא נמצא';
+      }
+
+      final file = File(path);
+      if (!await file.exists()) {
+        return 'שגיאה: הקובץ לא נמצא';
+      }
+
+      return await _getLineFromFile(path, link.index2).timeout(
+        const Duration(seconds: 3),
+        onTimeout: () => 'שגיאה: פג זמן קריאת הקובץ',
+      );
+    } catch (e) {
+      debugPrint('⚠️ Error loading link content: $e');
+      return 'שגיאה בטעינת תוכן המפרש: $e';
+    }
+  }
+
+  /// Gets a specific line from a file by index.
+  Future<String> _getLineFromFile(String path, int lineIndex) async {
+    final file = File(path);
+    final lines = await file.readAsLines();
+    
+    if (lineIndex < 1 || lineIndex > lines.length) {
+      return 'שגיאה: אינדקס מחוץ לטווח';
+    }
+    
+    return lines[lineIndex - 1];
   }
 }

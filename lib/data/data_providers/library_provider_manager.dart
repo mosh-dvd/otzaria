@@ -4,6 +4,7 @@ import 'package:otzaria/data/data_providers/file_system_library_provider.dart';
 import 'package:otzaria/data/data_providers/database_library_provider.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/library/models/library.dart';
+import 'package:otzaria/models/links.dart';
 
 /// Manages multiple library providers and coordinates book loading.
 /// 
@@ -182,6 +183,31 @@ class LibraryProviderManager {
     databaseProvider.clearCache();
     fileSystemProvider.refresh();
     debugPrint('🔄 All provider caches cleared');
+  }
+
+  /// Gets the content of a specific link from the appropriate provider
+  Future<String> getLinkContent(Link link) async {
+    // Try to find the provider for the target book
+    final targetTitle = link.path2.split('/').last.replaceAll('.txt', '');
+    final provider = _bookToProvider[targetTitle];
+    
+    if (provider != null) {
+      return await provider.getLinkContent(link);
+    }
+
+    // Fallback: try each provider
+    for (final p in _providers) {
+      try {
+        final content = await p.getLinkContent(link);
+        if (content.isNotEmpty && !content.startsWith('שגיאה')) {
+          return content;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+
+    return 'שגיאה: לא נמצא תוכן';
   }
 
   /// Gets statistics from all providers

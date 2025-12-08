@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:otzaria/data/data_providers/library_provider.dart';
 import 'package:otzaria/data/data_providers/sqlite_data_provider.dart';
 import 'package:otzaria/models/books.dart';
+import 'package:otzaria/models/links.dart';
 import 'package:otzaria/library/models/library.dart';
 import 'package:otzaria/migration/core/models/category.dart' as db_models;
 import 'package:otzaria/migration/core/models/book.dart' as db_models;
@@ -278,6 +279,98 @@ class DatabaseLibraryProvider implements LibraryProvider {
 
     for (final subCat in category.subCategories) {
       _sortLibraryRecursive(subCat);
+    }
+  }
+
+  @override
+  Future<List<Link>> getAllLinksForBook(String title) async {
+    if (!_sqliteProvider.isInitialized || _sqliteProvider.repository == null) {
+      debugPrint('💾 Database not initialized, returning empty links');
+      return [];
+    }
+
+    try {
+      final book = await _sqliteProvider.repository!.getBookByTitle(title);
+      if (book == null) {
+        debugPrint('💾 Book "$title" not found in database');
+        return [];
+      }
+
+      final db = await _sqliteProvider.repository!.database.database;
+      
+      // Get all links where this book is the source
+      final result = await db.rawQuery('''
+        SELECT 
+          l.sourceLineId,
+          l.targetLineId,
+          sl.lineIndex as sourceLineIndex,
+          tl.lineIndex as targetLineIndex,
+          tb.title as targetBookTitle,
+          ct.name as connectionTypeName
+        FROM link l
+        JOIN line sl ON l.sourceLineId = sl.id
+        JOIN line tl ON l.targetLineId = tl.id
+        JOIN book tb ON l.targetBookId = tb.id
+        LEFT JOIN connection_type ct ON l.connectionTypeId = ct.id
+        WHERE l.sourceBookId = ?
+        ORDER BY sl.lineIndex
+      ''', [book.id]);
+
+      final links = result.map((row) {
+        final targetTitle = row['targetBookTitle'] as String;
+        final connectionType = row['connectionTypeName'] as String? ?? 'reference';
+        
+        return Link(
+          heRef: targetTitle,
+          index1: (row['sourceLineIndex'] as int) + 1,
+          path2: targetTitle,
+          index2: (row['targetLineIndex'] as int) + 1,
+          connectionType: connectionType,
+        );
+      }).toList();
+
+      debugPrint('💾 Found ${links.length} links for book "$title"');
+      return links;
+    } catch (e) {
+      debugPrint('⚠️ Error getting links for book "$title": $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<String> getLinkContent(Link link) async {
+    if (!_sqliteProvider.isInitialized || _sqliteProvider.repository == null) {
+      return 'שגיאה: מסד הנתונים לא מאותחל';
+    }
+
+    try {
+      if (link.path2.isEmpty) {
+        return 'שגיאה: נתיב ריק';
+      }
+
+      if (link.index2 <= 0) {
+        return 'שגיאה: אינדקס לא תקין';
+      }
+
+      // Get the target book text and extract the specific line
+      final targetTitle = link.path2.contains('/') 
+          ? link.path2.split('/').last.replaceAll('.txt', '')
+          : link.path2;
+      
+      final bookText = await _sqliteProvider.getBookTextFromDb(targetTitle);
+      if (bookText == null) {
+        return 'שגיאה: הספר לא נמצא במסד הנתונים';
+      }
+
+      final lines = bookText.split('\n');
+      if (link.index2 < 1 || link.index2 > lines.length) {
+        return 'שגיאה: אינדקס מחוץ לטווח';
+      }
+
+      return lines[link.index2 - 1];
+    } catch (e) {
+      debugPrint('⚠️ Error loading link content from database: $e');
+      return 'שגיאה בטעינת תוכן המפרש: $e';
     }
   }
 }

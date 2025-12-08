@@ -79,7 +79,6 @@ class TextBookTab extends OpenedTab {
     _stateSubscription = bloc.stream.listen((state) {
       if (state is TextBookLoaded && state.visibleIndices.isNotEmpty) {
         index = state.visibleIndices.first;
-        debugPrint('DEBUG: עדכון אינדקס ל-$index עבור ספר: ${book.title}');
       }
     });
   }
@@ -134,16 +133,8 @@ class TextBookTab extends OpenedTab {
         currentIndex = loadedState.visibleIndices.first;
         // עדכון גם את ה-index של הטאב עצמו כדי שישמר
         index = currentIndex;
-        debugPrint(
-            'DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (מתוך visibleIndices)');
-      } else {
-        debugPrint(
-            'DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (ברירת מחדל)');
-      }
-    } else {
-      debugPrint(
-          'DEBUG: שמירת טאב ${book.title} עם אינדקס: $currentIndex (state לא loaded)');
-    }
+      } 
+    } 
 
     return {
       'title': title,

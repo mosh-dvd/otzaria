@@ -248,8 +248,6 @@ class _ReadingScreenState extends State<ReadingScreen>
                   if (controller.indexIsChanging &&
                       state.currentTabIndex < state.tabs.length) {
                     // שמירת המצב הנוכחי לפני המעבר לטאב אחר
-                    debugPrint(
-                        'DEBUG: מעבר בין טאבים - שמירת מצב טאב ${state.currentTabIndex}');
                     context.read<HistoryBloc>().add(CaptureStateForHistory(
                         state.tabs[state.currentTabIndex]));
                     // שמירת כל הטאבים לדיסק

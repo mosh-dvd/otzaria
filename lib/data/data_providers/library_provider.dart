@@ -1,4 +1,5 @@
 import 'package:otzaria/models/books.dart';
+import 'package:otzaria/models/links.dart';
 import 'package:otzaria/library/models/library.dart';
 
 /// Interface for library data providers.
@@ -49,4 +50,16 @@ abstract class LibraryProvider {
     Map<String, Map<String, dynamic>> metadata,
     String rootPath,
   );
+
+  /// Gets all links for a specific book
+  /// 
+  /// [title] - The title of the book to get links for
+  /// Returns a list of Link objects associated with the book
+  Future<List<Link>> getAllLinksForBook(String title);
+
+  /// Gets the content of a specific link
+  /// 
+  /// [link] - The link to get content for
+  /// Returns the text content at the link's target location
+  Future<String> getLinkContent(Link link);
 }

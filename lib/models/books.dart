@@ -1,4 +1,4 @@
-import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
+import 'package:otzaria/data/data_providers/library_provider_manager.dart';
 import 'package:otzaria/library/models/library.dart';
 import 'package:otzaria/models/links.dart';
 //import 'package:pdfrx/pdfrx.dart';
@@ -16,9 +16,6 @@ abstract class Book {
 
   /// Additional titles of the book, if available.
   final List<String>? extraTitles;
-
-  /// an access to the data layer
-  final FileSystemData data = FileSystemData.instance;
 
   /// The author of the book, if available.
   String? author;
@@ -89,15 +86,27 @@ class TextBook extends Book {
   ///
   /// Returns a [Future] that resolves to a [List] of [TocEntry] objects representing
   /// the table of contents of the book.
-  Future<List<TocEntry>> get tableOfContents => data.getBookToc(title);
+  Future<List<TocEntry>> get tableOfContents async {
+    final toc = await LibraryProviderManager.instance.getBookToc(title);
+    return toc ?? [];
+  }
 
   /// Retrieves all the links for the book.
   ///
   /// Returns a [Future] that resolves to a [List] of [Link] objects.
-  Future<List<Link>> get links => data.getAllLinksForBook(title);
+  Future<List<Link>> get links async {
+    final provider = LibraryProviderManager.instance.getProviderForBook(title);
+    if (provider != null) {
+      return await provider.getAllLinksForBook(title);
+    }
+    return [];
+  }
 
   /// The text data of the book.
-  Future<String> get text async => (await data.getBookText(title));
+  Future<String> get text async {
+    final bookText = await LibraryProviderManager.instance.getBookText(title);
+    return bookText ?? '';
+  }
 
   /// Creates a new `Book` instance from a JSON object.
   ///
