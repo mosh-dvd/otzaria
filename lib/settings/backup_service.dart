@@ -9,7 +9,8 @@ import 'package:otzaria/history/history_repository.dart';
 import 'package:otzaria/settings/settings_repository.dart';
 import 'package:otzaria/workspaces/workspace_repository.dart';
 import 'package:otzaria/workspaces/workspace.dart';
-import 'package:otzaria/personal_notes/storage/personal_notes_storage.dart';
+import 'package:otzaria/personal_notes/storage/personal_notes_database.dart';
+import 'package:otzaria/personal_notes/models/personal_note.dart';
 import 'package:otzaria/core/app_paths.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -171,53 +172,43 @@ class BackupService {
     return history.map((h) => h.toJson()).toList();
   }
 
-  /// Backup notes
+  /// Backup notes from SQLite database
   static Future<List<Map<String, dynamic>>> _backupNotes() async {
-    final storage = PersonalNotesStorage.instance;
-    final notesDirPath = await storage.notesDirectoryPath();
-    final notesDir = Directory(notesDirPath);
-
-    if (!await notesDir.exists()) {
-      return [];
-    }
-
+    final database = PersonalNotesDatabase.instance;
+    final booksWithNotes = await database.listBooksWithNotes();
+    
     final List<Map<String, dynamic>> result = [];
-    await for (final entity in notesDir.list()) {
-      if (entity is! File || !entity.path.endsWith('_annotations.json')) {
-        continue;
-      }
-
+    
+    for (final bookInfo in booksWithNotes) {
       try {
-        final annotationsRaw = await entity.readAsString(encoding: utf8);
-        if (annotationsRaw.trim().isEmpty) continue;
-
-        final annotationsMap = jsonDecode(annotationsRaw) as Map<String, dynamic>;
-        final bookId = annotationsMap['book_id'] as String?;
-        if (bookId == null || bookId.isEmpty) continue;
-
-        final safeName = p.basename(entity.path).replaceAll('_annotations.json', '');
-        final textFile = File(p.join(notesDirPath, 'הערות אישיות על $safeName.txt'));
-        String noteText = '';
-        if (await textFile.exists()) {
-          try {
-            noteText = await textFile.readAsString(encoding: utf8);
-          } catch (_) {
-            noteText = '';
-          }
-        }
-
+        final notes = await database.loadNotes(bookInfo.bookId);
+        if (notes.isEmpty) continue;
+        
         result.add({
-          'bookId': bookId,
-          'safeName': safeName,
-          'annotations': annotationsMap,
-          'text': noteText,
+          'bookId': bookInfo.bookId,
+          'notes': notes.map((note) => _noteToBackupJson(note)).toList(),
         });
       } catch (e) {
-        _logger.warning('Skipping notes file due to error: $e');
+        _logger.warning('Skipping notes for book ${bookInfo.bookId} due to error: $e');
       }
     }
-
+    
     return result;
+  }
+  
+  /// Convert PersonalNote to backup JSON format
+  static Map<String, dynamic> _noteToBackupJson(PersonalNote note) {
+    return {
+      'id': note.id,
+      'bookId': note.bookId,
+      'lineNumber': note.lineNumber,
+      'displayTitle': note.displayTitle,
+      'lastKnownLineNumber': note.lastKnownLineNumber,
+      'status': note.status.name,
+      'content': note.content,
+      'createdAt': note.createdAt.toIso8601String(),
+      'updatedAt': note.updatedAt.toIso8601String(),
+    };
   }
 
   /// Backup workspaces
@@ -341,74 +332,130 @@ class BackupService {
     await repo.saveHistory(history);
   }
 
-  /// Restore notes
+  /// Restore notes to SQLite database
   static Future<void> _restoreNotes(
     List<Map<String, dynamic>> notesData,
   ) async {
-    final storage = PersonalNotesStorage.instance;
-    final notesDirPath = await storage.notesDirectoryPath();
-    final notesDir = Directory(notesDirPath);
-
-    if (!await notesDir.exists()) {
-      await notesDir.create(recursive: true);
-    }
-
-    // Clear existing notes to avoid duplicates
-    await for (final entity in notesDir.list()) {
-      if (entity is File &&
-          (entity.path.endsWith('_annotations.json') ||
-              entity.path.contains('הערות אישיות על ') &&
-                  entity.path.endsWith('.txt'))) {
-        try {
-          await entity.delete();
-        } catch (_) {
-          // Ignore deletion errors and continue
-        }
-      }
-    }
-
+    final database = PersonalNotesDatabase.instance;
+    
     for (final entry in notesData) {
       try {
         final bookId = (entry['bookId'] as String?)?.trim();
         if (bookId == null || bookId.isEmpty) {
           continue;
         }
-
-        final safeNameRaw = (entry['safeName'] as String?)?.trim();
-        final safeName =
-            (safeNameRaw != null && safeNameRaw.isNotEmpty)
-                ? safeNameRaw
-                : PersonalNotesStorage.safeFileName(bookId);
-
-        Map<String, dynamic>? annotations;
-        final rawAnnotations = entry['annotations'];
-        if (rawAnnotations is Map<String, dynamic>) {
-          annotations = Map<String, dynamic>.from(rawAnnotations);
-        } else if (rawAnnotations is String && rawAnnotations.trim().isNotEmpty) {
-          annotations = jsonDecode(rawAnnotations) as Map<String, dynamic>;
+        
+        // Handle new format (SQLite backup)
+        if (entry.containsKey('notes')) {
+          final notesList = entry['notes'] as List<dynamic>;
+          for (final noteData in notesList) {
+            final note = _noteFromBackupJson(noteData as Map<String, dynamic>);
+            await database.insertNote(note);
+          }
         }
-
-        if (annotations == null) {
-          continue;
+        // Handle legacy format (file-based backup) for backward compatibility
+        else if (entry.containsKey('annotations')) {
+          await _restoreLegacyNotes(entry, database);
         }
-
-        annotations['book_id'] = bookId;
-
-        final noteText = (entry['text'] as String?) ?? '';
-
-        final jsonPath = p.join(notesDirPath, '${safeName}_annotations.json');
-        final txtPath =
-            p.join(notesDirPath, 'הערות אישיות על $safeName.txt');
-
-        await File(jsonPath).writeAsString(
-          const JsonEncoder.withIndent('  ').convert(annotations),
-          encoding: utf8,
-        );
-        await File(txtPath).writeAsString(noteText, encoding: utf8);
       } catch (e) {
         _logger.warning('Failed to restore note entry: $e');
       }
     }
+  }
+  
+  /// Convert backup JSON to PersonalNote
+  static PersonalNote _noteFromBackupJson(Map<String, dynamic> json) {
+    return PersonalNote(
+      id: json['id'] as String,
+      bookId: json['bookId'] as String,
+      lineNumber: json['lineNumber'] as int?,
+      displayTitle: json['displayTitle'] as String?,
+      lastKnownLineNumber: json['lastKnownLineNumber'] as int?,
+      status: PersonalNoteStatus.values.byName(json['status'] as String),
+      content: json['content'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
+  }
+  
+  /// Restore notes from legacy file-based backup format
+  static Future<void> _restoreLegacyNotes(
+    Map<String, dynamic> entry,
+    PersonalNotesDatabase database,
+  ) async {
+    final bookId = entry['bookId'] as String;
+    final annotations = entry['annotations'] as Map<String, dynamic>;
+    final notesList = annotations['notes'] as List<dynamic>? ?? [];
+    
+    // Parse the text file content to extract note contents
+    final textContent = entry['text'] as String? ?? '';
+    final noteContents = _parseLegacyNoteContents(textContent);
+    
+    for (final noteData in notesList) {
+      try {
+        final map = noteData as Map<String, dynamic>;
+        final noteId = map['id'] as String;
+        
+        // Get content from parsed text file, or empty string if not found
+        final content = noteContents[noteId] ?? '';
+        
+        final note = PersonalNote(
+          id: noteId,
+          bookId: bookId,
+          lineNumber: map['line'] as int?,
+          displayTitle: map['display_title'] as String?,
+          lastKnownLineNumber: map['last_known_line'] as int?,
+          status: PersonalNoteStatus.values.byName(map['status'] as String),
+          content: content,
+          createdAt: DateTime.parse(map['created_at'] as String),
+          updatedAt: DateTime.parse(map['updated_at'] as String),
+        );
+        
+        await database.insertNote(note);
+      } catch (e) {
+        _logger.warning('Failed to restore legacy note: $e');
+      }
+    }
+  }
+  
+  /// Parse legacy TXT file format to extract note contents by ID
+  static Map<String, String> _parseLegacyNoteContents(String textContent) {
+    final contents = <String, String>{};
+    if (textContent.isEmpty) return contents;
+    
+    const noteHeaderPrefix = '### NOTE ';
+    const noteFooter = '### END NOTE';
+    
+    final lines = textContent.split('\n');
+    var index = 0;
+    
+    while (index < lines.length) {
+      final line = lines[index];
+      if (line.startsWith(noteHeaderPrefix)) {
+        final id = line.substring(noteHeaderPrefix.length).trim();
+        index++;
+        final buffer = StringBuffer();
+        
+        while (index < lines.length && lines[index] != noteFooter) {
+          buffer.writeln(lines[index]);
+          index++;
+        }
+        
+        contents[id] = buffer.toString().trimRight();
+        
+        if (index < lines.length && lines[index] == noteFooter) {
+          index++;
+        }
+        // Skip blank separator line
+        if (index < lines.length && lines[index].trim().isEmpty) {
+          index++;
+        }
+      } else {
+        index++;
+      }
+    }
+    
+    return contents;
   }
 
   /// Restore workspaces

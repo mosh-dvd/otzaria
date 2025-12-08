@@ -43,7 +43,7 @@ import 'package:otzaria/app_bloc_observer.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/data/data_providers/hive_data_provider.dart';
 import 'package:otzaria/personal_notes/bloc/personal_notes_bloc.dart';
-import 'package:otzaria/personal_notes/bloc/personal_notes_event.dart';
+import 'package:otzaria/personal_notes/migration/file_to_db_migrator.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:search_engine/search_engine.dart';
 import 'package:otzaria/core/app_paths.dart';
@@ -158,8 +158,7 @@ void main() async {
                   findRefRepository: FindRefRepository(
                       dataRepository: DataRepository.instance))),
           BlocProvider<PersonalNotesBloc>(
-            create: (context) =>
-                PersonalNotesBloc()..add(const ConvertLegacyNotes()),
+            create: (context) => PersonalNotesBloc(),
           ),
           BlocProvider<BookmarkBloc>(
             create: (context) => BookmarkBloc(BookmarkRepository()),
@@ -228,6 +227,9 @@ Future<void> initialize() async {
   await initHive();
   await createDirs();
   await loadCerts();
+  
+  // Migrate personal notes from file storage to SQLite database
+  await FileToDbMigrator.runMigration();
 
   // נדרש לטעינת PDF דרך pdfrx: הגדרת תקיית cache
   try {

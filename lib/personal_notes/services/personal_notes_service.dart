@@ -1,45 +1,41 @@
 import 'dart:math';
 
-import 'package:collection/collection.dart';
-
 import 'package:otzaria/personal_notes/models/personal_note.dart';
-import 'package:otzaria/personal_notes/storage/personal_notes_storage.dart';
+import 'package:otzaria/personal_notes/storage/personal_notes_database.dart';
 import 'package:otzaria/personal_notes/utils/note_collection_utils.dart';
 import 'package:otzaria/personal_notes/utils/note_text_utils.dart';
 
 class PersonalNotesService {
-  final PersonalNotesStorage _storage;
+  final PersonalNotesDatabase _database;
   final Random _random;
 
   PersonalNotesService({
-    PersonalNotesStorage? storage,
+    PersonalNotesDatabase? database,
     Random? random,
-  })  : _storage = storage ?? PersonalNotesStorage.instance,
+  })  : _database = database ?? PersonalNotesDatabase.instance,
         _random = random ?? Random();
 
   Future<List<PersonalNote>> loadNotes({
     required String bookId,
     required String bookContent,
   }) async {
-    final notes = await _storage.readNotes(bookId);
+    final notes = await _database.loadNotes(bookId);
     final lines = splitBookContentIntoLines(bookContent);
 
-    bool changesDetected = false;
+    final changedNotes = <PersonalNote>[];
     final reconciled = <PersonalNote>[];
 
     for (final note in notes) {
       final updated = _reconcileLocation(note, lines, bookId);
       if (updated != note) {
-        changesDetected = true;
+        changedNotes.add(updated);
       }
       reconciled.add(updated);
     }
 
-    if (changesDetected) {
-      return await _storage.writeNotes(
-        bookId,
-        sortPersonalNotes(reconciled),
-      );
+    // Batch update changed notes
+    if (changedNotes.isNotEmpty) {
+      await _database.batchUpdateNotes(changedNotes);
     }
 
     return sortPersonalNotes(reconciled);
@@ -52,13 +48,11 @@ class PersonalNotesService {
     required String content,
     String? selectedText,
   }) async {
-    final notes = await _storage.readNotes(bookId);
     final lines = splitBookContentIntoLines(bookContent);
-    final normalizedLineNumber = lineNumber.clamp(1, lines.length);
+    // Handle empty book content - use line 1 as minimum
+    final maxLine = lines.isEmpty ? 1 : lines.length;
+    final normalizedLineNumber = lineNumber.clamp(1, maxLine);
 
-    final referenceWords =
-        extractReferenceWordsFromLines(lines, normalizedLineNumber, excludeBookTitle: bookId);
-    
     // Use selectedText if provided, otherwise extract display text from the line
     // Always remove nikud and te'amim from the display title
     final trimmedSelectedText = selectedText?.trim();
@@ -71,22 +65,17 @@ class PersonalNotesService {
       id: _generateId(),
       bookId: bookId,
       lineNumber: normalizedLineNumber,
-      referenceWords: referenceWords,
       displayTitle: displayTitle,
       lastKnownLineNumber: null,
       status: PersonalNoteStatus.located,
-      pointer: const PersonalNotePointer(textStartLine: 0, textLineCount: 0),
       content: content.trimRight(),
       createdAt: now,
       updatedAt: now,
     );
 
-    final updatedList = [...notes, newNote];
+    await _database.insertNote(newNote);
 
-    return await _storage.writeNotes(
-      bookId,
-      sortPersonalNotes(updatedList),
-    );
+    return await _database.loadNotes(bookId);
   }
 
   Future<List<PersonalNote>> updateNote({
@@ -95,27 +84,21 @@ class PersonalNotesService {
     required String noteId,
     String? content,
   }) async {
-    final notes = await _storage.readNotes(bookId);
-    final index = notes.indexWhere((n) => n.id == noteId);
-    if (index == -1) {
-      return notes;
+    final note = await _database.getNote(noteId);
+    if (note == null) {
+      return await _database.loadNotes(bookId);
     }
 
     final now = DateTime.now();
-    final updatedNote = notes[index].copyWith(
-      content: content?.trimRight() ?? notes[index].content,
+    final updatedNote = note.copyWith(
+      content: content?.trimRight() ?? note.content,
       updatedAt: now,
     );
 
-    final updatedList = [...notes]..[index] = updatedNote;
+    await _database.updateNote(updatedNote);
 
-    final reconciled = await _reconcileAndPersist(
-      bookId: bookId,
-      bookContent: bookContent,
-      notes: updatedList,
-    );
-
-    return reconciled;
+    // Reconcile all notes after update
+    return await loadNotes(bookId: bookId, bookContent: bookContent);
   }
 
   Future<List<PersonalNote>> deleteNote({
@@ -123,16 +106,8 @@ class PersonalNotesService {
     required String bookContent,
     required String noteId,
   }) async {
-    final notes = await _storage.readNotes(bookId);
-    final filtered = notes.where((n) => n.id != noteId).toList();
-    if (filtered.length == notes.length) {
-      return notes;
-    }
-
-    return await _storage.writeNotes(
-      bookId,
-      sortPersonalNotes(filtered),
-    );
+    await _database.deleteNote(noteId);
+    return await _database.loadNotes(bookId);
   }
 
   Future<List<PersonalNote>> repositionNote({
@@ -141,51 +116,30 @@ class PersonalNotesService {
     required String noteId,
     required int lineNumber,
   }) async {
-    final notes = await _storage.readNotes(bookId);
-    final index = notes.indexWhere((n) => n.id == noteId);
-    if (index == -1) {
-      return notes;
+    final note = await _database.getNote(noteId);
+    if (note == null) {
+      return await _database.loadNotes(bookId);
     }
 
     final lines = splitBookContentIntoLines(bookContent);
-    final normalizedLineNumber = lineNumber.clamp(1, lines.length);
-    final newReference =
-        extractReferenceWordsFromLines(lines, normalizedLineNumber, excludeBookTitle: bookId);
+    // Handle empty book content - use line 1 as minimum
+    final maxLine = lines.isEmpty ? 1 : lines.length;
+    final normalizedLineNumber = lineNumber.clamp(1, maxLine);
     final newDisplayTitle =
         extractDisplayTextFromLines(lines, normalizedLineNumber, excludeBookTitle: bookId);
     final now = DateTime.now();
 
-    final updatedNote = notes[index].copyWith(
+    final updatedNote = note.copyWith(
       lineNumber: normalizedLineNumber,
-      referenceWords: newReference,
       displayTitle: newDisplayTitle,
       lastKnownLineNumber: null,
       status: PersonalNoteStatus.located,
       updatedAt: now,
     );
 
-    final updatedList = [...notes]..[index] = updatedNote;
+    await _database.updateNote(updatedNote);
 
-    return await _storage.writeNotes(
-      bookId,
-      sortPersonalNotes(updatedList),
-    );
-  }
-
-  Future<List<PersonalNote>> _reconcileAndPersist({
-    required String bookId,
-    required String bookContent,
-    required List<PersonalNote> notes,
-  }) async {
-    final lines = splitBookContentIntoLines(bookContent);
-    final reconciled = <PersonalNote>[];
-
-    for (final note in notes) {
-      final updated = _reconcileLocation(note, lines, bookId);
-      reconciled.add(updated);
-    }
-
-    return await _storage.writeNotes(bookId, sortPersonalNotes(reconciled));
+    return await _database.loadNotes(bookId);
   }
 
   PersonalNote _reconcileLocation(PersonalNote note, List<String> lines, String bookId) {
@@ -203,27 +157,21 @@ class PersonalNotesService {
       );
     }
 
-    final actualWords =
-        extractReferenceWordsFromLines(lines, note.lineNumber!, excludeBookTitle: bookId);
+    // Use displayTitle for matching - it contains normalized words from the line
+    final actualDisplayTitle =
+        extractDisplayTextFromLines(lines, note.lineNumber!, excludeBookTitle: bookId);
 
-    if (_wordsMatch(note.referenceWords, actualWords)) {
-      // no change required, but keep reference words up to date
-      // IMPORTANT: We keep the existing displayTitle - don't overwrite it!
-      if (const ListEquality<String>().equals(note.referenceWords, actualWords)) {
-        return note;
-      }
-      return note.copyWith(
-        referenceWords: actualWords,
-        updatedAt: DateTime.now(),
-      );
+    if (_displayTitleMatches(note.displayTitle, actualDisplayTitle)) {
+      // Location is still valid - no change needed
+      return note;
     }
 
-    final match = _searchNearby(lines, note.lineNumber!, note.referenceWords, bookId);
+    // Try to find the note in nearby lines using displayTitle
+    final match = _searchNearby(lines, note.lineNumber!, note.displayTitle, bookId);
     if (match != null) {
-      // When we find the note in a new location, keep the existing displayTitle
+      // Found the note in a new location - update line number but keep displayTitle
       return note.copyWith(
         lineNumber: match.line,
-        referenceWords: match.words,
         lastKnownLineNumber: note.lineNumber,
         status: PersonalNoteStatus.located,
         updatedAt: DateTime.now(),
@@ -241,9 +189,13 @@ class PersonalNotesService {
   _LineMatch? _searchNearby(
     List<String> lines,
     int centerLine,
-    List<String> reference,
+    String? referenceTitle,
     String bookId,
   ) {
+    if (referenceTitle == null || referenceTitle.isEmpty) {
+      return null;
+    }
+    
     for (int offset = -5; offset <= 5; offset++) {
       if (offset == 0) continue;
       final candidateLine = centerLine + offset;
@@ -251,17 +203,38 @@ class PersonalNotesService {
         continue;
       }
 
-      final words = extractReferenceWordsFromLines(lines, candidateLine, excludeBookTitle: bookId);
-      if (_wordsMatch(reference, words)) {
-        return _LineMatch(line: candidateLine, words: words);
+      final candidateTitle = extractDisplayTextFromLines(lines, candidateLine, excludeBookTitle: bookId);
+      if (_displayTitleMatches(referenceTitle, candidateTitle)) {
+        return _LineMatch(line: candidateLine);
       }
     }
     return null;
   }
 
-  bool _wordsMatch(List<String> stored, List<String> actual) {
-    final ratio = computeWordOverlapRatio(stored, actual);
-    return ratio >= 0.8;
+  /// Check if two display titles match (at least 80% word overlap)
+  bool _displayTitleMatches(String? stored, String? actual) {
+    if (stored == null || stored.isEmpty) {
+      return actual == null || actual.isEmpty;
+    }
+    if (actual == null || actual.isEmpty) {
+      return false;
+    }
+    
+    // Split into words and compare
+    final storedWords = stored.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final actualWords = actual.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    
+    if (storedWords.isEmpty) {
+      return actualWords.isEmpty;
+    }
+    
+    // Count matching words
+    final storedSet = storedWords.toSet();
+    final actualSet = actualWords.toSet();
+    final matches = storedSet.intersection(actualSet).length;
+    
+    // Require at least 80% match
+    return matches / storedWords.length >= 0.8;
   }
 
   String _generateId() {
@@ -274,10 +247,8 @@ class PersonalNotesService {
 
 class _LineMatch {
   final int line;
-  final List<String> words;
 
   _LineMatch({
     required this.line,
-    required this.words,
   });
 }

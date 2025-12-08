@@ -8,7 +8,7 @@ import 'package:otzaria/personal_notes/bloc/personal_notes_event.dart';
 import 'package:otzaria/personal_notes/bloc/personal_notes_state.dart';
 import 'package:otzaria/personal_notes/models/personal_note.dart';
 import 'package:otzaria/personal_notes/repository/personal_notes_repository.dart';
-import 'package:otzaria/personal_notes/storage/personal_notes_storage.dart';
+import 'package:otzaria/personal_notes/storage/personal_notes_database.dart';
 import 'package:otzaria/personal_notes/widgets/personal_note_editor_dialog.dart';
 import 'package:otzaria/widgets/confirmation_dialog.dart';
 import 'package:otzaria/widgets/input_dialog.dart';
@@ -28,7 +28,7 @@ class PersonalNotesManagerScreen extends StatefulWidget {
 class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen> {
   final PersonalNotesRepository _repository = PersonalNotesRepository();
 
-  List<StoredBookNotes> _books = [];
+  List<BookNotesInfo> _books = [];
   String? _selectedFilter; // null = all notes
   bool _isLoadingBooks = true;
   String? _booksError;

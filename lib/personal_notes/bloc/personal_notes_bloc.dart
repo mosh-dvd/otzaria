@@ -15,7 +15,6 @@ class PersonalNotesBloc extends Bloc<PersonalNotesEvent, PersonalNotesState> {
     on<UpdatePersonalNote>(_onUpdateNote);
     on<DeletePersonalNote>(_onDeleteNote);
     on<RepositionPersonalNote>(_onRepositionNote);
-    on<ConvertLegacyNotes>(_onConvertLegacy);
   }
 
   final PersonalNotesRepository _repository;
@@ -116,36 +115,6 @@ class PersonalNotesBloc extends Bloc<PersonalNotesEvent, PersonalNotesState> {
         lineNumber: event.lineNumber,
       );
       _emitNotes(event.bookId, notes, emit);
-    } catch (e) {
-      emit(state.copyWith(isLoading: false, errorMessage: e.toString()));
-    }
-  }
-
-  Future<void> _onConvertLegacy(
-    ConvertLegacyNotes event,
-    Emitter<PersonalNotesState> emit,
-  ) async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
-
-    try {
-      final summary = await _repository.convertLegacyNotes();
-
-      PersonalNotesState nextState = state.copyWith(
-        isLoading: false,
-        conversionSummary: summary,
-      );
-
-      if (state.bookId != null &&
-          summary.convertedBooks.contains(state.bookId)) {
-        final notes = await _repository.loadNotes(state.bookId!);
-        final split = _splitNotes(notes);
-        nextState = nextState.copyWith(
-          locatedNotes: split.locatedNotes,
-          missingNotes: split.missingNotes,
-        );
-      }
-
-      emit(nextState);
     } catch (e) {
       emit(state.copyWith(isLoading: false, errorMessage: e.toString()));
     }
