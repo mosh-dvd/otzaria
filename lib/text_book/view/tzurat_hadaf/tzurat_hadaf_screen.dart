@@ -152,10 +152,12 @@ class _TzuratHadafScreenState extends State<TzuratHadafScreen> {
                     if (_leftCommentator != null) ...[
                       SizedBox(
                         width: _leftWidth,
-                        child: Center(
+                        child: Align(
+                          alignment: Alignment.center,
                           child: Text(
                             _leftCommentator ?? '',
                             style: const TextStyle(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),
@@ -199,10 +201,12 @@ class _TzuratHadafScreenState extends State<TzuratHadafScreen> {
                       const SizedBox(width: 8),
                       SizedBox(
                         width: _rightWidth,
-                        child: Center(
+                        child: Align(
+                          alignment: Alignment.center,
                           child: Text(
                             _rightCommentator ?? '',
                             style: const TextStyle(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),
