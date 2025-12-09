@@ -7,6 +7,9 @@ import 'package:otzaria/daf_yomi/daf_yomi_helper.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:otzaria/settings/calendar_settings_dialog.dart';
 import 'package:otzaria/widgets/confirmation_dialog.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'dart:io';
 
 // הפכנו את הווידג'ט ל-Stateless כי הוא כבר לא מנהל מצב בעצמו.
 class CalendarWidget extends StatelessWidget {
@@ -992,12 +995,13 @@ class CalendarWidget extends StatelessWidget {
           .add({'name': 'הדלקת נרות', 'time': dailyTimes['candleLighting']});
     }
 
-    // הוספת זמני יציאת שבת/חג (לא להוסיף בימי חול המועד והושענא רבה)
+    // הוספת זמני יציאת שבת/חג (לא להוסיף בימי חול המועד, הושענא רבה וחנוכה)
     final int yomTovIndex = jewishCalendar.getYomTovIndex();
     final bool isNotExitTimesDay =
         yomTovIndex == JewishCalendar.CHOL_HAMOED_SUCCOS ||
             yomTovIndex == JewishCalendar.CHOL_HAMOED_PESACH ||
-            yomTovIndex == JewishCalendar.HOSHANA_RABBA;
+            yomTovIndex == JewishCalendar.HOSHANA_RABBA ||
+            yomTovIndex == JewishCalendar.CHANUKAH;
 
     if ((jewishCalendar.getDayOfWeek() == 7 || jewishCalendar.isYomTov()) &&
         !isNotExitTimesDay) {
@@ -1052,12 +1056,6 @@ class CalendarWidget extends StatelessWidget {
           'time': dailyTimes['kidushLevanaLatest']
         });
       }
-    }
-
-    // הוספת זמני חנוכה
-    if (jewishCalendar.isChanukah()) {
-      timesList.add(
-          {'name': 'הדלקת נרות חנוכה', 'time': dailyTimes['chanukahCandles']});
     }
 
     // הוספת זמני קידוש לבנה
@@ -1462,6 +1460,19 @@ class CalendarWidget extends StatelessWidget {
 
   int _hebrewMonthToInt(String monthName) {
     final cleanMonth = monthName.trim();
+
+    // טיפול מיוחד בחודשי אדר בשנה מעוברת
+    if (cleanMonth == 'אדר א' ||
+        cleanMonth == 'אדר א׳' ||
+        cleanMonth == 'אדר 1') {
+      return 12;
+    }
+    if (cleanMonth == 'אדר ב' ||
+        cleanMonth == 'אדר ב׳' ||
+        cleanMonth == 'אדר 2') {
+      return 13;
+    }
+
     final monthIndex = hebrewMonths.indexOf(cleanMonth);
     if (monthIndex != -1) return monthIndex + 1;
 
@@ -1632,14 +1643,34 @@ class CalendarWidget extends StatelessWidget {
     // 2. נסה לפרש כתאריך עברי (למשל: י"ח אלול תשפ"ה)
     try {
       final parts = cleanInput.split(RegExp(r'\s+'));
-      if (parts.length < 2 || parts.length > 3) return null;
+      if (parts.length < 2 || parts.length > 4) return null;
 
       final day = _hebrewNumberToInt(parts[0]);
-      final month = _hebrewMonthToInt(parts[1]);
+
+      // טיפול בשמות חודשים בני שתי מילים (אדר א, אדר ב)
+      String monthName;
+      int yearPartIndex;
+
+      if (parts.length >= 3 &&
+          (parts[1] == 'אדר') &&
+          (parts[2] == 'א' ||
+              parts[2] == 'א׳' ||
+              parts[2] == 'ב' ||
+              parts[2] == 'ב׳')) {
+        // שם החודש הוא שתי מילים: "אדר א" או "אדר ב"
+        monthName = '${parts[1]} ${parts[2]}';
+        yearPartIndex = 3;
+      } else {
+        // שם החודש הוא מילה אחת
+        monthName = parts[1];
+        yearPartIndex = 2;
+      }
+
+      final month = _hebrewMonthToInt(monthName);
       int year;
 
-      if (parts.length == 3) {
-        year = _hebrewYearToInt(parts[2]);
+      if (parts.length > yearPartIndex) {
+        year = _hebrewYearToInt(parts[yearPartIndex]);
       } else {
         // אם השנה הושמטה, נשתמש בשנה העברית הנוכחית שמוצגת בלוח
         year = context
@@ -2174,10 +2205,6 @@ class _TimesAndEventsTabViewState extends State<_TimesAndEventsTabView>
                         ],
                       ),
                       const SizedBox(height: 16),
-                      widget.buildTimesGrid(context, widget.state),
-                      const SizedBox(height: 16),
-                      widget.buildDafYomiButtons(context, widget.state),
-                      const SizedBox(height: 16),
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
@@ -2187,15 +2214,37 @@ class _TimesAndEventsTabViewState extends State<_TimesAndEventsTabView>
                           border: Border.all(
                               color: Theme.of(context).primaryColor, width: 1),
                         ),
-                        child: Text(
-                          'אין לסמוך על הזמנים!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
-                          ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'אין לסמוך על הזמנים כלל!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            InkWell(
+                              onTap: () =>
+                                  _openCalendarCalculationPage(context),
+                              child: Text(
+                                'שים לב! הזמנים שונים מהותית מהלוח \'עיתים לבינה\'!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).primaryColor,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      widget.buildTimesGrid(context, widget.state),
+                      const SizedBox(height: 16),
+                      widget.buildDafYomiButtons(context, widget.state),
                     ],
                   ),
                 ),
@@ -2295,6 +2344,45 @@ class _TimesAndEventsTabViewState extends State<_TimesAndEventsTabView>
         ],
       ),
     );
+  }
+
+  // פונקציה לפתיחת דף חישוב הזמנים
+  static Future<void> _openCalendarCalculationPage(BuildContext context) async {
+    final libraryPath = Settings.getValue('key-library-path');
+    if (libraryPath == null || libraryPath.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('לא נמצאה תיקיית הספרייה')),
+      );
+      return;
+    }
+
+    final otzariaSitePath = Directory(
+        '$libraryPath${Platform.pathSeparator}אוצריא${Platform.pathSeparator}אודות התוכנה${Platform.pathSeparator}otzaria-site');
+
+    if (!await otzariaSitePath.exists()) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('לא נמצאה תיקיית otzaria-site')),
+      );
+      return;
+    }
+
+    final htmlFile = File(
+        '${otzariaSitePath.path}${Platform.pathSeparator}calendar-calculation.html');
+    if (!await htmlFile.exists()) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('הקובץ calendar-calculation.html לא נמצא')),
+      );
+      return;
+    }
+
+    final uri = Uri.file(htmlFile.path);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
   }
 }
 

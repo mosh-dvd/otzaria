@@ -35,6 +35,7 @@ class CombinedView extends StatefulWidget {
     required this.tab,
     this.isPreviewMode = false,
     this.onOpenPersonalNotes,
+    this.onOpenCommentatorsPane,
   });
 
   final List<String> data;
@@ -45,6 +46,7 @@ class CombinedView extends StatefulWidget {
   final TextBookTab tab;
   final bool isPreviewMode;
   final VoidCallback? onOpenPersonalNotes;
+  final VoidCallback? onOpenCommentatorsPane;
 
   @override
   State<CombinedView> createState() => _CombinedViewState();
@@ -60,8 +62,18 @@ class _CombinedViewState extends State<CombinedView> {
   late final TextBookBloc _textBookBloc;
 
   bool _hasScrolledToInitialPosition = false;
+
+  /// פתיחת חלון הצד של המפרשים רק אם מוסיפים מפרשים ומפרשים מוגדרים בצד הטקסט (לא מתחת)
+  void _openCommentatorsPane({required bool isAdding}) {
+    if (isAdding &&
+        !widget.showCommentaryAsExpansionTiles &&
+        widget.onOpenCommentatorsPane != null) {
+      widget.onOpenCommentatorsPane!();
+    }
+  }
+
   late final FocusNode _focusNode;
-  
+
   // שמירת גובה הבלוק בפועל לחישובים דינאמיים
   double _viewportHeight = 0;
 
@@ -155,6 +167,7 @@ class _CombinedViewState extends State<CombinedView> {
         icon: groupActive ? FluentIcons.checkmark_24_regular : null,
         onSelected: () {
           final current = List<String>.from(st.activeCommentators);
+          final isAdding = !groupActive;
           if (groupActive) {
             current.removeWhere(group.contains);
           } else {
@@ -163,6 +176,7 @@ class _CombinedViewState extends State<CombinedView> {
             }
           }
           context.read<TextBookBloc>().add(UpdateCommentators(current));
+          _openCommentatorsPane(isAdding: isAdding);
         },
       ),
       ...group.map((title) {
@@ -172,10 +186,12 @@ class _CombinedViewState extends State<CombinedView> {
           icon: isActive ? FluentIcons.checkmark_24_regular : null,
           onSelected: () {
             final current = List<String>.from(st.activeCommentators);
+            final isAdding = !current.contains(title);
             current.contains(title)
                 ? current.remove(title)
                 : current.add(title);
             context.read<TextBookBloc>().add(UpdateCommentators(current));
+            _openCommentatorsPane(isAdding: isAdding);
           },
         );
       }),
@@ -238,6 +254,7 @@ class _CombinedViewState extends State<CombinedView> {
                 final allActive = state.activeCommentators
                     .toSet()
                     .containsAll(state.availableCommentators);
+                final isAdding = !allActive;
                 context.read<TextBookBloc>().add(
                       UpdateCommentators(
                         allActive
@@ -245,6 +262,7 @@ class _CombinedViewState extends State<CombinedView> {
                             : List<String>.from(state.availableCommentators),
                       ),
                     );
+                _openCommentatorsPane(isAdding: isAdding);
               },
             ),
             const ctx.MenuDivider(),
@@ -575,18 +593,18 @@ $textWithBreaks
   /// הצגת עורך ההערות
   void _showNoteEditor() {
     final controller = TextEditingController();
-    
+
     // שמירת ה-state הנוכחי לפני פתיחת הדיאלוג
     final state = _textBookBloc.state;
     if (state is! TextBookLoaded) return;
-    
+
     // שמירת הטקסט הנבחר לפני פתיחת הדיאלוג
     final selectedText = _savedSelectedText;
-    
+
     // משתמש בשורה שממנה הודגש טקסט (אם קיים), אחרת בשורה הנבחרת, אחרת בשורה הראשונה הנראית
-    final currentIndex = _savedSelectedIndex ?? 
-                         state.selectedIndex ?? 
-                         (state.visibleIndices.isNotEmpty ? state.visibleIndices.first : 0);
+    final currentIndex = _savedSelectedIndex ??
+        state.selectedIndex ??
+        (state.visibleIndices.isNotEmpty ? state.visibleIndices.first : 0);
 
     // קבלת הטקסט המזהה של השורה - אם יש טקסט נבחר, משתמשים בו (אחרי הסרת ניקוד), אחרת בטקסט המזהה (כמו שיוצג ככותרת)
     final referenceText = selectedText?.trim().isNotEmpty == true
@@ -627,7 +645,7 @@ $textWithBreaks
               selectedText: selectedText?.trim(),
             ));
         UiSnack.show('ההערה נשמרה בהצלחה');
-        
+
         // פתיחת חלונית ההערות האישיות
         widget.onOpenPersonalNotes?.call();
       } catch (e) {
@@ -647,7 +665,7 @@ $textWithBreaks
           builder: (context, constraints) {
             // שומר את גובה הבלוק בפועל לשימוש בחישובי הגלילה
             _viewportHeight = constraints.maxHeight;
-            
+
             return SelectionArea(
               // SelectionArea אחד לכל הרשימה - מאפשר בחירה רציפה בין פסקאות
               contextMenuBuilder: (context, selectableRegionState) {
@@ -659,22 +677,23 @@ $textWithBreaks
                   // משתמש באותה לוגיקה כמו בדיווח שגיאות
                   final state = _textBookBloc.state;
                   int? foundIndex;
-                  
+
                   if (state is TextBookLoaded) {
                     // מקבל את השורה הראשונה הנראית
-                    final baseIndex = state.visibleIndices.isNotEmpty 
-                        ? state.visibleIndices.first 
+                    final baseIndex = state.visibleIndices.isNotEmpty
+                        ? state.visibleIndices.first
                         : 0;
-                    
+
                     // בונה את הטקסט הנראה
                     final visibleText = state.visibleIndices
-                        .map((idx) => widget.data[idx]
-                            .replaceAll(RegExp(r'<[^>]*>'), ''))
+                        .map((idx) =>
+                            widget.data[idx].replaceAll(RegExp(r'<[^>]*>'), ''))
                         .join('\n');
-                    
+
                     // מוצא את המיקום של הטקסט המודגש
-                    final selectionStart = visibleText.indexOf(selection.plainText);
-                    
+                    final selectionStart =
+                        visibleText.indexOf(selection.plainText);
+
                     if (selectionStart >= 0) {
                       // סופר כמה שורות יש לפני הטקסט המודגש
                       final before = visibleText.substring(0, selectionStart);
@@ -682,7 +701,7 @@ $textWithBreaks
                       foundIndex = baseIndex + offset;
                     }
                   }
-                  
+
                   setState(() {
                     _savedSelectedText = selection.plainText;
                     _savedSelectedIndex = foundIndex;
@@ -777,10 +796,12 @@ $textWithBreaks
                         // המפרשים תופסים עד 75% מהבלוק
                         // נרצה שהטקסט הבא יהיה ב-90% מהבלוק (כלומר 10% מלמטה)
                         // כך נוודא שרואים: 15% טקסט למעלה, 75% מפרשים, 10% טקסט למטה
-                        final nextIndex = (index + 1).clamp(0, widget.data.length - 1);
+                        final nextIndex =
+                            (index + 1).clamp(0, widget.data.length - 1);
                         widget.tab.scrollController.scrollTo(
                           index: nextIndex,
-                          alignment: 0.9, // הטקסט הבא יהיה ב-90% מלמעלה (כלומר 10% מלמטה)
+                          alignment:
+                              0.9, // הטקסט הבא יהיה ב-90% מלמעלה (כלומר 10% מלמטה)
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
                         );
@@ -805,7 +826,7 @@ $textWithBreaks
                     return BlocBuilder<SettingsBloc, SettingsState>(
                       builder: (context, settingsState) {
                         var textMaxWidth = settingsState.textMaxWidth;
-                        
+
                         // אם הערך שלילי, זו רמה שצריך לחשב לפי גודל המסך
                         // למשל -2 = רמה 2 = 90% מרוחב המסך
                         if (textMaxWidth < 0) {
@@ -813,7 +834,7 @@ $textWithBreaks
                           final widthPercent = 1.0 - (level * 0.05);
                           textMaxWidth = constraints.maxWidth * widthPercent;
                         }
-                        
+
                         String data = widget.data[index];
 
                         // הוספת קישורים מבוססי תווים
@@ -846,7 +867,8 @@ $textWithBreaks
                             ? utils.highLight(
                                 utils.removeVolwels('$dataWithLinks\n'),
                                 state.searchText)
-                            : utils.highLight('$dataWithLinks\n', state.searchText);
+                            : utils.highLight(
+                                '$dataWithLinks\n', state.searchText);
 
                         processedData =
                             utils.formatTextWithParentheses(processedData);
@@ -877,7 +899,8 @@ $textWithBreaks
                         if (textMaxWidth > 0) {
                           return Center(
                             child: ConstrainedBox(
-                              constraints: BoxConstraints(maxWidth: textMaxWidth),
+                              constraints:
+                                  BoxConstraints(maxWidth: textMaxWidth),
                               child: textWidget,
                             ),
                           );
@@ -955,8 +978,8 @@ class _CommentaryCardState extends State<_CommentaryCard> {
     // חישוב גובה המפרשים לפי גובה הבלוק בפועל (לא כל המסך):
     // המפרשים יהיו 75% מגובה הבלוק
     // השאר (25%) יתחלק: 15% למעלה (טקסט), 10% למטה (טקסט)
-    final maxHeight = widget.viewportHeight > 0 
-        ? widget.viewportHeight * 0.75 
+    final maxHeight = widget.viewportHeight > 0
+        ? widget.viewportHeight * 0.75
         : MediaQuery.of(context).size.height * 0.75;
 
     return LayoutBuilder(
@@ -965,14 +988,14 @@ class _CommentaryCardState extends State<_CommentaryCard> {
           builder: (context, settingsState) {
             // שימוש באותו רוחב מקסימלי כמו הטקסט
             var textMaxWidth = settingsState.textMaxWidth;
-            
+
             // אם הערך שלילי, זו רמה שצריך לחשב לפי גודל המסך
             if (textMaxWidth < 0) {
               final level = (-textMaxWidth).toInt();
               final widthPercent = 1.0 - (level * 0.05);
               textMaxWidth = constraints.maxWidth * widthPercent;
             }
-            
+
             final commentaryContainer = Container(
               margin: const EdgeInsets.only(bottom: 8.0),
               decoration: BoxDecoration(

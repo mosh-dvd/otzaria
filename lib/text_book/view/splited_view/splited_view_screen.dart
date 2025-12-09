@@ -217,6 +217,13 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
                         _currentTabIndex = 2; // אינדקס של הערות אישיות
                       });
                     },
+                    onOpenCommentatorsPane: () {
+                      // פתיחת הפאנל הימני עם טאב המפרשים
+                      setState(() {
+                        _paneOpen = true;
+                        _currentTabIndex = 0; // אינדקס של מפרשים
+                      });
+                    },
                   ),
                 ),
                 // מפריד ניתן לגרירה

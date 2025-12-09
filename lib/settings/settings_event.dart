@@ -28,6 +28,15 @@ class UpdateSeedColor extends SettingsEvent {
   List<Object?> get props => [seedColor];
 }
 
+class UpdateDarkSeedColor extends SettingsEvent {
+  final Color darkSeedColor;
+
+  const UpdateDarkSeedColor(this.darkSeedColor);
+
+  @override
+  List<Object?> get props => [darkSeedColor];
+}
+
 class UpdateTextMaxWidth extends SettingsEvent {
   final double textMaxWidth;
 
@@ -62,6 +71,15 @@ class UpdateCommentatorsFontFamily extends SettingsEvent {
 
   @override
   List<Object?> get props => [commentatorsFontFamily];
+}
+
+class UpdateCommentatorsFontSize extends SettingsEvent {
+  final double commentatorsFontSize;
+
+  const UpdateCommentatorsFontSize(this.commentatorsFontSize);
+
+  @override
+  List<Object?> get props => [commentatorsFontSize];
 }
 
 class UpdateShowOtzarHachochma extends SettingsEvent {
@@ -261,4 +279,13 @@ class UpdateEnablePerBookSettings extends SettingsEvent {
 
   @override
   List<Object?> get props => [enablePerBookSettings];
+}
+
+class UpdateOfflineMode extends SettingsEvent {
+  final bool isOfflineMode;
+
+  const UpdateOfflineMode(this.isOfflineMode);
+
+  @override
+  List<Object?> get props => [isOfflineMode];
 }

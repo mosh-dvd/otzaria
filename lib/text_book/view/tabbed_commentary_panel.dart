@@ -224,7 +224,14 @@ class _TabbedCommentaryPanelState extends State<TabbedCommentaryPanel>
             // תוכן הכרטיסיות
             Expanded(
               child: _showFilterTab
-                  ? const CommentatorsListView() // טאב הסינון
+                  ? CommentatorsListView(
+                      onCommentatorSelected: () {
+                        // סגירת מסך בחירת המפרשים וחזרה לטאב המפרשים
+                        setState(() {
+                          _showFilterTab = false;
+                        });
+                      },
+                    )
                   : TabBarView(
                       controller: _tabController,
                       children: [

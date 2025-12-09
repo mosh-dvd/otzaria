@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 import 'package:updat/updat.dart';
 import 'package:updat/updat_window_manager.dart';
 import 'package:http/http.dart' as http;
@@ -77,8 +78,10 @@ class MyUpdatWidget extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) {
-    // Don't show update widget in debug mode
-    if (kDebugMode) {
+    // Don't show update widget in debug mode or offline mode
+    final isOfflineMode =
+        Settings.getValue<bool>(SettingsRepository.keyOfflineMode) ?? false;
+    if (kDebugMode || isOfflineMode) {
       return child;
     }
 

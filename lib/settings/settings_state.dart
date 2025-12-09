@@ -4,10 +4,12 @@ import 'package:equatable/equatable.dart';
 class SettingsState extends Equatable {
   final bool isDarkMode;
   final Color seedColor;
+  final Color darkSeedColor;
   final double textMaxWidth; // רוחב מקסימלי לטקסט בפיקסלים (0 = ללא הגבלה)
   final double fontSize;
   final String fontFamily;
   final String commentatorsFontFamily;
+  final double commentatorsFontSize;
   final bool showOtzarHachochma;
   final bool showHebrewBooks;
   final bool showExternalBooks;
@@ -29,14 +31,17 @@ class SettingsState extends Equatable {
   final bool libraryShowPreview;
   final Map<String, String> shortcuts;
   final bool enablePerBookSettings;
+  final bool isOfflineMode;
 
   const SettingsState({
     required this.isDarkMode,
     required this.seedColor,
+    required this.darkSeedColor,
     required this.textMaxWidth,
     required this.fontSize,
     required this.fontFamily,
     required this.commentatorsFontFamily,
+    required this.commentatorsFontSize,
     required this.showOtzarHachochma,
     required this.showHebrewBooks,
     required this.showExternalBooks,
@@ -58,16 +63,20 @@ class SettingsState extends Equatable {
     required this.libraryShowPreview,
     required this.shortcuts,
     required this.enablePerBookSettings,
+    required this.isOfflineMode,
   });
 
   factory SettingsState.initial() {
     return const SettingsState(
       isDarkMode: false,
       seedColor: Colors.brown,
-      textMaxWidth: -1, // רוחב מקסימלי לטקסט (-1 = רמה 1 = 95% כברירת מחדל, 0 = ללא הגבלה)
+      darkSeedColor: Color(0xFFCE93D8), // סגול בהיר למצב כהה
+      textMaxWidth:
+          -1, // רוחב מקסימלי לטקסט (-1 = רמה 1 = 95% כברירת מחדל, 0 = ללא הגבלה)
       fontSize: 16,
       fontFamily: 'FrankRuhlCLM',
       commentatorsFontFamily: 'NotoRashiHebrew',
+      commentatorsFontSize: 22,
       showOtzarHachochma: false,
       showHebrewBooks: false,
       showExternalBooks: false,
@@ -89,16 +98,19 @@ class SettingsState extends Equatable {
       libraryShowPreview: true,
       shortcuts: {},
       enablePerBookSettings: true,
+      isOfflineMode: false,
     );
   }
 
   SettingsState copyWith({
     bool? isDarkMode,
     Color? seedColor,
+    Color? darkSeedColor,
     double? textMaxWidth,
     double? fontSize,
     String? fontFamily,
     String? commentatorsFontFamily,
+    double? commentatorsFontSize,
     bool? showOtzarHachochma,
     bool? showHebrewBooks,
     bool? showExternalBooks,
@@ -120,15 +132,18 @@ class SettingsState extends Equatable {
     bool? libraryShowPreview,
     Map<String, String>? shortcuts,
     bool? enablePerBookSettings,
+    bool? isOfflineMode,
   }) {
     return SettingsState(
       isDarkMode: isDarkMode ?? this.isDarkMode,
       seedColor: seedColor ?? this.seedColor,
+      darkSeedColor: darkSeedColor ?? this.darkSeedColor,
       textMaxWidth: textMaxWidth ?? this.textMaxWidth,
       fontSize: fontSize ?? this.fontSize,
       fontFamily: fontFamily ?? this.fontFamily,
       commentatorsFontFamily:
           commentatorsFontFamily ?? this.commentatorsFontFamily,
+      commentatorsFontSize: commentatorsFontSize ?? this.commentatorsFontSize,
       showOtzarHachochma: showOtzarHachochma ?? this.showOtzarHachochma,
       showHebrewBooks: showHebrewBooks ?? this.showHebrewBooks,
       showExternalBooks: showExternalBooks ?? this.showExternalBooks,
@@ -152,6 +167,7 @@ class SettingsState extends Equatable {
       shortcuts: shortcuts ?? this.shortcuts,
       enablePerBookSettings:
           enablePerBookSettings ?? this.enablePerBookSettings,
+      isOfflineMode: isOfflineMode ?? this.isOfflineMode,
     );
   }
 
@@ -159,10 +175,12 @@ class SettingsState extends Equatable {
   List<Object?> get props => [
         isDarkMode,
         seedColor,
+        darkSeedColor,
         textMaxWidth,
         fontSize,
         fontFamily,
         commentatorsFontFamily,
+        commentatorsFontSize,
         showOtzarHachochma,
         showHebrewBooks,
         showExternalBooks,
@@ -184,5 +202,6 @@ class SettingsState extends Equatable {
         libraryShowPreview,
         shortcuts,
         enablePerBookSettings,
+        isOfflineMode,
       ];
 }

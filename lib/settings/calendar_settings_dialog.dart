@@ -236,7 +236,7 @@ class _CitySearchWidget extends StatefulWidget {
 
 class _CitySearchWidgetState extends State<_CitySearchWidget> {
   final TextEditingController _searchController = TextEditingController();
-  late Map<String, Map<String, Map<String, double>>> _filteredCities;
+  late Map<String, Map<String, Map<String, dynamic>>> _filteredCities;
 
   @override
   void initState() {

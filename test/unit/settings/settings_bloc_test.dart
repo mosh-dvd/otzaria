@@ -29,10 +29,12 @@ void main() {
       final mockSettings = {
         'isDarkMode': true,
         'seedColor': Colors.blue,
+        'darkSeedColor': const Color(0xFFCE93D8),
         'textMaxWidth': 800.0,
         'fontSize': 18.0,
         'fontFamily': 'Rubik',
         'commentatorsFontFamily': 'NotoRashiHebrew',
+        'commentatorsFontSize': 22.0,
         'showOtzarHachochma': true,
         'showHebrewBooks': true,
         'showExternalBooks': true,
@@ -54,6 +56,7 @@ void main() {
         'libraryShowPreview': true,
         'enablePerBookSettings': true,
         'shortcuts': <String, String>{},
+        'isOfflineMode': false,
       };
 
       blocTest<SettingsBloc, SettingsState>(
@@ -68,12 +71,15 @@ void main() {
           SettingsState(
             isDarkMode: mockSettings['isDarkMode'] as bool,
             seedColor: mockSettings['seedColor'] as Color,
+            darkSeedColor: mockSettings['darkSeedColor'] as Color,
             textMaxWidth: mockSettings['textMaxWidth'] as double,
             fontSize: mockSettings['fontSize'] as double,
             fontFamily: mockSettings['fontFamily'] as String,
             commentatorsFontFamily:
                 mockSettings['commentatorsFontFamily'] as String? ??
                     'NotoRashiHebrew',
+            commentatorsFontSize:
+                mockSettings['commentatorsFontSize'] as double? ?? 22.0,
             showOtzarHachochma: mockSettings['showOtzarHachochma'] as bool,
             showHebrewBooks: mockSettings['showHebrewBooks'] as bool,
             showExternalBooks: mockSettings['showExternalBooks'] as bool,
@@ -97,6 +103,7 @@ void main() {
             shortcuts: const {},
             enablePerBookSettings:
                 mockSettings['enablePerBookSettings'] as bool,
+            isOfflineMode: mockSettings['isOfflineMode'] as bool? ?? false,
           ),
         ],
         verify: (_) {

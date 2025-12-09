@@ -44,15 +44,15 @@ void showReadingSettingsDialog(BuildContext context) {
                     ),
                   ),
 
-                  // גודל גופן והגופן בשורה אחת
+                  // שורה ראשונה: גודל גופן הספר וגופן טקסט
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // גודל גופן - 2/4
+                        // גודל גופן הספר - 1/2
                         Expanded(
-                          flex: 2,
+                          flex: 1,
                           child: StatefulBuilder(
                             builder: (context, setState) {
                               double currentFontSize =
@@ -67,7 +67,7 @@ void showReadingSettingsDialog(BuildContext context) {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'גודל גופן התחלתי',
+                                          'גודל גופן הספר',
                                           style: Theme.of(context)
                                               .textTheme
                                               .titleMedium,
@@ -104,7 +104,7 @@ void showReadingSettingsDialog(BuildContext context) {
                           ),
                         ),
                         const SizedBox(width: 16),
-                        // גופן טקסט ראשי - 1/4
+                        // גופן טקסט ראשי - 1/2
                         Expanded(
                           flex: 1,
                           child: StatefulBuilder(
@@ -223,8 +223,73 @@ void showReadingSettingsDialog(BuildContext context) {
                             },
                           ),
                         ),
+                      ],
+                    ),
+                  ),
+
+                  // שורה שנייה: גודל גופן מפרשים וגופן מפרשים
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // גודל גופן מפרשים - 1/2
+                        Expanded(
+                          flex: 1,
+                          child: StatefulBuilder(
+                            builder: (context, setState) {
+                              double currentCommentatorsFontSize = settingsState
+                                  .commentatorsFontSize
+                                  .clamp(10, 40);
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(FluentIcons
+                                          .text_font_size_24_regular),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'גודל גופן מפרשים',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium,
+                                        ),
+                                      ),
+                                      Text(
+                                        currentCommentatorsFontSize
+                                            .toStringAsFixed(0),
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Slider(
+                                    value: currentCommentatorsFontSize,
+                                    min: 10,
+                                    max: 40,
+                                    divisions: 30,
+                                    label: currentCommentatorsFontSize
+                                        .toStringAsFixed(0),
+                                    onChanged: (value) {
+                                      setState(() {});
+                                      context.read<SettingsBloc>().add(
+                                          UpdateCommentatorsFontSize(value));
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
                         const SizedBox(width: 16),
-                        // גופן מפרשים - 1/4
+                        // גופן מפרשים - 1/2
                         Expanded(
                           flex: 1,
                           child: StatefulBuilder(
@@ -354,7 +419,7 @@ void showReadingSettingsDialog(BuildContext context) {
                       // רוחב המסך לחישוב פיקסלים
                       final screenWidth = MediaQuery.of(context).size.width;
                       final currentMaxWidth = settingsState.textMaxWidth;
-                      
+
                       // חישוב הרמה הנוכחית מהרוחב השמור
                       // ערך שלילי = רמה דינמית (ברירת מחדל)
                       // 0 = רוחב מלא
@@ -368,9 +433,10 @@ void showReadingSettingsDialog(BuildContext context) {
                       } else {
                         // ערך חיובי = פיקסלים, נחשב את הרמה המקבילה
                         final ratio = currentMaxWidth / screenWidth;
-                        currentLevel = ((1.0 - ratio) / 0.05).round().clamp(0, 14);
+                        currentLevel =
+                            ((1.0 - ratio) / 0.05).round().clamp(0, 14);
                       }
-                      
+
                       // תיאור לפי אחוז הרוחב
                       String getLevelDescription(int level) {
                         if (level == 0) return 'מלא';

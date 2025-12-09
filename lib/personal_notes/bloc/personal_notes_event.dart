@@ -76,6 +76,4 @@ class RepositionPersonalNote extends PersonalNotesEvent {
   List<Object?> get props => [bookId, noteId, lineNumber];
 }
 
-class ConvertLegacyNotes extends PersonalNotesEvent {
-  const ConvertLegacyNotes();
-}
+

@@ -33,7 +33,8 @@ class FileSystemData {
   late Future<Map<String, Map<String, dynamic>>> metadata;
 
   /// Library provider manager for coordinating multiple data sources
-  final LibraryProviderManager _providerManager = LibraryProviderManager.instance;
+  final LibraryProviderManager _providerManager =
+      LibraryProviderManager.instance;
 
   /// Creates a new instance of [FileSystemData] and initializes the title to path mapping
   /// and metadata
@@ -83,10 +84,12 @@ class FileSystemData {
   LibraryProviderManager get providerManager => _providerManager;
 
   /// Gets the file system provider
-  FileSystemLibraryProvider get fileSystemProvider => _providerManager.fileSystemProvider;
+  FileSystemLibraryProvider get fileSystemProvider =>
+      _providerManager.fileSystemProvider;
 
   /// Gets the database provider
-  DatabaseLibraryProvider get databaseProvider => _providerManager.databaseProvider;
+  DatabaseLibraryProvider get databaseProvider =>
+      _providerManager.databaseProvider;
 
   /// Checks if a book is in the personal folder
   Future<bool> isPersonalBook(String title) async {
@@ -126,7 +129,7 @@ class FileSystemData {
 
     titleToPath = _getTitleToPath();
     metadata = _getMetadata();
-    
+
     // Use the unified catalog builder from LibraryProviderManager
     return _providerManager.buildLibraryCatalog(
       await metadata,
@@ -271,14 +274,15 @@ class FileSystemData {
     if (text != null) {
       return text;
     }
-    
+
     // Fallback to direct file system access
-    debugPrint('⚠️ Provider manager failed, falling back to direct file access for "$title"');
+    debugPrint(
+        '⚠️ Provider manager failed, falling back to direct file access for "$title"');
     final path = await _getBookPath(title);
     if (path.startsWith('error:')) {
       throw Exception('Book not found: $title');
     }
-    
+
     final file = File(path);
     return file.readAsString();
   }
@@ -301,7 +305,7 @@ class FileSystemData {
         debugPrint('⚠️ Empty path in link');
         return 'שגיאה: נתיב ריק';
       }
-      
+
       if (link.index2 <= 0) {
         debugPrint('⚠️ Invalid index in link: ${link.index2}');
         return 'שגיאה: אינדקס לא תקין';
@@ -312,14 +316,14 @@ class FileSystemData {
         debugPrint('⚠️ Book path not found for: ${link.path2}');
         return 'שגיאה בטעינת קובץ: ${link.path2}';
       }
-      
+
       // Check if file exists before trying to read it
       final file = File(path);
       if (!await file.exists()) {
         debugPrint('⚠️ File does not exist: $path');
         return 'שגיאה: הקובץ לא נמצא';
       }
-      
+
       return await getLineFromFile(path, link.index2).timeout(
         const Duration(seconds: 3),
         onTimeout: () {
@@ -356,9 +360,10 @@ class FileSystemData {
     if (toc != null && toc.isNotEmpty) {
       return toc;
     }
-    
+
     // Fallback to parsing from text
-    debugPrint('⚠️ Provider manager failed, falling back to text parsing for "$title"');
+    debugPrint(
+        '⚠️ Provider manager failed, falling back to text parsing for "$title"');
     return _parseToc(getBookText(title));
   }
 
@@ -369,19 +374,19 @@ class FileSystemData {
   Future<String> getLineFromFile(String path, int index) async {
     try {
       File file = File(path);
-      
+
       // Validate that file exists
       if (!await file.exists()) {
         debugPrint('⚠️ File does not exist: $path');
         return 'שגיאה: הקובץ לא נמצא';
       }
-      
+
       // Validate index is positive
       if (index <= 0) {
         debugPrint('⚠️ Invalid line index: $index for file: $path');
         return 'שגיאה: אינדקס שורה לא תקין';
       }
-      
+
       // Add timeout to prevent hanging
       final lines = await file
           .openRead()
@@ -389,24 +394,24 @@ class FileSystemData {
           .transform(const LineSplitter())
           .take(index)
           .timeout(
-            const Duration(seconds: 5),
-            onTimeout: (sink) {
-              debugPrint('⚠️ Timeout reading file: $path');
-              sink.close();
-            },
-          )
-          .toList();
-      
+        const Duration(seconds: 5),
+        onTimeout: (sink) {
+          debugPrint('⚠️ Timeout reading file: $path');
+          sink.close();
+        },
+      ).toList();
+
       if (lines.isEmpty) {
         debugPrint('⚠️ No lines found in file: $path');
         return 'שגיאה: הקובץ ריק';
       }
-      
+
       if (lines.length < index) {
-        debugPrint('⚠️ Line index $index exceeds file length ${lines.length} in: $path');
+        debugPrint(
+            '⚠️ Line index $index exceeds file length ${lines.length} in: $path');
         return 'שגיאה: אינדקס השורה חורג מגודל הקובץ';
       }
-      
+
       return lines.last;
     } catch (e) {
       debugPrint('⚠️ Error reading line from file $path: $e');
@@ -452,6 +457,14 @@ class FileSystemData {
       final row = tempMetadata[i] as Map<String, dynamic>;
       metadata[row['title'].replaceAll('"', '')] = {
         'author': row['author'] ?? '',
+        'heCategories': row['heCategories'] is List
+            ? (row['heCategories'] as List).join(', ')
+            : row['heCategories'] ?? '',
+        'heEra': row['heEra'] ?? '',
+        'compDateStringHe': row['compDateStringHe'] ?? '',
+        'compPlaceStringHe': row['compPlaceStringHe'] ?? '',
+        'pubDateStringHe': row['pubDateStringHe'] ?? '',
+        'pubPlaceStringHe': row['pubPlaceStringHe'] ?? '',
         'heDesc': row['heDesc'] ?? '',
         'heShortDesc': row['heShortDesc'] ?? '',
         'pubDate': row['pubDate'] ?? '',
@@ -460,6 +473,11 @@ class FileSystemData {
             ? [row['title'].toString()]
             : row['extraTitles'].map<String>((e) => e.toString()).toList()
                 as List<String>,
+        'extraTitlesHe': row['extraTitlesHe'] is List
+            ? (row['extraTitlesHe'] as List)
+                .map<String>((e) => e.toString())
+                .toList()
+            : [],
         'order': row['order'] == null || row['order'] == ''
             ? 999
             : row['order'].runtimeType == double

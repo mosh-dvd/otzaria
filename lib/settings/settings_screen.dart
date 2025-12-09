@@ -21,6 +21,7 @@ import 'package:otzaria/settings/library_settings_dialog.dart';
 import 'package:otzaria/settings/calendar_settings_dialog.dart';
 import 'package:otzaria/settings/gematria_settings_dialog.dart';
 import 'package:otzaria/settings/backup_service.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 import 'package:otzaria/widgets/shortcut_dropdown_tile.dart';
 import 'package:otzaria/widgets/confirmation_dialog.dart';
 import 'package:otzaria/ui/database_generation_screen.dart';
@@ -248,13 +249,23 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                           activeColor: Theme.of(context).cardColor,
                         ),
                         ColorPickerSettingsTile(
+                          key: ValueKey(
+                              'color-picker-${state.isDarkMode ? 'dark' : 'light'}'),
                           title: 'צבע בסיס',
                           leading: const Icon(FluentIcons.color_24_regular),
-                          settingKey: 'key-swatch-color',
+                          settingKey: state.isDarkMode
+                              ? 'key-dark-swatch-color'
+                              : 'key-swatch-color',
                           onChange: (color) {
-                            context
-                                .read<SettingsBloc>()
-                                .add(UpdateSeedColor(color));
+                            if (state.isDarkMode) {
+                              context
+                                  .read<SettingsBloc>()
+                                  .add(UpdateDarkSeedColor(color));
+                            } else {
+                              context
+                                  .read<SettingsBloc>()
+                                  .add(UpdateSeedColor(color));
+                            }
                           },
                         ),
                       ]),
@@ -773,16 +784,18 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                     titleAlignment: Alignment.centerRight,
                     titleTextStyle: const TextStyle(fontSize: 25),
                     children: [
-                      SwitchSettingsTile(
-                        title: 'סינכרון הספרייה באופן אוטומטי',
-                        leading: Icon(FluentIcons.arrow_sync_24_regular),
-                        settingKey: 'key-auto-sync',
-                        defaultValue: true,
-                        enabledLabel:
-                            'מאגר הספרים המובנה יתעדכן אוטומטית מאתר אוצריא',
-                        disabledLabel: 'מאגר הספרים לא יתעדכן אוטומטית.',
-                        activeColor: Theme.of(context).cardColor,
-                      ),
+                      // הצגת ההגדרה רק אם מצב אופליין לא מופעל
+                      if (!state.isOfflineMode)
+                        SwitchSettingsTile(
+                          title: 'סינכרון הספרייה באופן אוטומטי',
+                          leading: Icon(FluentIcons.arrow_sync_24_regular),
+                          settingKey: SettingsRepository.keyAutoSync,
+                          defaultValue: true,
+                          enabledLabel:
+                              'מאגר הספרים המובנה יתעדכן אוטומטית מאתר אוצריא',
+                          disabledLabel: 'מאגר הספרים לא יתעדכן אוטומטית.',
+                          activeColor: Theme.of(context).cardColor,
+                        ),
                       const SizedBox(height: 16),
                       _buildColumns(2, [
                         SwitchSettingsTile(
@@ -801,7 +814,8 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                         ),
                         SwitchSettingsTile(
                           title: 'עדכון אינדקס אוטומטי',
-                          leading: const Icon(FluentIcons.arrow_clockwise_24_regular),
+                          leading: const Icon(
+                              FluentIcons.arrow_clockwise_24_regular),
                           settingKey: 'key-auto-index-update',
                           defaultValue: state.autoUpdateIndex,
                           enabledLabel: 'אינדקס החיפוש יתעדכן אוטומטית',
@@ -843,10 +857,8 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                                   }
                                 } else {
                                   // התחלת עדכון האינדקס ללא מחיקה
-                                  final library = context
-                                      .read<LibraryBloc>()
-                                      .state
-                                      .library;
+                                  final library =
+                                      context.read<LibraryBloc>().state.library;
                                   if (library != null) {
                                     context
                                         .read<IndexingBloc>()
@@ -865,19 +877,19 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                             final result = await showConfirmationDialog(
                               context: context,
                               title: 'איפוס אינדקס',
-                              content: 'האם למחוק את אינדקס החיפוש? תצטרך לבנות אותו מחדש כדי להשתמש בחיפוש.',
+                              content:
+                                  'האם למחוק את אינדקס החיפוש? תצטרך לבנות אותו מחדש כדי להשתמש בחיפוש.',
                             );
                             if (!context.mounted) return;
                             if (result == true) {
                               // רק מחיקת האינדקס, ללא התחלה מחדש
-                              context
-                                  .read<IndexingBloc>()
-                                  .add(ClearIndex());
+                              context.read<IndexingBloc>().add(ClearIndex());
                             }
                           },
                         ),
                       ]),
-                      if (!(Platform.isAndroid || Platform.isIOS)) const SizedBox(height: 16),
+                      if (!(Platform.isAndroid || Platform.isIOS))
+                        const SizedBox(height: 16),
                       if (!(Platform.isAndroid || Platform.isIOS))
                         _buildColumns(2, [
                           SimpleSettingsTile(
@@ -930,38 +942,48 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                           ),
                         ]),
                       if (!(Platform.isAndroid || Platform.isIOS))
-                        SwitchSettingsTile(
-                          settingKey: 'key-dev-channel',
-                          title: 'עדכון לגרסאות מפתחים',
-                          enabledLabel:
-                              'קבלת עדכונים על גרסאות בדיקה, ייתכנו באגים וחוסר יציבות',
-                          disabledLabel: 'קבלת עדכונים על גרסאות יציבות בלבד',
-                          leading: const Icon(FluentIcons.bug_24_regular),
-                          activeColor: Theme.of(context).cardColor,
-                        ),
+                        // הצגת ההגדרה רק אם מצב אופליין לא מופעל
+                        if (!state.isOfflineMode)
+                          SwitchSettingsTile(
+                            settingKey: 'key-dev-channel',
+                            title: 'עדכון לגרסאות מפתחים',
+                            enabledLabel:
+                                'קבלת עדכונים על גרסאות בדיקה, ייתכנו באגים וחוסר יציבות',
+                            disabledLabel: 'קבלת עדכונים על גרסאות יציבות בלבד',
+                            leading: const Icon(FluentIcons.bug_24_regular),
+                            activeColor: Theme.of(context).cardColor,
+                          ),
+                      if (!(Platform.isAndroid || Platform.isIOS))
                         SimpleSettingsTile(
                           title: 'יצירת מסד נתונים',
                           subtitle: 'צור מסד נתונים חדש מתיקיית אוצריא',
-                          leading: const Icon(FluentIcons.database_arrow_right_24_regular),
+                          leading: const Icon(
+                              FluentIcons.database_arrow_right_24_regular),
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (context) => const DatabaseGenerationScreen(),
+                                builder: (context) =>
+                                    const DatabaseGenerationScreen(),
                               ),
                             );
                           },
                         ),
-                      if (!(Platform.isAndroid || Platform.isIOS))
-
-
+                      // הגדרת מצב אופליין - תמיד מוצגת
                       SwitchSettingsTile(
-                        settingKey: 'key-dev-channel',
-                        title: 'עדכון לגרסאות מפתחים',
+                        settingKey: SettingsRepository.keyOfflineMode,
+                        title: 'מצב אופליין',
                         enabledLabel:
-                            'קבלת עדכונים על גרסאות בדיקה, ייתכנו באגים וחוסר יציבות',
-                        disabledLabel: 'קבלת עדכונים על גרסאות יציבות בלבד',
-                        leading: const Icon(FluentIcons.bug_24_regular),
+                            'התוכנה מנותקת לגמרי מהרשת, כל התכונות המקוונות מושבתות',
+                        disabledLabel: 'התוכנה יכולה להתחבר לרשת',
+                        leading: const Icon(FluentIcons.wifi_off_24_regular),
+                        defaultValue: false,
                         activeColor: Theme.of(context).cardColor,
+                        onChange: (value) {
+                          // עדכון המצב דרך ה-Bloc כדי לרענן את כל הממשק
+                          context
+                              .read<SettingsBloc>()
+                              .add(UpdateOfflineMode(value));
+                        },
                       ),
                       SimpleSettingsTile(
                         title: 'איפוס הגדרות',

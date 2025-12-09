@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-import 'package:otzaria/personal_notes/migration/legacy_notes_converter.dart';
 import 'package:otzaria/personal_notes/models/personal_note.dart';
 
 class PersonalNotesState extends Equatable {
@@ -9,7 +8,6 @@ class PersonalNotesState extends Equatable {
   final List<PersonalNote> locatedNotes;
   final List<PersonalNote> missingNotes;
   final String? errorMessage;
-  final LegacyConversionSummary? conversionSummary;
 
   const PersonalNotesState({
     required this.isLoading,
@@ -17,7 +15,6 @@ class PersonalNotesState extends Equatable {
     required this.locatedNotes,
     required this.missingNotes,
     required this.errorMessage,
-    required this.conversionSummary,
   });
 
   const PersonalNotesState.initial()
@@ -25,8 +22,7 @@ class PersonalNotesState extends Equatable {
         bookId = null,
         locatedNotes = const [],
         missingNotes = const [],
-        errorMessage = null,
-        conversionSummary = null;
+        errorMessage = null;
 
   PersonalNotesState copyWith({
     bool? isLoading,
@@ -34,7 +30,6 @@ class PersonalNotesState extends Equatable {
     List<PersonalNote>? locatedNotes,
     List<PersonalNote>? missingNotes,
     String? errorMessage,
-    LegacyConversionSummary? conversionSummary,
   }) {
     return PersonalNotesState(
       isLoading: isLoading ?? this.isLoading,
@@ -42,7 +37,6 @@ class PersonalNotesState extends Equatable {
       locatedNotes: locatedNotes ?? this.locatedNotes,
       missingNotes: missingNotes ?? this.missingNotes,
       errorMessage: errorMessage,
-      conversionSummary: conversionSummary ?? this.conversionSummary,
     );
   }
 
@@ -53,6 +47,5 @@ class PersonalNotesState extends Equatable {
         locatedNotes,
         missingNotes,
         errorMessage,
-        conversionSummary,
       ];
 }

@@ -20,8 +20,29 @@ abstract class Book {
   /// The author of the book, if available.
   String? author;
 
+  /// Categories in Hebrew
+  String? heCategories;
+
+  /// Era in Hebrew
+  String? heEra;
+
+  /// Composition date string in Hebrew
+  String? compDateStringHe;
+
+  /// Composition place string in Hebrew
+  String? compPlaceStringHe;
+
+  /// Publication date string in Hebrew
+  String? pubDateStringHe;
+
+  /// Publication place string in Hebrew
+  String? pubPlaceStringHe;
+
   /// A short description of the book, if available.
   String? heShortDesc;
+
+  /// A full description of the book, if available.
+  String? heDesc;
 
   /// The publication date of the book, if available.
   String? pubDate;
@@ -59,7 +80,14 @@ abstract class Book {
       {required this.title,
       this.category,
       this.author,
+      this.heCategories,
+      this.heEra,
+      this.compDateStringHe,
+      this.compPlaceStringHe,
+      this.pubDateStringHe,
+      this.pubPlaceStringHe,
       this.heShortDesc,
+      this.heDesc,
       this.pubDate,
       this.pubPlace,
       this.order = 999,
@@ -75,7 +103,14 @@ class TextBook extends Book {
       {required super.title,
       super.category,
       super.author,
+      super.heCategories,
+      super.heEra,
+      super.compDateStringHe,
+      super.compPlaceStringHe,
+      super.pubDateStringHe,
+      super.pubPlaceStringHe,
       super.heShortDesc,
+      super.heDesc,
       super.pubDate,
       super.pubPlace,
       super.order = 999,
@@ -177,10 +212,17 @@ class ExternalBook extends Book {
     required super.title,
     required this.id,
     super.author,
+    super.heCategories,
+    super.heEra,
+    super.compDateStringHe,
+    super.compPlaceStringHe,
+    super.pubDateStringHe,
+    super.pubPlaceStringHe,
     super.pubPlace,
     super.pubDate,
     super.topics,
     super.heShortDesc,
+    super.heDesc,
     required this.link,
   });
 
@@ -230,7 +272,14 @@ class PdfBook extends Book {
       required this.path,
       super.topics,
       super.author,
+      super.heCategories,
+      super.heEra,
+      super.compDateStringHe,
+      super.compPlaceStringHe,
+      super.pubDateStringHe,
+      super.pubPlaceStringHe,
       super.heShortDesc,
+      super.heDesc,
       super.pubDate,
       super.pubPlace,
       super.order = 999});

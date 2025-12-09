@@ -77,7 +77,7 @@ class _PdfCommentaryContentState extends State<PdfCommentaryContent> {
                 return HtmlWidget(
                   '<div style="text-align: justify; direction: rtl;">$displayText</div>',
                   textStyle: TextStyle(
-                    fontSize: widget.fontSize / 1.2,
+                    fontSize: settingsState.commentatorsFontSize,
                     fontFamily: settingsState.commentatorsFontFamily,
                   ),
                 );

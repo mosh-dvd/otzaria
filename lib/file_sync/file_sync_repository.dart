@@ -30,19 +30,19 @@ class FileSyncRepository {
   }
 
   /// Normalizes file paths from the manifest to local paths.
-  /// 
+  ///
   /// The manifest contains full paths from the GitHub repository structure,
   /// but we need to extract only the relevant local path.
-  /// 
+  ///
   /// Handles three cases:
   /// 1. Paths containing 'אוצריא/' - extracts from 'אוצריא/' onwards
   ///    Example: 'otzaria-library/sefariaToOtzaria/sefaria_export/ספרים/אוצריא/תנך/תורה/בראשית.txt'
   ///    Returns: 'אוצריא/תנך/תורה/בראשית.txt'
-  /// 
+  ///
   /// 2. Paths containing 'links/' - extracts from 'links/' onwards
   ///    Example: 'otzaria-library/sefariaToOtzaria/sefaria_export/links/בראשית_links.json'
   ///    Returns: 'links/בראשית_links.json'
-  /// 
+  ///
   /// 3. Root files (metadata.json, files_manifest.json, etc.) - returns as-is
   ///    Example: 'metadata.json'
   ///    Returns: 'metadata.json'
@@ -92,8 +92,10 @@ class FileSyncRepository {
       final oldFile = File('$path.old'); // השתמש ב-.old במקום .bak
       if (await oldFile.exists()) {
         try {
-          developer.log('Main manifest is corrupt, restoring from .old backup...',
-              name: 'FileSyncRepository', error: e);
+          developer.log(
+              'Main manifest is corrupt, restoring from .old backup...',
+              name: 'FileSyncRepository',
+              error: e);
           final backupContent = await oldFile.readAsString(encoding: utf8);
           await oldFile.rename(path); // rename בטוח יותר מ-copy
           return json.decode(backupContent);
@@ -138,30 +140,68 @@ class FileSyncRepository {
         headers: {
           'Accept-Charset': 'utf-8',
         },
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Download timeout for $filePath');
+        },
       );
+
       if (response.statusCode == 200) {
+        // Verify we got actual content
+        if (response.bodyBytes.isEmpty) {
+          throw Exception('Downloaded file is empty: $filePath');
+        }
+
         final directory = await _localDirectory;
         // Normalize the file path to get the local path
         final localFilePath = _normalizeFilePath(filePath);
         final file = File('$directory/$localFilePath');
+        final tempFile = File('$directory/$localFilePath.tmp');
 
         // Create directories if they don't exist
-        await file.parent.create(recursive: true);
+        await tempFile.parent.create(recursive: true);
 
-        // For text files, handle UTF-8 encoding explicitly
+        // Write to temporary file first
         if (filePath.endsWith('.txt') ||
             filePath.endsWith('.json') ||
             filePath.endsWith('.csv')) {
-          await file.writeAsString(utf8.decode(response.bodyBytes),
+          await tempFile.writeAsString(utf8.decode(response.bodyBytes),
               encoding: utf8);
         } else {
           // For binary files, write bytes directly
-          await file.writeAsBytes(response.bodyBytes);
+          await tempFile.writeAsBytes(response.bodyBytes);
         }
+
+        // Verify the temp file was written successfully
+        if (await tempFile.exists() && await tempFile.length() > 0) {
+          // Only now replace the original file (if exists)
+          if (await file.exists()) {
+            await file.delete();
+          }
+          await tempFile.rename(file.path);
+          developer.log(
+              'Successfully downloaded: $filePath (${response.bodyBytes.length} bytes)',
+              name: 'FileSyncRepository');
+        } else {
+          throw Exception('Failed to write temporary file: $filePath');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode} for $filePath');
       }
     } catch (e) {
       developer.log('Error downloading file $filePath',
           name: 'FileSyncRepository', error: e);
+      // Clean up temp file if it exists
+      try {
+        final directory = await _localDirectory;
+        final localFilePath = _normalizeFilePath(filePath);
+        final tempFile = File('$directory/$localFilePath.tmp');
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+      } catch (_) {}
+      rethrow; // Re-throw so caller knows download failed
     }
   }
 
@@ -324,26 +364,68 @@ class FileSyncRepository {
         if (isSyncing == false) {
           return count;
         }
+
+        // Download the file
         await downloadFile(filePath);
-        await _updateLocalManifestForFile(filePath, remoteManifest[filePath]);
-        count++;
+
+        // Verify the file was actually downloaded successfully
+        final directory = await _localDirectory;
+        final localFilePath = _normalizeFilePath(filePath);
+        final file = File('$directory/$localFilePath');
+
+        // Only update manifest if file exists and has content
+        if (await file.exists()) {
+          final fileSize = await file.length();
+          if (fileSize > 0) {
+            // File downloaded successfully, update manifest
+            await _updateLocalManifestForFile(
+                filePath, remoteManifest[filePath]);
+            count++;
+            developer.log('Successfully downloaded and registered: $filePath',
+                name: 'FileSyncRepository');
+          } else {
+            developer.log('WARNING: Downloaded file is empty: $filePath',
+                name: 'FileSyncRepository');
+          }
+        } else {
+          developer.log('WARNING: File download failed: $filePath',
+              name: 'FileSyncRepository');
+        }
+
         _currentProgress = count;
       }
 
-      // Remove files that exist locally but not in remote
-      for (final localFilePath in localManifest.keys.toList()) {
-        if (isSyncing == false) {
-          return count;
+      // CRITICAL FIX: Only remove files if ALL downloads completed successfully
+      // This prevents data loss due to network issues
+      if (count == filesToUpdate.length) {
+        developer.log(
+            'All files downloaded successfully, checking for obsolete files...',
+            name: 'FileSyncRepository');
+
+        // Remove files that exist locally but not in remote
+        for (final localFilePath in localManifest.keys.toList()) {
+          if (isSyncing == false) {
+            return count;
+          }
+          if (!remoteManifest.containsKey(localFilePath)) {
+            developer.log('Removing obsolete file: $localFilePath',
+                name: 'FileSyncRepository');
+            await _removeFromLocal(localFilePath);
+          }
         }
-        if (!remoteManifest.containsKey(localFilePath)) {
-          await _removeFromLocal(localFilePath);
-          count++;
-          _currentProgress = count;
-        }
+        // Clean up empty folders after sync
+        await removeEmptyFolders();
+      } else {
+        developer.log(
+            'WARNING: Not all files downloaded successfully ($count/${filesToUpdate.length}). '
+            'Skipping file removal to prevent data loss.',
+            name: 'FileSyncRepository');
       }
-      // Clean up empty folders after sync
-      await removeEmptyFolders();
     } catch (e) {
+      developer.log(
+          'Error during sync, manifest preserved to prevent data loss',
+          name: 'FileSyncRepository',
+          error: e);
       isSyncing = false;
       rethrow;
     }

@@ -514,9 +514,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                               passwordProvider: () => passwordDialog(context),
                               controller: widget.tab.pdfViewerController,
                               params: PdfViewerParams(
-                                backgroundColor: Theme.of(context)
-                                    .colorScheme
-                                    .surface, // צבע רקע המסך, בתצוגת ספרי PDF
+                                backgroundColor: Colors
+                                    .white, // תמיד לבן - ה-ColorFilter יהפוך לשחור במצב כהה
                                 maxScale: 10,
                                 horizontalCacheExtent: 1,
                                 verticalCacheExtent: 1,
@@ -657,11 +656,14 @@ class _PdfBookScreenState extends State<PdfBookScreen>
 
                           return Positioned(
                             left: 0, // צמוד לקצה
-                            top: MediaQuery.of(context).size.height * 0.10, // למעלה במסך
+                            top: MediaQuery.of(context).size.height *
+                                0.10, // למעלה במסך
                             child: CommentaryPaneTooltip(
                               child: MouseRegion(
-                                onEnter: (_) => setState(() => _isRightPaneHovering = true),
-                                onExit: (_) => setState(() => _isRightPaneHovering = false),
+                                onEnter: (_) =>
+                                    setState(() => _isRightPaneHovering = true),
+                                onExit: (_) => setState(
+                                    () => _isRightPaneHovering = false),
                                 child: GestureDetector(
                                   onTap: () {
                                     _showRightPane.value = true;
@@ -676,27 +678,36 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                                       color: Theme.of(context)
                                           .colorScheme
                                           .surfaceContainerHighest
-                                          .withValues(alpha: _isRightPaneHovering ? 0.95 : 0.8),
+                                          .withValues(
+                                              alpha: _isRightPaneHovering
+                                                  ? 0.95
+                                                  : 0.8),
                                       borderRadius: const BorderRadius.only(
                                         topRight: Radius.circular(40),
                                         bottomRight: Radius.circular(40),
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.15),
-                                          blurRadius: _isRightPaneHovering ? 8 : 4,
+                                          color: Colors.black
+                                              .withValues(alpha: 0.15),
+                                          blurRadius:
+                                              _isRightPaneHovering ? 8 : 4,
                                           offset: const Offset(2, 0),
                                         ),
                                       ],
                                     ),
                                     child: Center(
                                       child: AnimatedOpacity(
-                                        duration: const Duration(milliseconds: 150),
-                                        opacity: _isRightPaneHovering ? 1.0 : 0.6,
+                                        duration:
+                                            const Duration(milliseconds: 150),
+                                        opacity:
+                                            _isRightPaneHovering ? 1.0 : 0.6,
                                         child: Icon(
                                           FluentIcons.chevron_right_24_regular,
                                           size: _isRightPaneHovering ? 24 : 18,
-                                          color: Theme.of(context).colorScheme.onSurface,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
                                         ),
                                       ),
                                     ),
@@ -1108,7 +1119,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
           ),
           icon: FluentIcons.arrow_previous_24_regular,
           tooltip: 'תחילת הספר',
-          onPressed: () => widget.tab.pdfViewerController.goToPage(pageNumber: 1),
+          onPressed: () =>
+              widget.tab.pdfViewerController.goToPage(pageNumber: 1),
         ),
 
         // 6) Previous Page Button
@@ -1130,7 +1142,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
           tooltip: 'הקודם',
           onPressed: () {
             if (widget.tab.pdfViewerController.isReady) {
-              final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
+              final currentPage =
+                  widget.tab.pdfViewerController.pageNumber ?? 1;
               widget.tab.pdfViewerController.goToPage(
                 pageNumber: max(currentPage - 1, 1),
               );
@@ -1154,8 +1167,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                 final currentPage =
                     widget.tab.pdfViewerController.pageNumber ?? 1;
                 widget.tab.pdfViewerController.goToPage(
-                  pageNumber: min(
-                      currentPage + 1, widget.tab.pdfViewerController.pageCount),
+                  pageNumber: min(currentPage + 1,
+                      widget.tab.pdfViewerController.pageCount),
                 );
               }
             },
@@ -1166,7 +1179,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
           tooltip: 'הבא',
           onPressed: () {
             if (widget.tab.pdfViewerController.isReady) {
-              final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
+              final currentPage =
+                  widget.tab.pdfViewerController.pageNumber ?? 1;
               widget.tab.pdfViewerController.goToPage(
                 pageNumber: min(
                     currentPage + 1, widget.tab.pdfViewerController.pageCount),
@@ -1206,7 +1220,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
           ),
           icon: FluentIcons.arrow_previous_24_regular,
           tooltip: 'תחילת הספר',
-          onPressed: () => widget.tab.pdfViewerController.goToPage(pageNumber: 1),
+          onPressed: () =>
+              widget.tab.pdfViewerController.goToPage(pageNumber: 1),
         ),
         ActionButtonData(
           widget: IconButton(
@@ -1226,7 +1241,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
           tooltip: 'הקודם',
           onPressed: () {
             if (widget.tab.pdfViewerController.isReady) {
-              final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
+              final currentPage =
+                  widget.tab.pdfViewerController.pageNumber ?? 1;
               widget.tab.pdfViewerController.goToPage(
                 pageNumber: max(currentPage - 1, 1),
               );
@@ -1240,8 +1256,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
                 final currentPage =
                     widget.tab.pdfViewerController.pageNumber ?? 1;
                 widget.tab.pdfViewerController.goToPage(
-                  pageNumber: min(
-                      currentPage + 1, widget.tab.pdfViewerController.pageCount),
+                  pageNumber: min(currentPage + 1,
+                      widget.tab.pdfViewerController.pageCount),
                 );
               }
             },
@@ -1252,7 +1268,8 @@ class _PdfBookScreenState extends State<PdfBookScreen>
           tooltip: 'הבא',
           onPressed: () {
             if (widget.tab.pdfViewerController.isReady) {
-              final currentPage = widget.tab.pdfViewerController.pageNumber ?? 1;
+              final currentPage =
+                  widget.tab.pdfViewerController.pageNumber ?? 1;
               widget.tab.pdfViewerController.goToPage(
                 pageNumber: min(
                     currentPage + 1, widget.tab.pdfViewerController.pageCount),
@@ -1575,8 +1592,6 @@ class _PdfBookScreenState extends State<PdfBookScreen>
       filename: fileName,
     );
   }
-
-
 
   Widget _buildTextButton(
       BuildContext context, PdfBook book, PdfViewerController controller) {

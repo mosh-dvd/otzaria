@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 import 'package:updat/updat.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -69,6 +71,12 @@ Widget hebrewFlatChip({
   }
 
   if (UpdatStatus.error == status) {
+    // לא להציג הודעת שגיאה במצב אופליין
+    final isOfflineMode =
+        Settings.getValue<bool>(SettingsRepository.keyOfflineMode) ?? false;
+    if (isOfflineMode) {
+      return Container();
+    }
     return Tooltip(
       message: 'אירעה שגיאה בעדכון. אנא נסה שוב.',
       child: TextButton.icon(

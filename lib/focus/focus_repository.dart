@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-enum FocusTarget { none, librarySearch, findRefSearch }
+enum FocusTarget { none, librarySearch, findRefSearch, bookContent }
 
 class FocusRepository {
   static final FocusRepository _instance = FocusRepository._internal();
@@ -12,6 +12,9 @@ class FocusRepository {
 
   final TextEditingController librarySearchController = TextEditingController();
   final TextEditingController findRefSearchController = TextEditingController();
+
+  // FocusNode לתוכן הספר הנוכחי - מנוהל על ידי TextBookViewerBloc
+  FocusNode? _currentBookContentFocusNode;
 
   FocusTarget _currentFocusTarget = FocusTarget.none;
   FocusTarget get currentFocusTarget => _currentFocusTarget;
@@ -38,7 +41,25 @@ class FocusRepository {
     _currentFocusTarget = FocusTarget.findRefSearch;
   }
 
+  /// רישום FocusNode של תוכן ספר (נקרא מ-TextBookViewerBloc)
+  void registerBookContentFocusNode(FocusNode focusNode) {
+    _currentBookContentFocusNode = focusNode;
+  }
 
+  /// ביטול רישום FocusNode של תוכן ספר
+  void unregisterBookContentFocusNode(FocusNode focusNode) {
+    if (_currentBookContentFocusNode == focusNode) {
+      _currentBookContentFocusNode = null;
+    }
+  }
+
+  /// בקשת focus לתוכן הספר הנוכחי
+  void requestBookContentFocus() {
+    if (_currentBookContentFocusNode != null) {
+      _currentBookContentFocusNode!.requestFocus();
+      _currentFocusTarget = FocusTarget.bookContent;
+    }
+  }
 
   void dispose() {
     librarySearchFocusNode.dispose();

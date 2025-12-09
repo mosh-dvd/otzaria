@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/models/phone_report_data.dart';
 import 'package:otzaria/services/data_collection_service.dart';
@@ -88,9 +89,8 @@ class ErrorReportHelper {
       }
     }
 
-    final ctxStart = (startWordIndex - wordsBefore) < 0 
-        ? 0 
-        : (startWordIndex - wordsBefore);
+    final ctxStart =
+        (startWordIndex - wordsBefore) < 0 ? 0 : (startWordIndex - wordsBefore);
     final ctxEnd = (endWordIndex + wordsAfter) >= matches.length
         ? matches.length - 1
         : (endWordIndex + wordsAfter);
@@ -256,24 +256,27 @@ $detailsSection
               ),
             ),
             const SizedBox(width: 8),
-            TextButton(
-              onPressed: () {
-                launchMail(_fallbackMail, context);
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                minimumSize: const Size(0, 32),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                'שלח עכשיו בדוא"ל',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  fontWeight: FontWeight.bold,
+            // הכפתור "שלח עכשיו בדוא"ל" מוסתר במצב אופליין
+            if (!(Settings.getValue<bool>(SettingsRepository.keyOfflineMode) ??
+                false))
+              TextButton(
+                onPressed: () {
+                  launchMail(_fallbackMail, context);
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  'שלח עכשיו בדוא"ל',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
             TextButton(
               onPressed: () {
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -338,7 +341,7 @@ $detailsSection
 
       final phoneReportService = PhoneReportService();
       final result = await phoneReportService.submitReport(reportData);
-      
+
       if (!context.mounted) return;
 
       // Hide loading indicator
@@ -508,14 +511,15 @@ class _TabbedReportDialogState extends State<TabbedReportDialog>
   Widget build(BuildContext context) {
     // חישוב גובה זמין בפועל (ללא שורת המשימות ואזורים מוגנים אחרים)
     final mediaQuery = MediaQuery.of(context);
-    final availableHeight = mediaQuery.size.height - 
-                           mediaQuery.padding.top - 
-                           mediaQuery.padding.bottom;
-    
+    final availableHeight = mediaQuery.size.height -
+        mediaQuery.padding.top -
+        mediaQuery.padding.bottom;
+
     return Dialog(
       child: SizedBox(
-        width: mediaQuery.size.width * 0.9,  // רוחב: 90% מרוחב המסך
-        height: availableHeight * 0.95, // גובה: 90% מהגובה הזמין (ללא שורת משימות)
+        width: mediaQuery.size.width * 0.9, // רוחב: 90% מרוחב המסך
+        height:
+            availableHeight * 0.95, // גובה: 90% מהגובה הזמין (ללא שורת משימות)
         child: Column(
           children: [
             Padding(
@@ -818,6 +822,10 @@ class _RegularReportTabState extends State<RegularReportTab> {
   }
 
   Widget _buildActionButtons() {
+    // בדיקת מצב אופליין
+    final isOfflineMode =
+        Settings.getValue<bool>(SettingsRepository.keyOfflineMode) ?? false;
+    
     return FutureBuilder<bool>(
       future: _isPhoneReportDisabled(),
       builder: (context, snapshot) {
@@ -850,24 +858,27 @@ class _RegularReportTabState extends State<RegularReportTab> {
                       }
                     : null,
                 icon: const Icon(FluentIcons.save_24_regular, size: 18),
-                label: const Text('שמור לדיווח מאוחר'),
+                label: const Text('לא מחובר לרשת? שמור לדיווח מאוחר'),
               ),
-              ElevatedButton.icon(
-                onPressed: canSubmit
-                    ? () {
-                        widget.onActionSelected(
-                          ErrorReportAction.sendEmail,
-                          ReportedErrorData(
-                            selectedText: _selectedContent!,
-                            errorDetails: _detailsController.text.trim(),
-                          ),
-                        );
-                      }
-                    : null,
-                icon: const Icon(FluentIcons.mail_24_regular, size: 18),
-                label: const Text('שלח בדוא"ל'),
-              ),
-              if (!isPhoneDisabled)
+              // הכפתור "שלח בדוא"ל" מוסתר במצב אופליין
+              if (!isOfflineMode)
+                ElevatedButton.icon(
+                  onPressed: canSubmit
+                      ? () {
+                          widget.onActionSelected(
+                            ErrorReportAction.sendEmail,
+                            ReportedErrorData(
+                              selectedText: _selectedContent!,
+                              errorDetails: _detailsController.text.trim(),
+                            ),
+                          );
+                        }
+                      : null,
+                  icon: const Icon(FluentIcons.mail_24_regular, size: 18),
+                  label: const Text('שלח בדוא"ל'),
+                ),
+              // הכפתור "שלח ישירות לאוצריא" מוסתר במצב אופליין
+              if (!isPhoneDisabled && !isOfflineMode)
                 OutlinedButton(
                   onPressed: null,
                   child: const Text('שלח ישירות לאוצריא (לא פעיל זמנית)'),

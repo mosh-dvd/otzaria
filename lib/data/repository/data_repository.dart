@@ -133,11 +133,14 @@ class DataRepository {
     }
 
     // Filter books based on query and topics
+    // Search in both title and author
     final filteredBooks = allBooks.where((book) {
       final title = book.title.toLowerCase();
+      final author = (book.author ?? '').toLowerCase();
       final bookTopics = book.topics.split(', ');
 
-      bool matchesQuery = queryWords.every((word) => title.contains(word));
+      bool matchesQuery = queryWords.every((word) => 
+          title.contains(word) || author.contains(word));
       bool matchesTopics = topics == null ||
           topics.isEmpty ||
           topics.every((t) => bookTopics.contains(t));

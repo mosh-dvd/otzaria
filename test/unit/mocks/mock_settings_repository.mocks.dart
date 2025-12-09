@@ -60,6 +60,16 @@ class MockSettingsRepository extends _i1.Mock
       ) as _i3.Future<void>);
 
   @override
+  _i3.Future<void> updateDarkSeedColor(_i4.Color? value) => (super.noSuchMethod(
+        Invocation.method(
+          #updateDarkSeedColor,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
   _i3.Future<void> updateTextMaxWidth(double? value) => (super.noSuchMethod(
         Invocation.method(
           #updateTextMaxWidth,
@@ -94,6 +104,17 @@ class MockSettingsRepository extends _i1.Mock
       (super.noSuchMethod(
         Invocation.method(
           #updateCommentatorsFontFamily,
+          [value],
+        ),
+        returnValue: _i3.Future<void>.value(),
+        returnValueForMissingStub: _i3.Future<void>.value(),
+      ) as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateCommentatorsFontSize(double? value) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateCommentatorsFontSize,
           [value],
         ),
         returnValue: _i3.Future<void>.value(),

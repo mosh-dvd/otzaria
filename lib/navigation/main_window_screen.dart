@@ -294,6 +294,13 @@ class MainWindowScreenState extends State<MainWindowScreen>
       context.read<FocusRepository>().requestLibrarySearchFocus(
             selectAll: true,
           );
+    } else if (state.currentScreen == Screen.reading) {
+      // בקשת focus לתוכן הספר כשעוברים למסך עיון
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<FocusRepository>().requestBookContentFocus();
+        }
+      });
     }
   }
 

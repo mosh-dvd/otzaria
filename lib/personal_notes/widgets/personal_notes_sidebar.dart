@@ -7,6 +7,8 @@ import 'package:otzaria/personal_notes/bloc/personal_notes_event.dart';
 import 'package:otzaria/personal_notes/bloc/personal_notes_state.dart';
 import 'package:otzaria/personal_notes/models/personal_note.dart';
 import 'package:otzaria/personal_notes/widgets/personal_note_editor_dialog.dart';
+import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
+import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/widgets/confirmation_dialog.dart';
 import 'package:otzaria/widgets/input_dialog.dart';
 
@@ -27,6 +29,7 @@ class PersonalNotesSidebar extends StatefulWidget {
 class _PersonalNotesSidebarState extends State<PersonalNotesSidebar> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _showOnlyVisible = true; // ברירת מחדל: הצג רק הערות לטקסט הנראה
 
   @override
   void initState() {
@@ -55,77 +58,140 @@ class _PersonalNotesSidebarState extends State<PersonalNotesSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PersonalNotesBloc, PersonalNotesState>(
-      buildWhen: (previous, current) => current.bookId == widget.bookId,
-      builder: (context, state) {
-        if (state.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+    return BlocBuilder<TextBookBloc, TextBookState>(
+      buildWhen: (previous, current) {
+        if (previous is TextBookLoaded && current is TextBookLoaded) {
+          return previous.visibleIndices != current.visibleIndices;
         }
+        return true;
+      },
+      builder: (context, textBookState) {
+        final visibleIndices = textBookState is TextBookLoaded
+            ? textBookState.visibleIndices
+            : <int>[];
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildHeader(context, state),
-            const Divider(height: 1),
-            Expanded(
-              child: _buildContent(context, state),
-            ),
-          ],
+        return BlocBuilder<PersonalNotesBloc, PersonalNotesState>(
+          buildWhen: (previous, current) => current.bookId == widget.bookId,
+          builder: (context, state) {
+            if (state.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(context, state, visibleIndices),
+                const Divider(height: 1),
+                Expanded(
+                  child: _buildContent(context, state, visibleIndices),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildHeader(BuildContext context, PersonalNotesState state) {
+  Widget _buildHeader(BuildContext context, PersonalNotesState state, List<int> visibleIndices) {
+    final totalNotes = state.locatedNotes.length + state.missingNotes.length;
+    final visibleNotes = _showOnlyVisible && visibleIndices.isNotEmpty
+        ? state.locatedNotes.where((n) => n.lineNumber != null && visibleIndices.contains(n.lineNumber! - 1)).length
+        : totalNotes;
+
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'חפש בהערות...',
-                prefixIcon: const Icon(FluentIcons.search_24_regular),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(FluentIcons.dismiss_24_regular),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-                isDense: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'חפש בהערות...',
+                    prefixIcon: const Icon(FluentIcons.search_24_regular),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(FluentIcons.dismiss_24_regular),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {
+                                _searchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
                 ),
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'רענן',
+                onPressed: () {
+                  context
+                      .read<PersonalNotesBloc>()
+                      .add(LoadPersonalNotes(widget.bookId));
+                },
+                icon: const Icon(FluentIcons.arrow_clockwise_24_regular),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip: 'רענן',
-            onPressed: () {
-              context
-                  .read<PersonalNotesBloc>()
-                  .add(LoadPersonalNotes(widget.bookId));
-            },
-            icon: const Icon(FluentIcons.arrow_clockwise_24_regular),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _showOnlyVisible = !_showOnlyVisible;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _showOnlyVisible
+                              ? FluentIcons.checkbox_checked_24_regular
+                              : FluentIcons.checkbox_unchecked_24_regular,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'הצג רק הערות לטקסט הנראה',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Text(
+                '$visibleNotes/$totalNotes',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildContent(BuildContext context, PersonalNotesState state) {
+  Widget _buildContent(BuildContext context, PersonalNotesState state, List<int> visibleIndices) {
     if (state.errorMessage != null) {
       return Center(
         child: Padding(
@@ -145,32 +211,48 @@ class _PersonalNotesSidebarState extends State<PersonalNotesSidebar> {
       );
     }
 
+    // סינון ההערות לפי הטקסט הנראה במסך
+    var locatedNotes = state.locatedNotes;
+    if (_showOnlyVisible && visibleIndices.isNotEmpty) {
+      locatedNotes = locatedNotes.where((note) {
+        if (note.lineNumber == null) return false;
+        // lineNumber הוא 1-based, visibleIndices הוא 0-based
+        return visibleIndices.contains(note.lineNumber! - 1);
+      }).toList();
+    }
+
     // סינון ההערות לפי שאילתת החיפוש
     final filteredLocatedNotes = _searchQuery.isEmpty
-        ? state.locatedNotes
-        : state.locatedNotes.where((note) {
+        ? locatedNotes
+        : locatedNotes.where((note) {
             final query = _searchQuery.toLowerCase();
             return note.content.toLowerCase().contains(query) ||
                 note.lineNumber.toString().contains(query);
           }).toList();
 
-    final filteredMissingNotes = _searchQuery.isEmpty
-        ? state.missingNotes
-        : state.missingNotes.where((note) {
-            final query = _searchQuery.toLowerCase();
-            return note.content.toLowerCase().contains(query) ||
-                (note.lastKnownLineNumber?.toString().contains(query) ?? false);
-          }).toList();
+    // הערות חסרות מיקום - מוצגות רק אם לא מסננים לפי טקסט נראה
+    final filteredMissingNotes = _showOnlyVisible
+        ? <PersonalNote>[]
+        : (_searchQuery.isEmpty
+            ? state.missingNotes
+            : state.missingNotes.where((note) {
+                final query = _searchQuery.toLowerCase();
+                return note.content.toLowerCase().contains(query) ||
+                    (note.lastKnownLineNumber?.toString().contains(query) ?? false);
+              }).toList());
 
-    // אם אין תוצאות חיפוש
-    if (_searchQuery.isNotEmpty &&
-        filteredLocatedNotes.isEmpty &&
-        filteredMissingNotes.isEmpty) {
+    // אם אין תוצאות
+    if (filteredLocatedNotes.isEmpty && filteredMissingNotes.isEmpty) {
+      final message = _showOnlyVisible && visibleIndices.isNotEmpty
+          ? 'אין הערות לטקסט הנראה במסך'
+          : (_searchQuery.isNotEmpty
+              ? 'לא נמצאו הערות התואמות לחיפוש'
+              : 'אין עדיין הערות על ספר זה');
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
-            'לא נמצאו הערות התואמות לחיפוש',
+            message,
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
             ),

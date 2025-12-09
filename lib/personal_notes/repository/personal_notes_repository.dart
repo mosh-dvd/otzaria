@@ -1,24 +1,20 @@
 import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
-import 'package:otzaria/personal_notes/migration/legacy_notes_converter.dart';
 import 'package:otzaria/personal_notes/models/personal_note.dart';
 import 'package:otzaria/personal_notes/services/personal_notes_service.dart';
-import 'package:otzaria/personal_notes/storage/personal_notes_storage.dart';
+import 'package:otzaria/personal_notes/storage/personal_notes_database.dart';
 
 class PersonalNotesRepository {
   final FileSystemData _fileSystem;
   final PersonalNotesService _service;
-  final LegacyNotesConverter _converter;
-  final PersonalNotesStorage _storage;
+  final PersonalNotesDatabase _database;
 
   PersonalNotesRepository({
     FileSystemData? fileSystemData,
     PersonalNotesService? service,
-    LegacyNotesConverter? converter,
-    PersonalNotesStorage? storage,
+    PersonalNotesDatabase? database,
   })  : _fileSystem = fileSystemData ?? FileSystemData.instance,
         _service = service ?? PersonalNotesService(),
-        _converter = converter ?? LegacyNotesConverter(),
-        _storage = storage ?? PersonalNotesStorage.instance;
+        _database = database ?? PersonalNotesDatabase.instance;
 
   Future<List<PersonalNote>> loadNotes(String bookId) async {
     final content = await _loadBookContent(bookId);
@@ -81,12 +77,8 @@ class PersonalNotesRepository {
     );
   }
 
-  Future<LegacyConversionSummary> convertLegacyNotes() async {
-    return _converter.convert();
-  }
-
-  Future<List<StoredBookNotes>> listBooksWithNotes() {
-    return _storage.listStoredBooks();
+  Future<List<BookNotesInfo>> listBooksWithNotes() {
+    return _database.listBooksWithNotes();
   }
 
   Future<String> _loadBookContent(String bookId) async {

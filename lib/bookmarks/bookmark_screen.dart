@@ -29,6 +29,10 @@ class BookmarkView extends StatelessWidget {
 
     context.read<TabsBloc>().add(AddTab(tab));
     context.read<NavigationBloc>().add(const NavigateToScreen(Screen.reading));
+    // Close the dialog if this view is displayed inside one
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -51,8 +55,9 @@ class BookmarkView extends StatelessWidget {
           emptyText: 'אין סימניות',
           notFoundText: 'לא נמצאו תוצאות',
           clearAllText: 'מחק את כל הסימניות',
-          leadingIconBuilder: (item) =>
-              item.book is PdfBook ? const Icon(FluentIcons.document_pdf_24_regular) : null,
+          leadingIconBuilder: (item) => item.book is PdfBook
+              ? const Icon(FluentIcons.document_pdf_24_regular)
+              : null,
         );
       },
     );

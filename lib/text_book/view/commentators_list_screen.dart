@@ -10,8 +10,11 @@ import 'package:otzaria/widgets/filter_list/src/filter_list_dialog.dart';
 import 'package:otzaria/widgets/filter_list/src/theme/filter_list_theme.dart';
 
 class CommentatorsListView extends StatefulWidget {
+  final VoidCallback? onCommentatorSelected;
+
   const CommentatorsListView({
     super.key,
+    this.onCommentatorSelected,
   });
 
   @override
@@ -22,6 +25,13 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
   TextEditingController searchController = TextEditingController();
   List<String> selectedTopics = [];
   List<String> commentatorsList = [];
+
+  /// עדכון רשימת המפרשים הפעילים וסגירת מסך הבחירה
+  void _updateAndNotify(List<String> newCommentators) {
+    context.read<TextBookBloc>().add(UpdateCommentators(newCommentators));
+    widget.onCommentatorSelected?.call();
+  }
+
   List<String> _torahShebichtav = [];
   List<String> _chazal = [];
   List<String> _rishonim = [];
@@ -226,8 +236,8 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                               !e.startsWith('__BUTTON_'))
                           .toList();
                       if (checked ?? false) {
-                        context.read<TextBookBloc>().add(UpdateCommentators(
-                            {...state.activeCommentators, ...items}.toList()));
+                        _updateAndNotify(
+                            {...state.activeCommentators, ...items}.toList());
                       } else {
                         context.read<TextBookBloc>().add(UpdateCommentators(
                             state.activeCommentators
@@ -258,6 +268,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                               for (final t in _torahShebichtav) {
                                 if (!current.contains(t)) current.add(t);
                               }
+                              _updateAndNotify(current);
                             } else {
                               current.removeWhere(_torahShebichtav.contains);
                             }
@@ -280,6 +291,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                               for (final t in _chazal) {
                                 if (!current.contains(t)) current.add(t);
                               }
+                              _updateAndNotify(current);
                             } else {
                               current.removeWhere(_chazal.contains);
                             }
@@ -302,6 +314,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                               for (final t in _rishonim) {
                                 if (!current.contains(t)) current.add(t);
                               }
+                              _updateAndNotify(current);
                             } else {
                               current.removeWhere(_rishonim.contains);
                             }
@@ -324,6 +337,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                               for (final t in _acharonim) {
                                 if (!current.contains(t)) current.add(t);
                               }
+                              _updateAndNotify(current);
                             } else {
                               current.removeWhere(_acharonim.contains);
                             }
@@ -346,6 +360,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                               for (final t in _modern) {
                                 if (!current.contains(t)) current.add(t);
                               }
+                              _updateAndNotify(current);
                             } else {
                               current.removeWhere(_modern.contains);
                             }
@@ -368,6 +383,7 @@ class CommentatorsListViewState extends State<CommentatorsListView> {
                               for (final t in _ungrouped) {
                                 if (!current.contains(t)) current.add(t);
                               }
+                              _updateAndNotify(current);
                             } else {
                               current.removeWhere(_ungrouped.contains);
                             }

@@ -4,27 +4,41 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/file_sync/file_sync_event.dart';
 import 'package:otzaria/file_sync/file_sync_state.dart';
 import 'package:otzaria/file_sync/file_sync_repository.dart';
+import 'package:otzaria/settings/settings_repository.dart';
 
 class FileSyncBloc extends Bloc<FileSyncEvent, FileSyncState> {
   final FileSyncRepository repository;
   Timer? _progressTimer;
 
-  FileSyncBloc({
-    required this.repository,
-  }) : super(const FileSyncState()) {
+  // Getter לבדיקת מצב אופליין
+  bool get _isOffline =>
+      Settings.getValue<bool>(SettingsRepository.keyOfflineMode) ?? false;
+
+  FileSyncBloc({required this.repository}) : super(const FileSyncState()) {
     on<StartSync>(_onStartSync);
     on<StopSync>(_onStopSync);
     on<UpdateProgress>(_onUpdateProgress);
     on<ResetState>(_onResetState);
 
-    // Check for auto-sync setting
-    if (Settings.getValue<bool>('key-auto-sync') ?? false) {
+    // Check for auto-sync setting and offline mode
+    final isAutoSync =
+        Settings.getValue<bool>(SettingsRepository.keyAutoSync) ?? false;
+    if (isAutoSync && !_isOffline) {
       add(const StartSync());
     }
   }
 
   Future<void> _onStartSync(
       StartSync event, Emitter<FileSyncState> emit) async {
+    // Check if offline mode is enabled
+    if (_isOffline) {
+      emit(state.copyWith(
+        status: FileSyncStatus.initial,
+        message: 'מצב אופליין מופעל',
+      ));
+      return;
+    }
+
     // If already syncing or completed, reset first
     if (state.status == FileSyncStatus.syncing ||
         state.status == FileSyncStatus.completed) {
