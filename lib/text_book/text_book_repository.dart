@@ -1,14 +1,17 @@
 import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
+import 'package:otzaria/data/data_providers/sqlite_data_provider.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/models/links.dart';
-import 'package:otzaria/utils/text_manipulation.dart';
 
 class TextBookRepository {
   final FileSystemData _fileSystem;
+  final SqliteDataProvider _sqliteProvider;
 
   TextBookRepository({
     required FileSystemData fileSystem,
-  }) : _fileSystem = fileSystem;
+    SqliteDataProvider? sqliteProvider,
+  })  : _fileSystem = fileSystem,
+        _sqliteProvider = sqliteProvider ?? SqliteDataProvider.instance;
 
   Future<String> getBookContent(TextBook book) async {
     return await book.text;
@@ -22,33 +25,31 @@ class TextBookRepository {
     return await book.tableOfContents;
   }
 
-  Future<List<String>> getAvailableCommentators(List<Link> links) async {
-    List<Link> filteredLinks = links
-        .where((link) =>
-            link.connectionType == 'commentary' ||
-            link.connectionType == 'targum')
-        .toList();
-
-    List<String> paths = filteredLinks.map((e) => e.path2).toList();
-    List<String> uniquePaths = paths.toSet().toList();
-    List<String> commentatorTitles = uniquePaths
-        .map(
-          (e) => getTitleFromPath(e),
-        )
-        .toList();
-
-    // Filter commentators asynchronously
-    List<String> availableCommentators = [];
-    for (String title in commentatorTitles) {
-      if (await _fileSystem.bookExists(title+"_links")) {
-        availableCommentators.add(title);
-      }
+  /// מחזיר רשימת פרשנים זמינים לספר מה-DB
+  Future<List<String>> getAvailableCommentators(TextBook book) async {
+    final repository = _sqliteProvider.repository;
+    if (repository == null) {
+      return [];
     }
 
-    availableCommentators.sort(
-      (a, b) => a.compareTo(b),
-    );
-    return availableCommentators;
+    // מקבל את ה-book מה-DB לפי שם
+    final dbBook = await repository.getBookByTitle(book.title);
+    if (dbBook == null) {
+      return [];
+    }
+
+    // שולף את הפרשנים ישירות מה-DB
+    final commentatorsData =
+        await repository.database.linkDao.selectCommentatorsByBook(dbBook.id);
+
+    // ממפה לרשימת שמות ייחודיים
+    final commentatorTitles = commentatorsData
+        .map((row) => row['targetBookTitle'] as String)
+        .toSet()
+        .toList();
+
+    commentatorTitles.sort((a, b) => a.compareTo(b));
+    return commentatorTitles;
   }
 
   Future<bool> bookExists(String title) async {

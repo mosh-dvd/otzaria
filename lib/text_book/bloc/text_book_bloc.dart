@@ -121,7 +121,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       final Map<String, List<String>> eras;
       if (event.loadCommentators) {
         availableCommentators =
-            await _repository.getAvailableCommentators(links);
+            await _repository.getAvailableCommentators(book);
         eras = await utils.splitByEra(availableCommentators);
       } else {
         availableCommentators = [];
