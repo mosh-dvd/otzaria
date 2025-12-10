@@ -169,16 +169,16 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
               ),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                width: _isSearchFocused ? 140 : 100,
-                height: 32,
+                width: _isSearchFocused ? 100 : 60,
+                height: 28,
                 child: TextField(
                   controller: _searchController,
                   focusNode: _searchFocusNode,
-                  style: const TextStyle(fontSize: 12),
+                  style: const TextStyle(fontSize: 11),
                   decoration: InputDecoration(
-                    hintText: 'חפש...',
+                    hintText: 'חיפוש',
                     hintStyle: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       color: Colors.grey[600],
                     ),
                     border: UnderlineInputBorder(
@@ -187,12 +187,12 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
                     focusedBorder: const UnderlineInputBorder(
                       borderSide: BorderSide(
                         color: Color(0xFFA88B68),
-                        width: 2,
+                        width: 1.5,
                       ),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 4,
+                      horizontal: 4,
+                      vertical: 2,
                     ),
                     isDense: true,
                   ),
