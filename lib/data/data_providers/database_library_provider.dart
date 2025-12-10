@@ -60,20 +60,21 @@ class DatabaseLibraryProvider implements LibraryProvider {
 
       // Cache titles for quick lookup
       _cachedTitles.clear();
-      
+
       for (final dbBook in dbBooks) {
         _cachedTitles.add(dbBook.title);
-        
-        final categoryName = dbBook.topics.isNotEmpty
-            ? dbBook.topics.first.name
-            : 'ללא קטגוריה';
+
+        final categoryName =
+            dbBook.topics.isNotEmpty ? dbBook.topics.first.name : 'ללא קטגוריה';
 
         final book = TextBook(
           title: dbBook.title,
           author: dbBook.authors.isNotEmpty ? dbBook.authors.first.name : null,
           heShortDesc: dbBook.heShortDesc,
-          pubDate: dbBook.pubDates.isNotEmpty ? dbBook.pubDates.first.date : null,
-          pubPlace: dbBook.pubPlaces.isNotEmpty ? dbBook.pubPlaces.first.name : null,
+          pubDate:
+              dbBook.pubDates.isNotEmpty ? dbBook.pubDates.first.date : null,
+          pubPlace:
+              dbBook.pubPlaces.isNotEmpty ? dbBook.pubPlaces.first.name : null,
           order: dbBook.order.toInt(),
           topics: dbBook.topics.map((t) => t.name).join(', '),
         );
@@ -81,9 +82,10 @@ class DatabaseLibraryProvider implements LibraryProvider {
         booksByCategory.putIfAbsent(categoryName, () => []);
         booksByCategory[categoryName]!.add(book);
       }
-      
+
       _titlesCached = true;
-      debugPrint('💾 Database loaded ${dbBooks.length} books into ${booksByCategory.length} categories');
+      debugPrint(
+          '💾 Database loaded ${dbBooks.length} books into ${booksByCategory.length} categories');
     } catch (e) {
       debugPrint('⚠️ Error loading books from database: $e');
     }
@@ -160,30 +162,47 @@ class DatabaseLibraryProvider implements LibraryProvider {
     }
 
     debugPrint('💾 Building library catalog from database...');
-    
+
     final repository = _sqliteProvider.repository!;
-    
-    // Get all books grouped by category
-    final allDbBooks = await repository.database.bookDao.getAllBooks();
+    final db = await repository.database.database;
+
+    // OPTIMIZATION 1: Load all books with relations in a single optimized query
+    final allDbBooks =
+        await repository.database.bookDao.getAllBooksWithRelations();
     final booksByCategory = <int, List<db_models.Book>>{};
-    
-    for (final book in allDbBooks) {
+
+    for (final bookData in allDbBooks) {
+      final book = db_models.Book.fromJson(bookData);
       booksByCategory.putIfAbsent(book.categoryId, () => []);
       booksByCategory[book.categoryId]!.add(book);
     }
-    
-    debugPrint('💾 Building catalog from ${allDbBooks.length} books');
 
-    // Build catalog tree starting from root categories
-    final rootCategories = await repository.getRootCategories();
+    debugPrint('💾 Loaded ${allDbBooks.length} books');
+
+    // OPTIMIZATION 2: Load all categories at once and build a parent-child map
+    final allCategoriesData = await db.rawQuery('SELECT * FROM category');
+    final allCategories = allCategoriesData
+        .map((row) => db_models.Category.fromJson(row))
+        .toList();
+
+    final categoriesByParent = <int?, List<db_models.Category>>{};
+    for (final cat in allCategories) {
+      categoriesByParent.putIfAbsent(cat.parentId, () => []);
+      categoriesByParent[cat.parentId]!.add(cat);
+    }
+
+    debugPrint('💾 Loaded ${allCategories.length} categories');
+
+    // Build catalog tree starting from root categories (parentId = null)
+    final rootCategories = categoriesByParent[null] ?? [];
     final Library library = Library(categories: []);
-    
+
     int totalCategories = 0;
     for (final rootCategory in rootCategories) {
-      final catalogCategory = await _buildCatalogCategoryRecursive(
+      final catalogCategory = _buildCatalogCategoryRecursiveOptimized(
         rootCategory,
         booksByCategory,
-        repository,
+        categoriesByParent,
         library,
         metadata,
       );
@@ -194,18 +213,19 @@ class DatabaseLibraryProvider implements LibraryProvider {
     // Sort all categories and books
     _sortLibraryRecursive(library);
 
-    debugPrint('💾 Database catalog built with $totalCategories categories and ${allDbBooks.length} books');
+    debugPrint(
+        '💾 Database catalog built with $totalCategories categories and ${allDbBooks.length} books');
     return library;
   }
 
-  /// Recursively builds a catalog category with its subcategories and books.
-  Future<Category> _buildCatalogCategoryRecursive(
+  /// Recursively builds a catalog category with its subcategories and books (OPTIMIZED - no async).
+  Category _buildCatalogCategoryRecursiveOptimized(
     db_models.Category dbCategory,
     Map<int, List<db_models.Book>> booksByCategory,
-    dynamic repository,
+    Map<int?, List<db_models.Category>> categoriesByParent,
     Category parent,
     Map<String, Map<String, dynamic>> metadata,
-  ) async {
+  ) {
     // Create the category
     final category = Category(
       title: dbCategory.title,
@@ -226,12 +246,12 @@ class DatabaseLibraryProvider implements LibraryProvider {
     }
 
     // Get subcategories and build them recursively
-    final children = await repository.getCategoryChildren(dbCategory.id);
+    final children = categoriesByParent[dbCategory.id] ?? [];
     for (final child in children) {
-      final subCategory = await _buildCatalogCategoryRecursive(
+      final subCategory = _buildCatalogCategoryRecursiveOptimized(
         child,
         booksByCategory,
-        repository,
+        categoriesByParent,
         category,
         metadata,
       );
@@ -248,19 +268,19 @@ class DatabaseLibraryProvider implements LibraryProvider {
     Map<String, Map<String, dynamic>> metadata,
   ) {
     final bookMeta = metadata[dbBook.title];
-    
+
     return TextBook(
       title: dbBook.title,
       category: category,
-      author: dbBook.authors.isNotEmpty 
-          ? dbBook.authors.first.name 
+      author: dbBook.authors.isNotEmpty
+          ? dbBook.authors.first.name
           : bookMeta?['author'],
       heShortDesc: dbBook.heShortDesc ?? bookMeta?['heShortDesc'],
-      pubDate: dbBook.pubDates.isNotEmpty 
-          ? dbBook.pubDates.first.date 
+      pubDate: dbBook.pubDates.isNotEmpty
+          ? dbBook.pubDates.first.date
           : bookMeta?['pubDate'],
-      pubPlace: dbBook.pubPlaces.isNotEmpty 
-          ? dbBook.pubPlaces.first.name 
+      pubPlace: dbBook.pubPlaces.isNotEmpty
+          ? dbBook.pubPlaces.first.name
           : bookMeta?['pubPlace'],
       order: dbBook.order.toInt(),
       topics: dbBook.topics.map((t) => t.name).join(', '),
@@ -269,7 +289,9 @@ class DatabaseLibraryProvider implements LibraryProvider {
 
   /// Counts the total number of categories in the tree.
   int _countCategories(Category category) {
-    return 1 + category.subCategories.fold(0, (sum, sub) => sum + _countCategories(sub));
+    return 1 +
+        category.subCategories
+            .fold(0, (sum, sub) => sum + _countCategories(sub));
   }
 
   /// Recursively sorts all categories and books in the library.
@@ -297,7 +319,7 @@ class DatabaseLibraryProvider implements LibraryProvider {
       }
 
       final db = await _sqliteProvider.repository!.database.database;
-      
+
       // Get all links where this book is the source
       final result = await db.rawQuery('''
         SELECT 
@@ -318,8 +340,9 @@ class DatabaseLibraryProvider implements LibraryProvider {
 
       final links = result.map((row) {
         final targetTitle = row['targetBookTitle'] as String;
-        final connectionType = row['connectionTypeName'] as String? ?? 'reference';
-        
+        final connectionType =
+            row['connectionTypeName'] as String? ?? 'reference';
+
         return Link(
           heRef: targetTitle,
           index1: (row['sourceLineIndex'] as int) + 1,
@@ -353,10 +376,10 @@ class DatabaseLibraryProvider implements LibraryProvider {
       }
 
       // Get the target book text and extract the specific line
-      final targetTitle = link.path2.contains('/') 
+      final targetTitle = link.path2.contains('/')
           ? link.path2.split('/').last.replaceAll('.txt', '')
           : link.path2;
-      
+
       final bookText = await _sqliteProvider.getBookTextFromDb(targetTitle);
       if (bookText == null) {
         return 'שגיאה: הספר לא נמצא במסד הנתונים';

@@ -21,6 +21,9 @@ class TocEntry {
   /// The identifier of the associated line, or null if not linked to a specific line.
   final int? lineId;
 
+  /// The index of the associated line in the book (0-based).
+  final int? lineIndex;
+
   /// Indicates if this TOC entry is the last child of its parent.
   final bool isLastChild;
 
@@ -35,26 +38,28 @@ class TocEntry {
     this.text = "",
     required this.level,
     this.lineId,
+    this.lineIndex,
     this.isLastChild = false,
     this.hasChildren = false,
   });
 
   /// Creates a TocEntry instance from a map (e.g., a database row).
   factory TocEntry.fromMap(Map<String, dynamic> map) {
-    String text ="";
+    String text = "";
     try {
-      text=map['text'] as String;
+      text = map['text'] as String;
     } catch (e) {
-      text ="---צריך תיקון--";
+      text = "---צריך תיקון--";
     }
     return TocEntry(
       id: map['id'] as int,
       bookId: map['bookId'] as int,
       parentId: map['parentId'] as int?,
       textId: map['textId'] as int?,
-      text: text ,
+      text: text,
       level: map['level'] as int,
       lineId: map['lineId'] as int?,
+      lineIndex: map['lineIndex'] as int?,
       isLastChild: (map['isLastChild'] ?? 0) == 1,
       hasChildren: (map['hasChildren'] ?? 0) == 1,
     );
@@ -70,6 +75,7 @@ class TocEntry {
       text: json['text'] as String? ?? '',
       level: json['level'] as int,
       lineId: json['lineId'] as int?,
+      lineIndex: json['lineIndex'] as int?,
       isLastChild: json['isLastChild'] as bool? ?? false,
       hasChildren: json['hasChildren'] as bool? ?? false,
     );
@@ -83,6 +89,7 @@ class TocEntry {
     String? text,
     int? level,
     int? lineId,
+    int? lineIndex,
     bool? isLastChild,
     bool? hasChildren,
   }) {
@@ -94,16 +101,19 @@ class TocEntry {
       text: text ?? this.text,
       level: level ?? this.level,
       lineId: lineId ?? this.lineId,
+      lineIndex: lineIndex ?? this.lineIndex,
       isLastChild: isLastChild ?? this.isLastChild,
       hasChildren: hasChildren ?? this.hasChildren,
     );
   }
 
   @override
-  String toString() => 'TocEntry(id: $id, bookId: $bookId, level: $level, text: "$text")';
+  String toString() =>
+      'TocEntry(id: $id, bookId: $bookId, level: $level, text: "$text")';
 
   @override
-  bool operator ==(Object other) => identical(this, other) || other is TocEntry && other.id == id;
+  bool operator ==(Object other) =>
+      identical(this, other) || other is TocEntry && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
