@@ -30,6 +30,33 @@ class PaginatedMainTextViewer extends StatefulWidget {
 
 class _PaginatedMainTextViewerState extends State<PaginatedMainTextViewer> {
   @override
+  void initState() {
+    super.initState();
+    // Listen to scroll position changes and update selected index
+    widget.textBookState.positionsListener.itemPositions.addListener(_onScrollChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.textBookState.positionsListener.itemPositions.removeListener(_onScrollChanged);
+    super.dispose();
+  }
+
+  void _onScrollChanged() {
+    final positions = widget.textBookState.positionsListener.itemPositions.value;
+    if (positions.isNotEmpty) {
+      // Get the first visible item
+      final firstVisible = positions.reduce((a, b) => a.index < b.index ? a : b);
+      final newIndex = firstVisible.index;
+      
+      // Update selected index if it changed
+      if (widget.textBookState.selectedIndex != newIndex) {
+        context.read<TextBookBloc>().add(UpdateSelectedIndex(newIndex));
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ScrollablePositionedList.builder(
