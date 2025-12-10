@@ -163,7 +163,7 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
                   widget.commentatorName!,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 12,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -260,7 +260,7 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
                         padding: const EdgeInsets.all(8.0),
                         decoration: isSelected
                             ? BoxDecoration(
-                                color: Colors.blue.withValues(alpha: 0.1),
+                                color: Theme.of(context).colorScheme.primaryContainer.withAlpha(40),
                                 borderRadius: BorderRadius.circular(4),
                               )
                             : null,

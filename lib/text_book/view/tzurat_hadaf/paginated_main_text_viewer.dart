@@ -109,7 +109,7 @@ class _PaginatedMainTextViewerState extends State<PaginatedMainTextViewer> {
                   widget.textBookState.book.title,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 13,
                   ),
                   textAlign: TextAlign.center,
                 ),
