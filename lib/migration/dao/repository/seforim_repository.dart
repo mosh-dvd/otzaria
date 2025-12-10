@@ -12,8 +12,8 @@ import '../../core/models/search_result.dart';
 import '../../core/models/source.dart';
 import '../../core/models/toc_entry.dart';
 import '../../core/models/topic.dart';
-import '../drift/connection_type_dao.dart';
-import '../drift/database.dart';
+import '../daos/connection_type_dao.dart';
+import '../daos/database.dart';
 
 /// Repository class for accessing and manipulating the Seforim database.
 /// Provides methods for CRUD operations on books, categories, lines, TOC entries, and links.

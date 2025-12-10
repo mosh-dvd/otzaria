@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:logging/logging.dart';
 
 import '../dao/repository/seforim_repository.dart';
-import '../dao/drift/database.dart';
+import '../dao/daos/database.dart';
 
 /// Utilities to migrate an existing Otzaria database to include the new
 /// per-connection-type flags on the `book` table and populate them based
