@@ -4,9 +4,11 @@
 import 'package:otzaria/models/books.dart' as otzaria_models;
 import 'package:otzaria/library/models/library.dart' as otzaria_lib;
 import 'package:otzaria/migration/core/models/book.dart' as migration_models;
-import 'package:otzaria/migration/core/models/category.dart' as migration_models;
+import 'package:otzaria/migration/core/models/category.dart'
+    as migration_models;
 import 'package:otzaria/migration/core/models/line.dart' as migration_models;
-import 'package:otzaria/migration/core/models/toc_entry.dart' as migration_models;
+import 'package:otzaria/migration/core/models/toc_entry.dart'
+    as migration_models;
 
 /// Converts a migration Book to an otzaria TextBook
 otzaria_models.TextBook migrationBookToOtzariaBook(
@@ -16,10 +18,16 @@ otzaria_models.TextBook migrationBookToOtzariaBook(
   return otzaria_models.TextBook(
     title: migrationBook.title,
     category: category,
-    author: migrationBook.authors.isNotEmpty ? migrationBook.authors.first.name : null,
+    author: migrationBook.authors.isNotEmpty
+        ? migrationBook.authors.first.name
+        : null,
     heShortDesc: migrationBook.heShortDesc,
-    pubDate: migrationBook.pubDates.isNotEmpty ? migrationBook.pubDates.first.date : null,
-    pubPlace: migrationBook.pubPlaces.isNotEmpty ? migrationBook.pubPlaces.first.name : null,
+    pubDate: migrationBook.pubDates.isNotEmpty
+        ? migrationBook.pubDates.first.date
+        : null,
+    pubPlace: migrationBook.pubPlaces.isNotEmpty
+        ? migrationBook.pubPlaces.first.name
+        : null,
     order: migrationBook.order.toInt(),
     topics: migrationBook.topics.map((t) => t.name).join(', '),
   );
@@ -32,11 +40,11 @@ otzaria_models.TocEntry migrationTocToOtzariaToc(
 ) {
   final otzariaToc = otzaria_models.TocEntry(
     text: migrationToc.text,
-    index: migrationToc.lineId ?? 0,
+    index: migrationToc.lineIndex ?? 0,
     level: migrationToc.level,
     parent: parent,
   );
-  
+
   return otzariaToc;
 }
 

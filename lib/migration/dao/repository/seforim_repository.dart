@@ -2203,23 +2203,17 @@ class SeforimRepository {
   ///
   /// @return A list of all books
   Future<List<Book>> getAllBooks() async {
-    _logger.fine('Getting all books');
-    final books = await _database.bookDao.getAllBooks();
-    _logger.fine('Found ${books.length} books');
+    _logger.fine('Getting all books with optimized query');
 
-    // Convert the database books to model books
-    return Future.wait(books.map((bookData) async {
-      final authors = await _getBookAuthors(bookData.id);
-      final topics = await _getBookTopics(bookData.id);
-      final pubPlaces = await _getBookPubPlaces(bookData.id);
-      final pubDates = await _getBookPubDates(bookData.id);
-      return bookData.copyWith(
-        authors: authors,
-        topics: topics,
-        pubPlaces: pubPlaces,
-        pubDates: pubDates,
-      );
-    }));
+    // Use the optimized query that loads all relations in a single batch
+    final booksWithRelations =
+        await _database.bookDao.getAllBooksWithRelations();
+    _logger.fine('Found ${booksWithRelations.length} books');
+
+    // Convert to Book objects
+    return booksWithRelations
+        .map((bookData) => Book.fromJson(bookData))
+        .toList();
   }
 
   /// Counts the total number of books in the database.
