@@ -210,10 +210,10 @@ class _PaginatedMainTextViewerState extends State<PaginatedMainTextViewer> {
 
     final backgroundColor = () {
       if (isHighlighted) {
-        return theme.colorScheme.secondaryContainer.withAlpha(100);
+        return theme.colorScheme.secondaryContainer.withValues(alpha: 0.4);
       }
       if (isSelected) {
-        return theme.colorScheme.primaryContainer.withAlpha(30);
+        return theme.colorScheme.primary.withValues(alpha: 0.08);
       }
       return null;
     }();
@@ -226,7 +226,10 @@ class _PaginatedMainTextViewerState extends State<PaginatedMainTextViewer> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        color: backgroundColor,
+        curve: Curves.easeInOut,
+        decoration: backgroundColor != null
+            ? BoxDecoration(color: backgroundColor)
+            : null,
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
         child: BlocBuilder<SettingsBloc, SettingsState>(
           builder: (context, settingsState) {
@@ -259,31 +262,25 @@ class _PaginatedMainTextViewerState extends State<PaginatedMainTextViewer> {
 
             processedData = utils.formatTextWithParentheses(processedData);
 
-            return Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
+            return HtmlWidget(
+              '''
+              <div style="text-align: justify; direction: rtl;">
+                $processedData
+              </div>
+              ''',
+              key: ValueKey('html_tzurat_hadaf_$index'),
+              textStyle: TextStyle(
+                fontSize: state.fontSize,
+                fontFamily: settingsState.fontFamily,
+                height: 1.5,
               ),
-              padding: const EdgeInsets.all(8.0),
-              child: HtmlWidget(
-                '''
-                <div style="text-align: justify; direction: rtl;">
-                  $processedData
-                </div>
-                ''',
-                key: ValueKey('html_tzurat_hadaf_$index'),
-                textStyle: TextStyle(
-                  fontSize: state.fontSize,
-                  fontFamily: settingsState.fontFamily,
-                  height: 1.5,
-                ),
-                onTapUrl: (url) async {
-                  return await HtmlLinkHandler.handleLink(
-                    context,
-                    url,
-                    (tab) => widget.openBookCallback(tab),
-                  );
-                },
-              ),
+              onTapUrl: (url) async {
+                return await HtmlLinkHandler.handleLink(
+                  context,
+                  url,
+                  (tab) => widget.openBookCallback(tab),
+                );
+              },
             );
           },
         ),

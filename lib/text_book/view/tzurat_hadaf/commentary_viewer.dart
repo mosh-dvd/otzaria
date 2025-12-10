@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/models/links.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
+import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
+import 'package:otzaria/text_book/bloc/text_book_event.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
@@ -252,8 +254,11 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
             itemCount: _filteredLinks.length,
             itemBuilder: (context, index) {
               final link = _filteredLinks[index];
+              final lineIndex = link.index1 - 1;
               final isSelected = widget.selectedIndex != null &&
-                  link.index1 - 1 == widget.selectedIndex;
+                  lineIndex == widget.selectedIndex;
+              final isHighlighted =
+                  widget.textBookState.highlightedLine == lineIndex;
 
               return FutureBuilder<String>(
                 future: _getContentForLink(link),
@@ -282,27 +287,59 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
                             utils.highLight(displayText, _searchQuery);
                       }
 
-                      return Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.symmetric(vertical: 2.0),
-                        padding: const EdgeInsets.all(8.0),
-                        decoration: isSelected
-                            ? BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primaryContainer
-                                    .withAlpha(40),
-                                borderRadius: BorderRadius.circular(4),
-                              )
-                            : null,
-                        child: HtmlWidget(
-                          '<div style="text-align: justify; direction: rtl;">$displayText</div>',
-                          textStyle: TextStyle(
-                            fontSize: widget.textBookState.fontSize * 0.8,
-                            fontFamily: settingsState.commentatorsFontFamily,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+                      final backgroundColor = () {
+                        if (isHighlighted) {
+                          return Theme.of(context)
+                              .colorScheme
+                              .secondaryContainer
+                              .withValues(alpha: 0.4);
+                        }
+                        if (isSelected) {
+                          return Theme.of(context)
+                              .colorScheme
+                              .primaryContainer
+                              .withAlpha(40);
+                        }
+                        return null;
+                      }();
+
+                      return GestureDetector(
+                        onTap: () {
+                          // Scroll to the line in main text and highlight it
+                          widget.textBookState.scrollController.scrollTo(
+                            index: lineIndex,
+                            alignment: 0.05,
+                            duration: const Duration(milliseconds: 350),
+                            curve: Curves.easeInOut,
+                          );
+                          context
+                              .read<TextBookBloc>()
+                              .add(UpdateSelectedIndex(lineIndex));
+                          context
+                              .read<TextBookBloc>()
+                              .add(HighlightLine(lineIndex));
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeInOut,
+                          width: double.infinity,
+                          margin: const EdgeInsets.symmetric(vertical: 2.0),
+                          padding: const EdgeInsets.all(8.0),
+                          decoration: backgroundColor != null
+                              ? BoxDecoration(
+                                  color: backgroundColor,
+                                  borderRadius: BorderRadius.circular(4),
+                                )
+                              : null,
+                          child: HtmlWidget(
+                            '<div style="text-align: justify; direction: rtl;">$displayText</div>',
+                            textStyle: TextStyle(
+                              fontSize: widget.textBookState.fontSize * 0.8,
+                              fontFamily: settingsState.commentatorsFontFamily,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
                           ),
                         ),
                       );
