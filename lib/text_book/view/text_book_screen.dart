@@ -20,6 +20,7 @@ import 'package:otzaria/text_book/bloc/text_book_event.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/data/repository/data_repository.dart';
 import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
+import 'package:otzaria/data/data_providers/sqlite_data_provider.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/tabs/models/tab.dart';
 import 'package:otzaria/printing/printing_screen.dart';
@@ -1607,7 +1608,6 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
   /// Add book to Shamor Zachor tracking
   Future<void> _addBookToShamorZachorTracking(String bookTitle) async {
     try {
-      final state = context.read<TextBookBloc>().state as TextBookLoaded;
       final dataProvider = context.read<ShamorZachorDataProvider>();
 
       // Check if provider supports dynamic loading
@@ -1617,9 +1617,49 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         return;
       }
 
-      // 1. Get book path from library
+      // 1. Get book path from library or database
       final titleToPath = await FileSystemData.instance.titleToPath;
-      final bookPath = titleToPath[bookTitle];
+      String? bookPath = titleToPath[bookTitle];
+
+      // If not found in file system, try to get category from database
+      String categoryPath = '';
+      if (bookPath == null) {
+        final dbProvider = SqliteDataProvider.instance;
+        if (await dbProvider.databaseExists() && dbProvider.isInitialized) {
+          try {
+            final repository = dbProvider.repository;
+            if (repository != null) {
+              final book = await repository.getBookByTitle(bookTitle);
+              if (book != null) {
+                // Get category path from database
+                final category = await repository.getCategory(book.categoryId);
+                if (category != null) {
+                  // Build category path by traversing up the hierarchy
+                  final categoryParts = <String>[];
+                  dynamic currentCategory = category;
+                  while (currentCategory != null) {
+                    categoryParts.insert(0, currentCategory.title);
+                    if (currentCategory.parentId != null) {
+                      currentCategory = await repository
+                          .getCategory(currentCategory.parentId!);
+                    } else {
+                      break;
+                    }
+                  }
+                  categoryPath = categoryParts.join('/');
+                  final libraryPath =
+                      Settings.getValue<String>('key-library-path') ?? '.';
+                  bookPath =
+                      '$libraryPath${Platform.pathSeparator}אוצריא${Platform.pathSeparator}$categoryPath${Platform.pathSeparator}$bookTitle.txt';
+                  debugPrint('Book path from DB: $bookPath');
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('Error getting book path from DB: $e');
+          }
+        }
+      }
 
       if (bookPath == null) {
         UiSnack.showError('לא נמצא נתיב לספר');
@@ -1652,9 +1692,6 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         contentType = 'הלכה';
       }
 
-      debugPrint(
-          'Detected - Category: $categoryName, ContentType: $contentType');
-
       // 3. Extract clean book name
       String cleanBookName = bookTitle;
       if (bookTitle.contains(' - ')) {
@@ -1663,7 +1700,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       }
 
       // 4. Show loading indicator
-      UiSnack.show('סורק ספר ומוסיף למעקב...');
+      UiSnack.show('מוסיף ספר למעקב...');
 
       // 5. Add book via provider
       await dataProvider.addCustomBook(
@@ -1672,13 +1709,6 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         bookPath: bookPath,
         contentType: contentType,
       );
-
-      debugPrint(
-          'Book added to tracking: $cleanBookName in category $categoryName');
-      debugPrint(
-          'All categories after add: ${dataProvider.getCategoryNames()}');
-      debugPrint(
-          'Has category "$categoryName": ${dataProvider.getCategory(categoryName) != null}');
 
       // 6. Success message
       UiSnack.show('הספר "$cleanBookName" נוסף למעקב בהצלחה!');

@@ -1,16 +1,50 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:otzaria/models/books.dart';
+import 'package:otzaria/data/data_providers/library_provider_manager.dart';
 
 /// Shared TOC parsing utilities used by both the TextBook navigator and
 /// the Shamor Zachor scanner. This ensures a single source of truth for
 /// how headings are detected and converted to structures.
 class TocParser {
-  /// Parse TOC from a file path and return a flat structure compatible with
+  /// Parse TOC from a file path or database and return a flat structure compatible with
   /// Shamor Zachor scanner (list of maps with text/index/level).
   static Future<List<Map<String, dynamic>>> parseFlatFromFile(
       String bookPath) async {
     try {
+      // Extract book title from path
+      final bookTitle =
+          bookPath.split(Platform.pathSeparator).last.replaceAll('.txt', '');
+
+      // Try to get TOC from LibraryProviderManager (handles both DB and files)
+      try {
+        final tocEntries =
+            await LibraryProviderManager.instance.getBookToc(bookTitle);
+        if (tocEntries != null && tocEntries.isNotEmpty) {
+          // Convert hierarchical TOC to flat structure
+          final flatToc = <Map<String, dynamic>>[];
+          void flattenToc(List<TocEntry> entries) {
+            for (final entry in entries) {
+              flatToc.add({
+                'text': entry.text,
+                'index': entry.index,
+                'level': entry.level,
+              });
+              if (entry.children.isNotEmpty) {
+                flattenToc(entry.children);
+              }
+            }
+          }
+
+          flattenToc(tocEntries);
+          return flatToc;
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('Error getting TOC from provider: $e');
+        // Fall through to file reading
+      }
+
+      // Fallback to file reading
       final file = File(bookPath);
       if (!await file.exists()) {
         if (kDebugMode) debugPrint('Book file not found: $bookPath');
