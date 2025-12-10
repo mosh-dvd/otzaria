@@ -36,7 +36,8 @@ class SqliteDataProvider {
     if (_isInitialized) return;
     
     _libraryPath = Settings.getValue<String>('key-library-path') ?? '.';
-    _dbPath = path.join(_libraryPath, DatabaseConstants.otzariaFolderName, DatabaseConstants.databaseFileName);
+    // Database is in the library root folder (parent of אוצריא)
+    _dbPath = path.join(_libraryPath, DatabaseConstants.databaseFileName);
     
     debugPrint('Initializing SQLite database at: $_dbPath');
     
