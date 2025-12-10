@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/migration/dao/repository/seforim_repository.dart';
-import 'package:otzaria/migration/dao/drift/database.dart';
+import 'package:otzaria/migration/dao/daos/database.dart';
 import 'package:otzaria/migration/adapters/model_adapters.dart';
 import 'package:otzaria/data/constants/database_constants.dart';
 import 'package:path/path.dart' as path;
