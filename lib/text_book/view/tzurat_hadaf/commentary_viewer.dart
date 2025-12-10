@@ -170,7 +170,7 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
               ),
               // Search at bottom left
               Positioned(
-                bottom: -6,
+                bottom: -12,
                 left: 0,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
