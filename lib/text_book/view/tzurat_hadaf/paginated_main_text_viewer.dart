@@ -33,6 +33,7 @@ class _PaginatedMainTextViewerState extends State<PaginatedMainTextViewer> {
   final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
   bool _isSearchFocused = false;
+  bool _userSelectedManually = false;
 
   @override
   void initState() {
@@ -64,6 +65,12 @@ class _PaginatedMainTextViewerState extends State<PaginatedMainTextViewer> {
   }
 
   void _onScrollChanged() {
+    // Don't auto-update if user manually selected
+    if (_userSelectedManually) {
+      _userSelectedManually = false;
+      return;
+    }
+
     final positions = widget.textBookState.positionsListener.itemPositions.value;
     if (positions.isNotEmpty) {
       // Get the first visible item
@@ -178,6 +185,7 @@ class _PaginatedMainTextViewerState extends State<PaginatedMainTextViewer> {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () {
+        _userSelectedManually = true;
         context.read<TextBookBloc>().add(UpdateSelectedIndex(index));
       },
       child: AnimatedContainer(
