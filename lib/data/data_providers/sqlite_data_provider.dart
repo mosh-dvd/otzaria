@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/migration/dao/repository/seforim_repository.dart';
-import 'package:otzaria/migration/dao/drift/database.dart';
+import 'package:otzaria/migration/dao/daos/database.dart';
 import 'package:otzaria/migration/adapters/model_adapters.dart';
 import 'package:otzaria/data/constants/database_constants.dart';
 import 'package:path/path.dart' as path;
@@ -23,9 +23,9 @@ class SqliteDataProvider {
 
   /// Singleton instance
   static SqliteDataProvider? _instance;
-  
+
   SqliteDataProvider._();
-  
+
   static SqliteDataProvider get instance {
     _instance ??= SqliteDataProvider._();
     return _instance!;
@@ -34,12 +34,13 @@ class SqliteDataProvider {
   /// Initializes the database connection
   Future<void> initialize() async {
     if (_isInitialized) return;
-    
+
     _libraryPath = Settings.getValue<String>('key-library-path') ?? '.';
-    _dbPath = path.join(_libraryPath, DatabaseConstants.otzariaFolderName, DatabaseConstants.databaseFileName);
-    
+    _dbPath = path.join(_libraryPath, DatabaseConstants.otzariaFolderName,
+        DatabaseConstants.databaseFileName);
+
     debugPrint('Initializing SQLite database at: $_dbPath');
-    
+
     // Check if database file exists
     final dbFile = File(_dbPath);
     if (!await dbFile.exists()) {
@@ -47,7 +48,7 @@ class SqliteDataProvider {
       // Database will be created when first book is migrated
       return;
     }
-    
+
     try {
       final database = MyDatabase.withPath(_dbPath);
       _repository = SeforimRepository(database);
@@ -69,7 +70,7 @@ class SqliteDataProvider {
       await initialize();
     }
     if (!_isInitialized) return false;
-    
+
     try {
       final book = await _repository.getBookByTitle(title);
       return book != null;
@@ -85,11 +86,11 @@ class SqliteDataProvider {
       await initialize();
     }
     if (!_isInitialized) return null;
-    
+
     try {
       final book = await _repository.getBookByTitle(title);
       if (book == null) return null;
-      
+
       final lines = await _repository.getLines(book.id, 0, book.totalLines - 1);
       return migrationLinesToText(lines);
     } catch (e) {
@@ -104,33 +105,33 @@ class SqliteDataProvider {
       await initialize();
     }
     if (!_isInitialized) return null;
-    
+
     try {
       final book = await _repository.getBookByTitle(title);
       if (book == null) return null;
-      
+
       final migrationTocEntries = await _repository.getBookTocs(book.id);
-      
+
       // Convert migration TOC entries to otzaria TOC entries
       final Map<int, TocEntry> idToEntry = {};
       final List<TocEntry> rootEntries = [];
-      
+
       for (final migrationToc in migrationTocEntries) {
         TocEntry? parent;
         if (migrationToc.parentId != null) {
           parent = idToEntry[migrationToc.parentId];
         }
-        
+
         final otzariaToc = migrationTocToOtzariaToc(migrationToc, parent);
         idToEntry[migrationToc.id] = otzariaToc;
-        
+
         if (parent != null) {
           parent.children.add(otzariaToc);
         } else {
           rootEntries.add(otzariaToc);
         }
       }
-      
+
       return rootEntries;
     } catch (e) {
       debugPrint('Error getting book TOC from database: $e');
@@ -155,12 +156,12 @@ class SqliteDataProvider {
     if (!_isInitialized) {
       await initialize();
     }
-    
+
     final dbFile = File(_dbPath);
     if (!await dbFile.exists()) {
       throw Exception('Database file does not exist');
     }
-    
+
     await dbFile.copy(destinationPath);
     debugPrint('Database exported to: $destinationPath');
   }
@@ -171,17 +172,17 @@ class SqliteDataProvider {
     if (!await sourceFile.exists()) {
       throw Exception('Source database file does not exist');
     }
-    
+
     // Close existing connection if open
     if (_isInitialized) {
       // TODO: Add close method to repository/database
       _isInitialized = false;
     }
-    
+
     // Copy the file
     await sourceFile.copy(_dbPath);
     debugPrint('Database imported from: $sourcePath');
-    
+
     // Reinitialize
     await initialize();
   }
@@ -194,11 +195,11 @@ class SqliteDataProvider {
     if (!_isInitialized) {
       return {'books': 0, 'lines': 0, 'links': 0};
     }
-    
+
     try {
       final bookCount = await _repository.countAllBooks();
       final linkCount = await _repository.countLinks();
-      
+
       return {
         'books': bookCount,
         'links': linkCount,

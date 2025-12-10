@@ -11,10 +11,9 @@ import 'generator.dart';
 class ProgressDatabaseGenerator extends DatabaseGenerator {
   final _progressController = StreamController<GenerationProgress>.broadcast();
   final bool createIndexes;
-  
+
   Stream<GenerationProgress> get progressStream => _progressController.stream;
-  
-  int _totalBooks = 0;
+
   int _processedBooks = 0;
   int _totalLinks = 0;
   int _processedLinks = 0;
@@ -37,13 +36,15 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
           phase: GenerationPhase.processingBooks,
           currentBook: _currentBookTitle,
           processedBooks: _processedBooks,
-          totalBooks: _totalBooks,
+          totalBooks: totalBooksToProcess,
           message: 'מעבד: $_currentBookTitle',
-          progress: _totalBooks > 0 ? 0.1 + (0.5 * (_processedBooks / _totalBooks)) : 0.1,
+          progress: totalBooksToProcess > 0
+              ? 0.1 + (0.5 * (_processedBooks / totalBooksToProcess))
+              : 0.1,
         ));
       }
     });
-    
+
     try {
       _emitProgress(GenerationProgress(
         phase: GenerationPhase.initializing,
@@ -74,7 +75,7 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
           phase: GenerationPhase.finalizing,
           message: 'הושלם ללא אינדקסים - ניתן ליצור אותם מאוחר יותר',
           processedBooks: _processedBooks,
-          totalBooks: _totalBooks,
+          totalBooks: totalBooksToProcess,
           processedLinks: _processedLinks,
           totalLinks: _totalLinks,
           progress: 0.95,
@@ -83,7 +84,8 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
 
       _emitProgress(GenerationProgress.complete());
     } catch (e, stackTrace) {
-      Logger('ProgressDatabaseGenerator').severe('Error during generation', e, stackTrace);
+      Logger('ProgressDatabaseGenerator')
+          .severe('Error during generation', e, stackTrace);
       _emitProgress(GenerationProgress.error(e.toString()));
       rethrow;
     } finally {
@@ -101,50 +103,55 @@ class ProgressDatabaseGenerator extends DatabaseGenerator {
   }) async {
     final filename = path.basename(bookPath);
     final title = path.basenameWithoutExtension(filename);
-    
+
     // Update current book title (will be picked up by timer)
     _currentBookTitle = title;
     _processedBooks++;
 
-    await super.createAndProcessBook(bookPath, categoryId, metadata, isBaseBook: isBaseBook);
+    await super.createAndProcessBook(bookPath, categoryId, metadata,
+        isBaseBook: isBaseBook);
   }
 
   @override
   Future<int> processLinkFile(String linkFile) async {
-    final bookTitle = path.basenameWithoutExtension(path.basename(linkFile))
+    final bookTitle = path
+        .basenameWithoutExtension(path.basename(linkFile))
         .replaceAll('_links', '');
-    
+
     _emitProgress(GenerationProgress(
       phase: GenerationPhase.processingLinks,
       currentBook: bookTitle,
       processedBooks: _processedBooks,
-      totalBooks: _totalBooks,
+      totalBooks: totalBooksToProcess,
       processedLinks: _processedLinks,
       message: 'מעבד קישורים: $bookTitle',
-      progress: 0.6 + (0.3 * (_processedLinks / (_totalLinks > 0 ? _totalLinks : 1))),
+      progress:
+          0.6 + (0.3 * (_processedLinks / (_totalLinks > 0 ? _totalLinks : 1))),
     ));
 
     final result = await super.processLinkFile(linkFile);
     _processedLinks += result;
-    
+
     return result;
   }
-
-
 
   @override
   Future<void> processLinks() async {
     // Check if links directory is in sourceDirectory or in parent directory
     Directory linksDir = Directory(path.join(sourceDirectory, 'links'));
-    if (!await linksDir.exists() && path.basename(sourceDirectory) == 'אוצריא') {
+    if (!await linksDir.exists() &&
+        path.basename(sourceDirectory) == 'אוצריא') {
       // If user selected "אוצריא" directory, look for links in parent
       linksDir = Directory(path.join(path.dirname(sourceDirectory), 'links'));
     }
-    
+
     if (await linksDir.exists()) {
-      _totalLinks = await linksDir.list().where((e) => e is File && path.extension(e.path) == '.json').length;
+      _totalLinks = await linksDir
+          .list()
+          .where((e) => e is File && path.extension(e.path) == '.json')
+          .length;
     }
-    
+
     await super.processLinks();
   }
 
