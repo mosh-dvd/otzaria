@@ -137,7 +137,7 @@ class _CommentaryViewerState extends State<CommentaryViewer>
             index: targetIndex,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
-            alignment: 0.2,
+            alignment: 0.0,
           );
         }
       });
