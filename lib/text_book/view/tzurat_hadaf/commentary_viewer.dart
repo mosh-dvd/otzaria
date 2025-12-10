@@ -7,6 +7,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
+import 'package:otzaria/models/books.dart';
 
 class CommentaryViewer extends StatefulWidget {
   final String? commentatorName;
@@ -32,6 +33,8 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
   List<Link> _filteredLinks = [];
   String _searchQuery = '';
   bool _isSearchFocused = false;
+  final Map<String, List<String>> _loadedBooks =
+      {}; // Cache for loaded book contents
 
   @override
   void initState() {
@@ -54,19 +57,51 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
     });
   }
 
-  void _onSearchChanged() {
-    setState(() {
-      _searchQuery = _searchController.text;
-      _filterLinks();
-    });
+  void _onSearchChanged() async {
+    _searchQuery = _searchController.text;
+    await _filterLinks();
+    setState(() {});
   }
 
-  void _filterLinks() {
+  Future<void> _filterLinks() async {
     if (_searchQuery.isEmpty) {
       _filteredLinks = _relevantLinks;
     } else {
-      _filteredLinks = _relevantLinks; // נציג הכל ונסנן בזמן הרינדור
+      final searchableQuery = utils.removeVolwels(_searchQuery.toLowerCase());
+      final filtered = <Link>[];
+
+      for (final link in _relevantLinks) {
+        final content = await _getContentForLink(link);
+        final searchableContent = utils.removeVolwels(content.toLowerCase());
+        if (searchableContent.contains(searchableQuery)) {
+          filtered.add(link);
+        }
+      }
+
+      _filteredLinks = filtered;
     }
+  }
+
+  Future<String> _getContentForLink(Link link) async {
+    final bookPath = link.path2;
+
+    // Load the entire book if not already loaded
+    if (!_loadedBooks.containsKey(bookPath)) {
+      final book = TextBook(title: utils.getTitleFromPath(bookPath));
+      final bookContent = await book.text;
+      final lines = bookContent.split('\n');
+      _loadedBooks[bookPath] = lines;
+    }
+
+    // Get the specific line from the loaded book
+    final lines = _loadedBooks[bookPath]!;
+    final index = link.index2 - 1;
+
+    if (index >= 0 && index < lines.length) {
+      return lines[index];
+    }
+
+    return '';
   }
 
   @override
@@ -156,6 +191,7 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
             ),
           ),
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
               // Title centered
               Center(
@@ -220,7 +256,7 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
                   link.index1 - 1 == widget.selectedIndex;
 
               return FutureBuilder<String>(
-                future: link.content,
+                future: _getContentForLink(link),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return const SizedBox(
@@ -229,15 +265,6 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
                   }
 
                   final content = snapshot.data!;
-                  
-                  // Filter by search query
-                  if (_searchQuery.isNotEmpty) {
-                    final searchableContent = utils.removeVolwels(content.toLowerCase());
-                    final searchableQuery = utils.removeVolwels(_searchQuery.toLowerCase());
-                    if (!searchableContent.contains(searchableQuery)) {
-                      return const SizedBox.shrink(); // Hide non-matching items
-                    }
-                  }
 
                   return BlocBuilder<SettingsBloc, SettingsState>(
                     builder: (context, settingsState) {
@@ -251,7 +278,8 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
 
                       // Highlight search text
                       if (_searchQuery.isNotEmpty) {
-                        displayText = utils.highLight(displayText, _searchQuery);
+                        displayText =
+                            utils.highLight(displayText, _searchQuery);
                       }
 
                       return Container(
@@ -260,7 +288,10 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
                         padding: const EdgeInsets.all(8.0),
                         decoration: isSelected
                             ? BoxDecoration(
-                                color: Theme.of(context).colorScheme.primaryContainer.withAlpha(40),
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer
+                                    .withAlpha(40),
                                 borderRadius: BorderRadius.circular(4),
                               )
                             : null,
@@ -269,8 +300,9 @@ class _CommentaryViewerState extends State<CommentaryViewer> {
                           textStyle: TextStyle(
                             fontSize: widget.textBookState.fontSize * 0.8,
                             fontFamily: settingsState.commentatorsFontFamily,
-                            fontWeight:
-                                isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                         ),
                       );
