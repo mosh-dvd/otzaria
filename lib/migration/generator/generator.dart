@@ -50,40 +50,38 @@ class DatabaseGenerator {
 
   /// Caches for performance optimization
   final Map<String, int> _bookTitleToId = {};
-  final Map<int, List<int>> _bookLineIndexToId =
-      {}; // bookId -> array of lineIds indexed by lineIndex
-
+  final Map<int, List<int>> _bookLineIndexToId = {}; // bookId -> array of lineIds indexed by lineIndex
+  
   /// Track duplicate checks for performance measurement
   int _duplicateChecks = 0;
   int _duplicatesFound = 0;
-
+  
   /// Library root path for relative path computations
   late String _libraryRoot;
-
+  
   /// Map from library-relative book key to source name
   final Map<String, String> _manifestSourcesByRel = {};
-
+  
   /// Cache of source name -> id from DB
   final Map<String, int> _sourceNameToId = {};
-
+  
   /// Source blacklist
   final Set<String> _sourceBlacklist = {'wiki_jewish_books'};
-
+  
   /// Tracks books processed from priority list to avoid double insertion
   final Set<String> _processedPriorityBookKeys = {};
-
+  
   /// Overall progress across books
   int _totalBooksToProcess = 0;
   int _processedBooksCount = 0;
 
   /// Getter for total books to process (for subclasses)
   int get totalBooksToProcess => _totalBooksToProcess;
-
+  
   /// Book contents cache: maps library-relative key -> list of lines
   final Map<String, List<String>> _bookContentCache = {};
 
-  DatabaseGenerator(this.sourceDirectory, this.repository,
-      {this.onDuplicateBook})
+  DatabaseGenerator(this.sourceDirectory, this.repository, {this.onDuplicateBook})
       : _json = const JsonCodec(reviver: _jsonReviver);
 
   /// JSON reviver to handle numeric values that might come as doubles
@@ -117,18 +115,12 @@ class DatabaseGenerator {
       await _loadSourcesFromManifest();
       await _precreateSourceEntries();
 
-      // Process hierarchy
-      String libraryPath;
-      if (path.basename(sourceDirectory) == 'אוצריא') {
-        libraryPath = sourceDirectory;
-      } else {
-        libraryPath = path.join(sourceDirectory, 'אוצריא');
-      }
-
+      // Process hierarchy - expect sourceDirectory to be the parent folder containing "אוצריא"
+      final libraryPath = path.join(sourceDirectory, 'אוצריא');
+      
       final libraryDir = Directory(libraryPath);
       if (!await libraryDir.exists()) {
-        throw StateError(
-            'התיקייה "אוצריא" לא נמצאה. נא לבחור את התיקייה "אוצריא" או את התיקייה האב שלה.');
+        throw StateError('התיקייה "אוצריא" לא נמצאה בתיקייה שנבחרה. נא לבחור את תיקיית האב של אוצריא.');
       }
 
       _libraryRoot = libraryPath;
@@ -141,9 +133,7 @@ class DatabaseGenerator {
       try {
         await _processPriorityBooks(metadata);
       } catch (e) {
-        _log.warning(
-            'Failed processing priority list; continuing with full generation',
-            e);
+        _log.warning('Failed processing priority list; continuing with full generation', e);
       }
 
       _log.info('🚀 Starting to process library directory: $libraryPath');
@@ -169,8 +159,7 @@ class DatabaseGenerator {
       _log.info('   Duplicate checks performed: $_duplicateChecks');
       _log.info('   Duplicates found: $_duplicatesFound');
       if (_duplicateChecks > 0) {
-        final dupRate =
-            (_duplicatesFound * 100 / _duplicateChecks).toStringAsFixed(1);
+        final dupRate = (_duplicatesFound * 100 / _duplicateChecks).toStringAsFixed(1);
         _log.info('   Duplicate rate: $dupRate%');
       }
     } catch (e, stackTrace) {
@@ -179,8 +168,7 @@ class DatabaseGenerator {
         await _enableForeignKeys();
         await repository.restoreNormalMode();
       } catch (innerEx) {
-        _log.warning(
-            'Error restoring database settings after failure', innerEx);
+        _log.warning('Error restoring database settings after failure', innerEx);
       }
 
       _log.severe('Error during generation', e, stackTrace);
@@ -193,17 +181,11 @@ class DatabaseGenerator {
   ///
   /// Returns a map of book titles to their metadata
   Future<Map<String, BookMetadata>> loadMetadata() async {
-    // Check if metadata.json is in sourceDirectory or in parent directory
-    File metadataFile = File(path.join(sourceDirectory, 'metadata.json'));
-    if (!await metadataFile.exists() &&
-        path.basename(sourceDirectory) == 'אוצריא') {
-      // If user selected "אוצריא" directory, look for metadata.json in parent
-      metadataFile =
-          File(path.join(path.dirname(sourceDirectory), 'metadata.json'));
-    }
-
+    // metadata.json should be in sourceDirectory (the parent folder)
+    final metadataFile = File(path.join(sourceDirectory, 'metadata.json'));
+    
     if (!await metadataFile.exists()) {
-      _log.warning('Metadata file metadata.json not found');
+      _log.warning('Metadata file metadata.json not found in $sourceDirectory');
       return {};
     }
 
@@ -220,8 +202,7 @@ class DatabaseGenerator {
         final metadataList = (_json.decode(content) as List<dynamic>)
             .map((item) => BookMetadata.fromJson(item as Map<String, dynamic>))
             .toList();
-        _log.info(
-            'Parsed metadata as List with ${metadataList.length} entries');
+        _log.info('Parsed metadata as List with ${metadataList.length} entries');
         // Convert list to map using title as key
         return {for (var item in metadataList) item.title: item};
       } catch (e) {
@@ -243,6 +224,7 @@ class DatabaseGenerator {
     int level,
     Map<String, BookMetadata> metadata,
   ) async {
+
     final dir = Directory(directory);
     final entities = await dir.list().toList();
     final sortedEntities = entities
@@ -250,8 +232,7 @@ class DatabaseGenerator {
 
     for (final entity in sortedEntities) {
       if (entity is Directory) {
-        final categoryId =
-            await createCategory(entity.path, parentCategoryId, level);
+        final categoryId = await createCategory(entity.path, parentCategoryId, level);
         await processDirectory(entity.path, categoryId, level + 1, metadata);
       } else if (entity is File && path.extension(entity.path) == '.txt') {
         // Skip if already processed from priority list
@@ -259,30 +240,26 @@ class DatabaseGenerator {
         if (_processedPriorityBookKeys.contains(key)) {
           continue;
         }
-
+        
         // Skip companion notes files named 'הערות על <title>.txt'
         final filename = path.basename(entity.path);
         final titleNoExt = path.basenameWithoutExtension(filename);
         if (titleNoExt.startsWith('הערות על ')) {
-          _log.info(
-              '📝 Skipping notes file \'$filename\' (will be attached to base book if present)');
+          _log.info('📝 Skipping notes file \'$filename\' (will be attached to base book if present)');
           continue;
         }
-
+        
         if (parentCategoryId == null) {
           _log.warning('❌ Book found without category: ${entity.path}');
           continue;
         }
-        _log.info(
-            '📚 Processing book $filename with categoryId: $parentCategoryId');
+        _log.info('📚 Processing book $filename with categoryId: $parentCategoryId');
         await createAndProcessBook(entity.path, parentCategoryId, metadata);
       } else {
-        _log.fine(
-            'Skipping entry: ${path.basename(entity.path)} (not a supported file type)');
+        _log.fine('Skipping entry: ${path.basename(entity.path)} (not a supported file type)');
       }
     }
-    _log.info(
-        '=== Finished processing directory: ${path.basename(directory)} ===');
+    _log.info('=== Finished processing directory: ${path.basename(directory)} ===');
   }
 
   /// Creates a category in the database.
@@ -297,8 +274,7 @@ class DatabaseGenerator {
     int level,
   ) async {
     final title = path.basename(categoryPath);
-    _log.info(
-        '🏗️ Creating category: \'$title\' (level $level, parent: $parentId)');
+    _log.info('🏗️ Creating category: \'$title\' (level $level, parent: $parentId)');
 
     final category = Category(
       parentId: parentId,
@@ -334,11 +310,8 @@ class DatabaseGenerator {
     if (_sourceBlacklist.contains(srcName)) {
       _log.info('⛔ Skipping \'$title\' from blacklisted source \'$srcName\'');
       _processedBooksCount++;
-      final pct = _totalBooksToProcess > 0
-          ? (_processedBooksCount * 100 ~/ _totalBooksToProcess)
-          : 0;
-      _log.info(
-          'Books progress: $_processedBooksCount/$_totalBooksToProcess ($pct%)');
+      final pct = _totalBooksToProcess > 0 ? (_processedBooksCount * 100 ~/ _totalBooksToProcess) : 0;
+      _log.info('Books progress: $_processedBooksCount/$_totalBooksToProcess ($pct%)');
       return;
     }
 
@@ -347,7 +320,7 @@ class DatabaseGenerator {
     final existingBook = await repository.checkBookExists(title);
     if (existingBook != null) {
       _duplicatesFound++;
-
+      
       // Call the callback if provided
       if (onDuplicateBook != null) {
         final shouldReplace = await onDuplicateBook!(title);
@@ -366,12 +339,12 @@ class DatabaseGenerator {
 
     // Assign a unique ID to this book
     final currentBookId = _nextBookId++;
-    _log.fine(
-        'Assigning ID $currentBookId to book \'$title\' with categoryId: $categoryId');
+    _log.fine('Assigning ID $currentBookId to book \'$title\' with categoryId: $categoryId');
 
     // Create author list if author is available in metadata
-    final authors =
-        meta?.author != null ? [Author(name: meta!.author!)] : <Author>[];
+    final authors = meta?.author != null
+        ? [Author(name: meta!.author!)]
+        : <Author>[];
 
     // Create publication places list if pubPlace is available in metadata
     final pubPlaces = meta?.pubPlace != null
@@ -379,8 +352,9 @@ class DatabaseGenerator {
         : <PubPlace>[];
 
     // Create publication dates list if pubDate is available in metadata
-    final pubDates =
-        meta?.pubDate != null ? [PubDate(date: meta!.pubDate!)] : <PubDate>[];
+    final pubDates = meta?.pubDate != null
+        ? [PubDate(date: meta!.pubDate!)]
+        : <PubDate>[];
 
     // Detect companion notes file named 'הערות על <title>.txt' in the same directory
     String? notesContent;
@@ -393,9 +367,7 @@ class DatabaseGenerator {
         // Prefer preloaded cache if available
         final key = _toLibraryRelativeKey(candidate);
         final lines = _bookContentCache[key];
-        notesContent = lines != null
-            ? lines.join('\n')
-            : await candidateFile.readAsString();
+        notesContent = lines != null ? lines.join('\n') : await candidateFile.readAsString();
       }
     } catch (e) {
       // Ignore errors reading notes
@@ -417,20 +389,17 @@ class DatabaseGenerator {
       isBaseBook: isBaseBook,
     );
 
-    _log.fine(
-        'Inserting book \'${book.title}\' with ID: ${book.id} and categoryId: ${book.categoryId}');
+    _log.fine('Inserting book \'${book.title}\' with ID: ${book.id} and categoryId: ${book.categoryId}');
     final insertedBookId = await repository.insertBook(book);
 
     // ✅ Important verification: ensure that ID and categoryId are correct
     final insertedBook = await repository.getBook(insertedBookId);
     if (insertedBook?.categoryId != categoryId) {
-      _log.warning(
-          'WARNING: Book inserted with wrong categoryId! Expected: $categoryId, Got: ${insertedBook?.categoryId}');
+      _log.warning('WARNING: Book inserted with wrong categoryId! Expected: $categoryId, Got: ${insertedBook?.categoryId}');
       // Correct the categoryId if necessary
       await repository.updateBookCategoryId(insertedBookId, categoryId);
     }
-    _log.fine(
-        'Book \'${book.title}\' inserted with ID: $insertedBookId and categoryId: $categoryId');
+    _log.fine('Book \'${book.title}\' inserted with ID: $insertedBookId and categoryId: $categoryId');
 
     // Insert acronyms for this book
     try {
@@ -448,11 +417,8 @@ class DatabaseGenerator {
 
     // Book-level progress
     _processedBooksCount++;
-    final pct = _totalBooksToProcess > 0
-        ? (_processedBooksCount * 100 ~/ _totalBooksToProcess)
-        : 0;
-    _log.info(
-        'Books progress: $_processedBooksCount/$_totalBooksToProcess ($pct%)');
+    final pct = _totalBooksToProcess > 0 ? (_processedBooksCount * 100 ~/ _totalBooksToProcess) : 0;
+    _log.info('Books progress: $_processedBooksCount/$_totalBooksToProcess ($pct%)');
   }
 
   /// Processes the content of a book, extracting lines and TOC entries.
@@ -461,8 +427,7 @@ class DatabaseGenerator {
   /// [bookId] The ID of the book in the database
   Future<void> processBookContent(String bookPath, int bookId) async {
     _log.fine('Processing content for book ID: $bookId');
-    _log.info(
-        'Processing content of book ID: $bookId (ID generated by the database)');
+    _log.info('Processing content of book ID: $bookId (ID generated by the database)');
 
     // Prefer preloaded content from RAM if available
     final key = _toLibraryRelativeKey(bookPath);
@@ -475,10 +440,9 @@ class DatabaseGenerator {
     // Update the total number of lines
     await repository.updateBookTotalLines(bookId, lines.length);
 
-    _log.info(
-        'Content processed successfully for book ID: $bookId (ID generated by the database)');
+    _log.info('Content processed successfully for book ID: $bookId (ID generated by the database)');
   }
-
+  
   /// Reads book lines from file
   Future<List<String>> _readBookLines(String bookPath) async {
     final file = File(bookPath);
@@ -491,8 +455,7 @@ class DatabaseGenerator {
   ///
   /// [bookId] The ID of the book in the database
   /// [lines] The lines of the book content
-  Future<void> processLinesWithTocEntries(
-      int bookId, List<String> lines) async {
+  Future<void> processLinesWithTocEntries(int bookId, List<String> lines) async {
     _log.fine('Processing lines and TOC entries for book ID: $bookId');
 
     // Data structures for TOC processing
@@ -500,13 +463,13 @@ class DatabaseGenerator {
     final parentStack = <int, int>{};
     final entriesByParent = <int?, List<int>>{};
     int? currentOwningTocEntryId;
-
+    
     // Batch buffers
     final linesBatch = <Line>[];
     final tocEntriesBatch = <TocEntry>[];
     final lineTocBuffer = <({int lineId, int tocId})>[];
     final tocUpdates = <({int tocId, int lineId})>[];
-
+    
     const batchSize = 1000;
 
     // First pass - collect all data
@@ -517,8 +480,7 @@ class DatabaseGenerator {
 
       if (level > 0) {
         if (plainText.trim().isEmpty) {
-          _log.fine(
-              '⚠️ Skipping empty header at level $level (line $lineIndex)');
+          _log.fine('⚠️ Skipping empty header at level $level (line $lineIndex)');
           parentStack.remove(level);
           continue;
         }
@@ -530,7 +492,7 @@ class DatabaseGenerator {
             break;
           }
         }
-
+        
         final currentTocEntryId = _nextTocEntryId++;
         final currentLineId = _nextLineId++;
 
@@ -554,7 +516,7 @@ class DatabaseGenerator {
           isLastChild: false,
           hasChildren: false,
         ));
-
+        
         parentStack[level] = currentTocEntryId;
         entriesByParent.putIfAbsent(parentId, () => []).add(currentTocEntryId);
         currentOwningTocEntryId = currentTocEntryId;
@@ -566,27 +528,26 @@ class DatabaseGenerator {
           lineIndex: lineIndex,
           content: line,
         ));
-
+        
         // Store update for later
         tocUpdates.add((tocId: currentTocEntryId, lineId: currentLineId));
-
+        
         // Buffer line-toc mapping
         lineTocBuffer.add((lineId: currentLineId, tocId: currentTocEntryId));
       } else {
         // Regular line
         final currentLineId = _nextLineId++;
-
+        
         linesBatch.add(Line(
           id: currentLineId,
           bookId: bookId,
           lineIndex: lineIndex,
           content: line,
         ));
-
+        
         // Buffer mapping for regular line if there is a current owner
         if (currentOwningTocEntryId != null) {
-          lineTocBuffer
-              .add((lineId: currentLineId, tocId: currentOwningTocEntryId));
+          lineTocBuffer.add((lineId: currentLineId, tocId: currentOwningTocEntryId));
         }
       }
 
@@ -625,19 +586,12 @@ class DatabaseGenerator {
     // Second pass: Update isLastChild and hasChildren in batch
     _log.fine('Updating isLastChild and hasChildren for book ID: $bookId');
 
-    final parentIds =
-        allTocEntries.map((e) => e.parentId).whereType<int>().toSet();
-
+    final parentIds = allTocEntries.map((e) => e.parentId).whereType<int>().toSet();
+    
     // Collect IDs to update
-    final hasChildrenIds = allTocEntries
-        .where((e) => parentIds.contains(e.id))
-        .map((e) => e.id)
-        .toList();
-    final lastChildIds = entriesByParent.values
-        .where((children) => children.isNotEmpty)
-        .map((children) => children.last)
-        .toList();
-
+    final hasChildrenIds = allTocEntries.where((e) => parentIds.contains(e.id)).map((e) => e.id).toList();
+    final lastChildIds = entriesByParent.values.where((children) => children.isNotEmpty).map((children) => children.last).toList();
+    
     // Batch update
     if (hasChildrenIds.isNotEmpty) {
       await repository.bulkUpdateTocEntryHasChildren(hasChildrenIds, true);
@@ -646,8 +600,7 @@ class DatabaseGenerator {
       await repository.bulkUpdateTocEntryIsLastChild(lastChildIds, true);
     }
 
-    _log.info(
-        '✅ Finished processing lines and TOC entries for book ID: $bookId');
+    _log.info('✅ Finished processing lines and TOC entries for book ID: $bookId');
     _log.info('   Total TOC entries: ${allTocEntries.length}');
     _log.info('   Entries with children: ${parentIds.length}');
   }
@@ -665,12 +618,12 @@ class DatabaseGenerator {
   /// Loads all lines of a book into cache
   Future<void> _loadBookLinesCache(int bookId) async {
     if (_bookLineIndexToId.containsKey(bookId)) return;
-
+    
     _log.fine('Loading lines cache for book $bookId...');
     final book = await repository.getBook(bookId);
     final totalLines = book?.totalLines ?? 0;
     final arr = List<int>.filled(totalLines, 0);
-
+    
     if (totalLines > 0) {
       final lines = await repository.getLines(bookId, 0, totalLines - 1);
       for (final ln in lines) {
@@ -680,25 +633,21 @@ class DatabaseGenerator {
         }
       }
     }
-
+    
     _bookLineIndexToId[bookId] = arr;
-    _log.fine(
-        'Loaded ${arr.length} line id/index pairs for book $bookId into memory');
+    _log.fine('Loaded ${arr.length} line id/index pairs for book $bookId into memory');
   }
+  
+
 
   /// Processes all link files in the links directory.
   /// Links connect lines between different books.
   Future<void> processLinks() async {
-    // Check if links directory is in sourceDirectory or in parent directory
-    Directory linksDir = Directory(path.join(sourceDirectory, 'links'));
-    if (!await linksDir.exists() &&
-        path.basename(sourceDirectory) == 'אוצריא') {
-      // If user selected "אוצריא" directory, look for links in parent
-      linksDir = Directory(path.join(path.dirname(sourceDirectory), 'links'));
-    }
-
+    // links directory should be in sourceDirectory (the parent folder)
+    final linksDir = Directory(path.join(sourceDirectory, 'links'));
+    
     if (!await linksDir.exists()) {
-      _log.warning('Links directory not found');
+      _log.warning('Links directory not found in $sourceDirectory');
       return;
     }
 
@@ -716,8 +665,7 @@ class DatabaseGenerator {
       if (entity is File && path.extension(entity.path) == '.json') {
         final processedLinks = await processLinkFile(entity.path);
         totalLinks += processedLinks;
-        _log.fine(
-            'Processed $processedLinks links from ${path.basename(entity.path)}, total so far: $totalLinks');
+        _log.fine('Processed $processedLinks links from ${path.basename(entity.path)}, total so far: $totalLinks');
       }
     }
 
@@ -738,9 +686,7 @@ class DatabaseGenerator {
   /// [linkFile] The path to the link file
   /// Returns the number of links successfully processed
   Future<int> processLinkFile(String linkFile) async {
-    final bookTitle = path
-        .basenameWithoutExtension(path.basename(linkFile))
-        .replaceAll('_links', '');
+    final bookTitle = path.basenameWithoutExtension(path.basename(linkFile)).replaceAll('_links', '');
     _log.fine('Processing link file for book: $bookTitle');
 
     // Use cache instead of query
@@ -788,35 +734,22 @@ class DatabaseGenerator {
           await _loadBookLinesCache(targetBookId);
 
           // Adjust indices from 1-based to 0-based
-          final sourceLineIndex = (linkData.lineIndex1.toInt() - 1)
-              .clamp(0, double.infinity)
-              .toInt();
-          final targetLineIndex = (linkData.lineIndex2.toInt() - 1)
-              .clamp(0, double.infinity)
-              .toInt();
+          final sourceLineIndex = (linkData.lineIndex1.toInt() - 1).clamp(0, double.infinity).toInt();
+          final targetLineIndex = (linkData.lineIndex2.toInt() - 1).clamp(0, double.infinity).toInt();
 
           // Use cache instead of queries
           final sourceLineArr = _bookLineIndexToId[sourceBookId];
           final targetLineArr = _bookLineIndexToId[targetBookId];
-
-          final sourceLineId = (sourceLineArr != null &&
-                  sourceLineIndex >= 0 &&
-                  sourceLineIndex < sourceLineArr.length)
-              ? (sourceLineArr[sourceLineIndex] != 0
-                  ? sourceLineArr[sourceLineIndex]
-                  : null)
+          
+          final sourceLineId = (sourceLineArr != null && sourceLineIndex >= 0 && sourceLineIndex < sourceLineArr.length) 
+              ? (sourceLineArr[sourceLineIndex] != 0 ? sourceLineArr[sourceLineIndex] : null)
               : null;
-          final targetLineId = (targetLineArr != null &&
-                  targetLineIndex >= 0 &&
-                  targetLineIndex < targetLineArr.length)
-              ? (targetLineArr[targetLineIndex] != 0
-                  ? targetLineArr[targetLineIndex]
-                  : null)
+          final targetLineId = (targetLineArr != null && targetLineIndex >= 0 && targetLineIndex < targetLineArr.length)
+              ? (targetLineArr[targetLineIndex] != 0 ? targetLineArr[targetLineIndex] : null)
               : null;
 
           if (sourceLineId == null || targetLineId == null) {
-            _log.fine(
-                'Line not found - source: $sourceLineIndex, target: $targetLineIndex');
+            _log.fine('Line not found - source: $sourceLineIndex, target: $targetLineIndex');
             skipped++;
             continue;
           }
@@ -848,12 +781,10 @@ class DatabaseGenerator {
       }
 
       final processed = links.length - skipped;
-      _log.fine(
-          'Processed $processed links out of ${links.length} (skipped: $skipped)');
+      _log.fine('Processed $processed links out of ${links.length} (skipped: $skipped)');
       return processed;
     } catch (e, stackTrace) {
-      _log.warning('Error processing link file: ${path.basename(linkFile)}', e,
-          stackTrace);
+      _log.warning('Error processing link file: ${path.basename(linkFile)}', e, stackTrace);
       return 0;
     }
   }
@@ -866,13 +797,7 @@ class DatabaseGenerator {
   List<Topic> extractTopics(String bookPath) {
     // Extract topics from the path
     final parts = path.split(bookPath);
-    final topicNames = parts
-        .take(parts.length - 1)
-        .toList()
-        .reversed
-        .take(2)
-        .toList()
-        .reversed;
+    final topicNames = parts.take(parts.length - 1).toList().reversed.take(2).toList().reversed;
 
     return topicNames.map((name) => Topic(name: name)).toList();
   }
@@ -880,6 +805,7 @@ class DatabaseGenerator {
   /// Updates the book_has_links table to indicate which books have source links, target links, or both.
   /// This should be called after all links have been processed.
   Future<void> updateBookHasLinksTable() async {
+
     // שליפת כל סוגי ההקשרים מטבלת connection_type
     final connectionTypes = await repository.getAllConnectionTypesObj();
     final connectionTypeMap = <String, int>{};
@@ -898,16 +824,13 @@ class DatabaseGenerator {
     // For each book, check if it has source links and/or target links
     for (final book in books) {
       // Check if the book has any links as source
-      final hasSourceLinks =
-          await repository.countLinksBySourceBook(book.id) > 0;
+      final hasSourceLinks = await repository.countLinksBySourceBook(book.id) > 0;
 
       // Check if the book has any links as target
-      final hasTargetLinks =
-          await repository.countLinksByTargetBook(book.id) > 0;
+      final hasTargetLinks = await repository.countLinksByTargetBook(book.id) > 0;
 
       // Update the book_has_links table with separate flags for source and target links
-      await repository.updateBookHasLinks(
-          book.id, hasSourceLinks, hasTargetLinks);
+      await repository.updateBookHasLinks(book.id, hasSourceLinks, hasTargetLinks);
 
       // Additionally: compute per-connection-type flags across source and target, then update book row
       final targumId = connectionTypeMap['TARGUM'];
@@ -915,46 +838,21 @@ class DatabaseGenerator {
       final commentaryId = connectionTypeMap['COMMENTARY'];
       final otherId = connectionTypeMap['OTHER'];
 
-      final targumCount = (targumId != null
-              ? await repository.countLinksBySourceBookAndTypeId(
-                  book.id, targumId)
-              : 0) +
-          (targumId != null
-              ? await repository.countLinksByTargetBookAndTypeId(
-                  book.id, targumId)
-              : 0);
-      final referenceCount = (referenceId != null
-              ? await repository.countLinksBySourceBookAndTypeId(
-                  book.id, referenceId)
-              : 0) +
-          (referenceId != null
-              ? await repository.countLinksByTargetBookAndTypeId(
-                  book.id, referenceId)
-              : 0);
-      final commentaryCount = (commentaryId != null
-              ? await repository.countLinksBySourceBookAndTypeId(
-                  book.id, commentaryId)
-              : 0) +
-          (commentaryId != null
-              ? await repository.countLinksByTargetBookAndTypeId(
-                  book.id, commentaryId)
-              : 0);
-      final otherCount = (otherId != null
-              ? await repository.countLinksBySourceBookAndTypeId(
-                  book.id, otherId)
-              : 0) +
-          (otherId != null
-              ? await repository.countLinksByTargetBookAndTypeId(
-                  book.id, otherId)
-              : 0);
+      final targumCount = (targumId != null ? await repository.countLinksBySourceBookAndTypeId(book.id, targumId) : 0) +
+          (targumId != null ? await repository.countLinksByTargetBookAndTypeId(book.id, targumId) : 0);
+      final referenceCount = (referenceId != null ? await repository.countLinksBySourceBookAndTypeId(book.id, referenceId) : 0) +
+          (referenceId != null ? await repository.countLinksByTargetBookAndTypeId(book.id, referenceId) : 0);
+      final commentaryCount = (commentaryId != null ? await repository.countLinksBySourceBookAndTypeId(book.id, commentaryId) : 0) +
+          (commentaryId != null ? await repository.countLinksByTargetBookAndTypeId(book.id, commentaryId) : 0);
+      final otherCount = (otherId != null ? await repository.countLinksBySourceBookAndTypeId(book.id, otherId) : 0) +
+          (otherId != null ? await repository.countLinksByTargetBookAndTypeId(book.id, otherId) : 0);
 
       final hasTargum = targumCount > 0;
       final hasReference = referenceCount > 0;
       final hasCommentary = commentaryCount > 0;
       final hasOther = otherCount > 0;
 
-      await repository.updateBookConnectionFlags(
-          book.id, hasTargum, hasReference, hasCommentary, hasOther);
+      await repository.updateBookConnectionFlags(book.id, hasTargum, hasReference, hasCommentary, hasOther);
 
       // Update counters
       if (hasSourceLinks) booksWithSourceLinks++;
@@ -979,57 +877,49 @@ class DatabaseGenerator {
   }
 
   /// Helper methods for source management and priority processing
-
+  
   /// Loads files_manifest.json and builds mapping from library-relative path to source name
   Future<void> _loadSourcesFromManifest() async {
     _manifestSourcesByRel.clear();
-    final primary = File(path.join(sourceDirectory, 'files_manifest.json'));
-    final fallback = File('otzaria-library/files_manifest.json');
-    final manifestFile = await primary.exists()
-        ? primary
-        : (await fallback.exists() ? fallback : null);
-
-    if (manifestFile == null) {
-      _log.warning(
-          'files_manifest.json not found; assigning source \'Unknown\' to all books');
+    // files_manifest.json should be in sourceDirectory (the parent folder)
+    final manifestFile = File(path.join(sourceDirectory, 'files_manifest.json'));
+    
+    if (!await manifestFile.exists()) {
+      _log.warning('files_manifest.json not found in $sourceDirectory; assigning source \'Unknown\' to all books');
       return;
     }
-
+    
     try {
       final content = await manifestFile.readAsString();
       final map = _json.decode(content) as Map<String, dynamic>;
-
+      
       for (final entry in map.entries) {
         final pathStr = entry.key;
         final parts = pathStr.split('/');
         if (parts.isEmpty) continue;
-
+        
         final sourceName = parts.first;
         final idx = parts.indexOf('אוצריא');
         if (idx < 0 || idx == parts.length - 1) continue;
-
+        
         final rel = parts.skip(idx + 1).join('/');
         final prev = _manifestSourcesByRel.putIfAbsent(rel, () => sourceName);
         if (prev != sourceName) {
-          _log.warning(
-              'Duplicate source mapping for \'$rel\': existing=$prev new=$sourceName; keeping existing');
+          _log.warning('Duplicate source mapping for \'$rel\': existing=$prev new=$sourceName; keeping existing');
         }
       }
-      _log.info(
-          'Loaded ${_manifestSourcesByRel.length} book→source mappings from manifest');
+      _log.info('Loaded ${_manifestSourcesByRel.length} book→source mappings from manifest');
     } catch (e) {
-      _log.warning(
-          'Failed to parse files_manifest.json; sources will be \'Unknown\'',
-          e);
+      _log.warning('Failed to parse files_manifest.json; sources will be \'Unknown\'', e);
     }
   }
-
+  
   /// Ensure all known source names from manifest are present in DB
   Future<void> _precreateSourceEntries() async {
     // Always ensure 'Unknown' exists
     final unknownId = await repository.insertSource('Unknown');
     _sourceNameToId['Unknown'] = unknownId;
-
+    
     // Insert all discovered sources
     final uniqueSources = _manifestSourcesByRel.values.toSet();
     for (final name in uniqueSources) {
@@ -1038,20 +928,20 @@ class DatabaseGenerator {
     }
     _log.info('Prepared ${_sourceNameToId.length} sources in DB');
   }
-
+  
   /// Compute a normalized key for a book file relative to the library root
   String _toLibraryRelativeKey(String filePath) {
     try {
-      final rel =
-          path.relative(filePath, from: _libraryRoot).replaceAll('\\', '/');
+      final rel = path.relative(filePath, from: _libraryRoot).replaceAll('\\', '/');
       return rel;
     } catch (e) {
       return path.basename(filePath);
     }
   }
-
+  
   /// Resolve a source id for a book file using the manifest mapping
-  Future<int> _resolveSourceIdFor(String filePath) async {
+  Future<int> 
+  _resolveSourceIdFor(String filePath) async {
     final rel = _toLibraryRelativeKey(filePath);
     final sourceName = _manifestSourcesByRel[rel] ?? 'Unknown';
     final cached = _sourceNameToId[sourceName];
@@ -1060,12 +950,12 @@ class DatabaseGenerator {
     _sourceNameToId[sourceName] = id;
     return id;
   }
-
+  
   String _getSourceNameFor(String filePath) {
     final rel = _toLibraryRelativeKey(filePath);
     return _manifestSourcesByRel[rel] ?? 'Unknown';
   }
-
+  
   /// Count txt files in directory for progress tracking
   Future<int> _countTxtFiles(String dirPath) async {
     try {
@@ -1085,12 +975,12 @@ class DatabaseGenerator {
       return 0;
     }
   }
-
+  
   /// Preload all book file contents into RAM
   Future<void> _preloadAllBookContents(String libraryPath) async {
     if (_bookContentCache.isNotEmpty) return;
     _log.info('Preloading book contents into RAM from $libraryPath ...');
-
+    
     final files = <String>[];
     final notesFiles = <String>[];
     final dir = Directory(libraryPath);
@@ -1098,13 +988,13 @@ class DatabaseGenerator {
       if (entity is File && path.extension(entity.path) == '.txt') {
         final filename = path.basename(entity.path);
         final titleNoExt = path.basenameWithoutExtension(filename);
-
+        
         // Separate notes files from regular books
         if (titleNoExt.startsWith('הערות על ')) {
           notesFiles.add(entity.path);
           continue;
         }
-
+        
         final rel = _toLibraryRelativeKey(entity.path);
         final src = _manifestSourcesByRel[rel] ?? 'Unknown';
         if (_sourceBlacklist.contains(src)) {
@@ -1114,10 +1004,9 @@ class DatabaseGenerator {
         files.add(entity.path);
       }
     }
-
-    _log.info(
-        'Found ${files.length} books and ${notesFiles.length} notes files to preload');
-
+    
+    _log.info('Found ${files.length} books and ${notesFiles.length} notes files to preload');
+    
     // Preload regular books
     for (final filePath in files) {
       try {
@@ -1128,7 +1017,7 @@ class DatabaseGenerator {
         _log.warning('Failed to preload $filePath', e);
       }
     }
-
+    
     // Preload notes files (for faster notesContent loading)
     for (final filePath in notesFiles) {
       try {
@@ -1139,11 +1028,10 @@ class DatabaseGenerator {
         _log.warning('Failed to preload notes file $filePath', e);
       }
     }
-
-    _log.info(
-        'Preloaded ${_bookContentCache.length} files into RAM (${files.length} books + ${notesFiles.length} notes)');
+    
+    _log.info('Preloaded ${_bookContentCache.length} files into RAM (${files.length} books + ${notesFiles.length} notes)');
   }
-
+  
   /// Process priority books first
   Future<void> _processPriorityBooks(Map<String, BookMetadata> metadata) async {
     final entries = await _loadPriorityList();
@@ -1151,45 +1039,42 @@ class DatabaseGenerator {
       _log.info('No priority entries found');
       return;
     }
-
+    
     _log.info('Processing ${entries.length} priority entries first');
-
+    
     for (var idx = 0; idx < entries.length; idx++) {
       final relative = entries[idx];
       final parts = relative.split('/').where((p) => p.isNotEmpty).toList();
       if (parts.isEmpty) continue;
-
-      final categories =
-          parts.length > 1 ? parts.sublist(0, parts.length - 1) : <String>[];
+      
+      final categories = parts.length > 1 ? parts.sublist(0, parts.length - 1) : <String>[];
       final bookFileName = parts.last;
-
+      
       // Skip notes-only entries
       if (path.basenameWithoutExtension(bookFileName).startsWith('הערות על ')) {
         _log.info('⏭️ Skipping notes file in priority list: $bookFileName');
         continue;
       }
-
+      
       // Build filesystem path
       var currentPath = _libraryRoot;
       for (final cat in categories) {
         currentPath = path.join(currentPath, cat);
       }
       final bookPath = path.join(currentPath, bookFileName);
-
+      
       if (!await File(bookPath).exists()) {
-        _log.warning(
-            'Priority entry ${idx + 1}/${entries.length}: file not found: $bookPath');
+        _log.warning('Priority entry ${idx + 1}/${entries.length}: file not found: $bookPath');
         continue;
       }
-
+      
       // Avoid duplicates
       final key = _toLibraryRelativeKey(bookPath);
       if (_processedPriorityBookKeys.contains(key)) {
-        _log.fine(
-            'Priority entry ${idx + 1}/${entries.length}: already processed (dup in list): $key');
+        _log.fine('Priority entry ${idx + 1}/${entries.length}: already processed (dup in list): $key');
         continue;
       }
-
+      
       // Ensure categories exist
       int? parentId;
       var level = 0;
@@ -1199,61 +1084,57 @@ class DatabaseGenerator {
         parentId = await createCategory(catPath, parentId, level);
         level++;
       }
-
+      
       if (parentId == null) {
-        _log.warning(
-            'Priority entry ${idx + 1}/${entries.length}: missing parent category for $bookPath; skipping');
+        _log.warning('Priority entry ${idx + 1}/${entries.length}: missing parent category for $bookPath; skipping');
         continue;
       }
-
-      _log.info(
-          '⭐ Priority ${idx + 1}/${entries.length}: processing $bookFileName under categories ${categories.join("/")}');
-      await createAndProcessBook(bookPath, parentId, metadata,
-          isBaseBook: true);
-
+      
+      _log.info('⭐ Priority ${idx + 1}/${entries.length}: processing $bookFileName under categories ${categories.join("/")}');
+      await createAndProcessBook(bookPath, parentId, metadata, isBaseBook: true);
+      
       _processedPriorityBookKeys.add(key);
     }
   }
-
+  
   /// Load priority list from resources
   /// Reads the priority list from file and returns normalized relative paths under the library root.
   Future<List<String>> _loadPriorityList() async {
     try {
-      // priority.txt is typically in the parent directory of sourceDirectory
-      final priorityPath =
-          path.join(path.dirname(sourceDirectory), 'priority.txt');
+      // priority.txt should be in sourceDirectory (the parent folder)
+      final priorityPath = path.join(sourceDirectory, 'priority.txt');
       final priorityFile = File(priorityPath);
-
+      
       if (!await priorityFile.exists()) {
         _log.fine('priority.txt not found at $priorityPath');
         return [];
       }
-
+      
       _log.info('Loading priority list from: ${priorityFile.path}');
-
+      
       final content = await priorityFile.readAsString(encoding: utf8);
       final lines = content.split('\n');
-
+      
       final result = <String>[];
       for (var line in lines) {
         var s = line.trim();
-
+        
         // Skip empty lines and comments
         if (s.isEmpty || s.startsWith('#')) continue;
-
+        
         // Normalize separators
         s = s.replaceAll('\\', '/');
-
+        
         // Remove BOM if present
         if (s.isNotEmpty && s.codeUnitAt(0) == 0xFEFF) {
           s = s.substring(1);
         }
-
+        
         // Remove leading slash
         if (s.startsWith('/')) {
           s = s.substring(1);
         }
-
+        
         // Try to start from 'אוצריא' if present
         final idx = s.indexOf('אוצריא');
         if (idx >= 0) {
@@ -1262,28 +1143,27 @@ class DatabaseGenerator {
             s = s.substring(1);
           }
         }
-
+        
         // Filter for .txt files
         if (s.toLowerCase().endsWith('.txt')) {
           result.add(s);
         }
       }
-
-      _log.info(
-          'Loaded ${result.length} priority entries from ${priorityFile.path}');
+      
+      _log.info('Loaded ${result.length} priority entries from ${priorityFile.path}');
       return result;
     } catch (e) {
       _log.warning('Unable to read priority.txt', e);
       return [];
     }
   }
-
+  
   /// Disables foreign key constraints
   Future<void> _disableForeignKeys() async {
     _log.fine('Disabling foreign key constraints');
     await repository.executeRawQuery('PRAGMA foreign_keys = OFF');
   }
-
+  
   /// Re-enables foreign key constraints
   Future<void> _enableForeignKeys() async {
     _log.fine('Re-enabling foreign key constraints');
@@ -1297,26 +1177,25 @@ class DatabaseGenerator {
   String sanitizeAcronymTerm(String raw) {
     var s = raw.trim();
     if (s.isEmpty) return '';
-
+    
     s = hebrew_text_utils.removeAllDiacritics(s);
     s = hebrew_text_utils.replaceMaqaf(s, replacement: ' ');
     s = s.replaceAll('\u05F4', ''); // remove Hebrew gershayim (״)
     s = s.replaceAll('\u05F3', ''); // remove Hebrew geresh (׳)
     s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
-
+    
     return s;
   }
 
   /// Fetches and sanitizes acronym terms for a given book title from acronym.json.
   ///
-  /// The acronym.json file is expected to be in the parent directory of [sourceDirectory].
+  /// The acronym.json file is expected to be in sourceDirectory (the parent folder).
   /// [title] The book title to look up.
   /// Returns a list of sanitized acronym terms, or empty list if not found.
   Future<List<String>> fetchAcronymsForTitle(String title) async {
-    // Determine the path to acronym.json (in parent of sourceDirectory)
-    final acronymPath =
-        path.join(path.dirname(sourceDirectory), 'acronym.json');
-
+    // acronym.json should be in sourceDirectory (the parent folder)
+    final acronymPath = path.join(sourceDirectory, 'acronym.json');
+    
     try {
       // Load acronym data if not already cached
       if (_acronymData == null) {
@@ -1325,10 +1204,10 @@ class DatabaseGenerator {
           _log.fine('acronym.json not found at $acronymPath');
           return [];
         }
-
+        
         final content = await file.readAsString();
         final decoded = _json.decode(content);
-
+        
         // Handle both Map and List formats
         if (decoded is Map<String, dynamic>) {
           _acronymData = decoded;
@@ -1349,13 +1228,13 @@ class DatabaseGenerator {
         }
         _log.info('Loaded acronym data with ${_acronymData!.length} entries');
       }
-
+      
       // Look up the title in the acronym data
       final entry = _acronymData![title];
       if (entry == null) {
         return [];
       }
-
+      
       // Extract terms - handle both string and list formats
       String? raw;
       if (entry is String) {
@@ -1370,20 +1249,19 @@ class DatabaseGenerator {
             .map((t) => t.trim())
             .where((t) => t.isNotEmpty)
             .toList();
-
+        
         final titleNormalized = sanitizeAcronymTerm(title);
         return clean
             .where((t) => !t.toLowerCase().contains(title.toLowerCase()))
-            .where(
-                (t) => !t.toLowerCase().contains(titleNormalized.toLowerCase()))
+            .where((t) => !t.toLowerCase().contains(titleNormalized.toLowerCase()))
             .toSet()
             .toList();
       }
-
+      
       if (raw == null || raw.isEmpty) {
         return [];
       }
-
+      
       // Split by comma and sanitize each term
       final parts = raw.split(',');
       final clean = parts
@@ -1391,18 +1269,16 @@ class DatabaseGenerator {
           .map((t) => t.trim())
           .where((t) => t.isNotEmpty)
           .toList();
-
+      
       // De-duplicate and drop items identical to the title after normalization
       final titleNormalized = sanitizeAcronymTerm(title);
       return clean
           .where((t) => !t.toLowerCase().contains(title.toLowerCase()))
-          .where(
-              (t) => !t.toLowerCase().contains(titleNormalized.toLowerCase()))
+          .where((t) => !t.toLowerCase().contains(titleNormalized.toLowerCase()))
           .toSet()
           .toList();
     } catch (e) {
-      _log.warning(
-          'Error reading acronyms for \'$title\' from $acronymPath', e);
+      _log.warning('Error reading acronyms for \'$title\' from $acronymPath', e);
       return [];
     }
   }
