@@ -72,6 +72,15 @@ class ToggleTzuratHadafView extends TextBookEvent {
   List<Object?> get props => [show];
 }
 
+class TogglePageShapeView extends TextBookEvent {
+  final bool show;
+
+  const TogglePageShapeView(this.show);
+
+  @override
+  List<Object?> get props => [show];
+}
+
 class UpdateCommentators extends TextBookEvent {
   final List<String> commentators;
 

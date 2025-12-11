@@ -51,6 +51,7 @@ class TextBookLoaded extends TextBookState {
   final double fontSize;
   final bool showSplitView;
   final bool showTzuratHadafView;
+  final bool showPageShapeView;
   final List<String> activeCommentators;
   final List<CommentatorGroup> commentatorGroups;
   final List<String> availableCommentators;
@@ -87,6 +88,7 @@ class TextBookLoaded extends TextBookState {
     required this.fontSize,
     required this.showSplitView,
     this.showTzuratHadafView = false,
+    this.showPageShapeView = false,
     required this.activeCommentators,
     required this.commentatorGroups,
     required this.availableCommentators,
@@ -127,6 +129,7 @@ class TextBookLoaded extends TextBookState {
       showLeftPane: showLeftPane,
       showSplitView: splitView,
       showTzuratHadafView: false,
+      showPageShapeView: false,
       activeCommentators: commentators ?? const [],
       commentatorGroups: const [],
       availableCommentators: const [],
@@ -159,6 +162,7 @@ class TextBookLoaded extends TextBookState {
     bool? showLeftPane,
     bool? showSplitView,
     bool? showTzuratHadafView,
+    bool? showPageShapeView,
     List<String>? activeCommentators,
     List<CommentatorGroup>? commentatorGroups,
     List<String>? availableCommentators,
@@ -192,6 +196,7 @@ class TextBookLoaded extends TextBookState {
       showLeftPane: showLeftPane ?? this.showLeftPane,
       showSplitView: showSplitView ?? this.showSplitView,
       showTzuratHadafView: showTzuratHadafView ?? this.showTzuratHadafView,
+      showPageShapeView: showPageShapeView ?? this.showPageShapeView,
       activeCommentators: activeCommentators ?? this.activeCommentators,
       commentatorGroups: commentatorGroups ?? this.commentatorGroups,
       availableCommentators:
@@ -229,6 +234,7 @@ class TextBookLoaded extends TextBookState {
         showLeftPane,
         showSplitView,
         showTzuratHadafView,
+        showPageShapeView,
         activeCommentators.length,
         commentatorGroups,
         availableCommentators.length,

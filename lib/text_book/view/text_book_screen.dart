@@ -1030,19 +1030,35 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
             ),
       ),
 
-      // Tzurat HaDaf View Button
+      // Tzurat HaDaf View Button (Old)
       ActionButtonData(
         widget: IconButton(
           icon: const Icon(FluentIcons.table_24_regular),
-          tooltip: 'צורת הדף',
+          tooltip: 'צורת הדף (ישן)',
           onPressed: () => context.read<TextBookBloc>().add(
                 ToggleTzuratHadafView(!state.showTzuratHadafView),
               ),
         ),
         icon: FluentIcons.table_24_regular,
-        tooltip: 'צורת הדף',
+        tooltip: 'צורת הדף (ישן)',
         onPressed: () => context.read<TextBookBloc>().add(
               ToggleTzuratHadafView(!state.showTzuratHadafView),
+            ),
+      ),
+
+      // Page Shape View Button (New)
+      ActionButtonData(
+        widget: IconButton(
+          icon: const Icon(FluentIcons.book_open_24_regular),
+          tooltip: 'צורת הדף (חדש)',
+          onPressed: () => context.read<TextBookBloc>().add(
+                TogglePageShapeView(!state.showPageShapeView),
+              ),
+        ),
+        icon: FluentIcons.book_open_24_regular,
+        tooltip: 'צורת הדף (חדש)',
+        onPressed: () => context.read<TextBookBloc>().add(
+              TogglePageShapeView(!state.showPageShapeView),
             ),
       ),
 

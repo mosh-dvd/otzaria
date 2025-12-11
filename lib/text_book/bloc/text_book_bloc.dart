@@ -35,6 +35,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     on<ToggleLeftPane>(_onToggleLeftPane);
     on<ToggleSplitView>(_onToggleSplitView);
     on<ToggleTzuratHadafView>(_onToggleTzuratHadafView);
+    on<TogglePageShapeView>(_onTogglePageShapeView);
     on<UpdateCommentators>(_onUpdateCommentators);
     on<ToggleNikud>(_onToggleNikud);
     on<UpdateVisibleIndecies>(_onUpdateVisibleIndecies);
@@ -257,6 +258,23 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       final currentState = state as TextBookLoaded;
       emit(currentState.copyWith(
         showTzuratHadafView: event.show,
+        showPageShapeView: false, // כיבוי התצוגה החדשה
+        selectedIndex: currentState.selectedIndex,
+        // סגור את חלונית הניווט/חיפוש כשעוברים לצורת הדף
+        showLeftPane: event.show ? false : currentState.showLeftPane,
+      ));
+    }
+  }
+
+  void _onTogglePageShapeView(
+    TogglePageShapeView event,
+    Emitter<TextBookState> emit,
+  ) {
+    if (state is TextBookLoaded) {
+      final currentState = state as TextBookLoaded;
+      emit(currentState.copyWith(
+        showPageShapeView: event.show,
+        showTzuratHadafView: false, // כיבוי התצוגה הישנה
         selectedIndex: currentState.selectedIndex,
         // סגור את חלונית הניווט/חיפוש כשעוברים לצורת הדף
         showLeftPane: event.show ? false : currentState.showLeftPane,

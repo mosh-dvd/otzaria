@@ -5,6 +5,7 @@ import 'package:otzaria/tabs/models/text_tab.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/text_book/view/splited_view/splited_view_screen.dart';
+import 'package:otzaria/text_book/view/page_shape/page_shape_screen.dart';
 import 'package:otzaria/text_book/view/tzurat_hadaf/tzurat_hadaf_screen.dart';
 
 class TextBookScaffold extends StatelessWidget {
@@ -31,6 +32,10 @@ class TextBookScaffold extends StatelessWidget {
       builder: (context, state) {
         if (state is! TextBookLoaded) {
           return const Center(child: CircularProgressIndicator());
+        }
+
+        if (state.showPageShapeView) {
+          return PageShapeScreen(openBookCallback: openBookCallback);
         }
 
         if (state.showTzuratHadafView) {
