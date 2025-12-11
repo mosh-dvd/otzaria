@@ -4,6 +4,7 @@ import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/text_book/view/page_shape/page_shape_settings_dialog.dart';
 import 'package:otzaria/text_book/view/page_shape/utils/page_shape_settings_manager.dart';
+import 'package:otzaria/text_book/view/page_shape/utils/default_commentators.dart';
 import 'package:otzaria/text_book/view/page_shape/simple_text_viewer.dart';
 import 'package:otzaria/text_book/view/page_shape/utils/commentary_sync_helper.dart';
 import 'package:otzaria/tabs/models/tab.dart';
@@ -73,59 +74,6 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
     }
   }
 
-  Map<String, String?> _getDefaultCommentators(TextBook book) {
-    final categoryPath = book.category?.path ?? '';
-
-    // שים לב: בגלל RTL, 'right' מוצג בשמאל ו-'left' מוצג בימין
-    // תנ"ך - תורה
-    if (categoryPath.contains('תנך') && categoryPath.contains('תורה')) {
-      final bookTitle = book.title;
-      return {
-        'right': 'רמבן על $bookTitle', // יוצג בשמאל
-        'left': 'רשי על $bookTitle', // יוצג בימין
-        'bottom': 'אור החיים על $bookTitle',
-      };
-    }
-
-    // משנה
-    if (categoryPath.contains('משנה')) {
-      final bookTitle = book.title;
-      return {
-        'right': 'תוספות יום טוב על $bookTitle', // יוצג בשמאל
-        'left': 'ברטנורא על $bookTitle', // יוצג בימין
-        'bottom': 'עיקר תוספות יום טוב על $bookTitle',
-      };
-    }
-
-    // תלמוד בבלי
-    if (categoryPath.contains('תלמוד בבלי')) {
-      final bookTitle = book.title;
-      return {
-        'right': 'תוספות על $bookTitle', // יוצג בשמאל
-        'left': 'רשי על $bookTitle', // יוצג בימין
-        'bottom': null,
-      };
-    }
-
-    // תלמוד ירושלמי
-    if (categoryPath.contains('תלמוד ירושלמי')) {
-      final bookTitle = book.title;
-      return {
-        'right': 'נועם ירושלמי על $bookTitle', // יוצג בשמאל
-        'left': 'פני משה על תלמוד ירושלמי $bookTitle', // יוצג בימין
-        'bottom': null,
-      };
-    }
-
-    // אם אין ברירת מחדל, החזר ערכים ריקים
-    return {
-      'right': null,
-      'left': null,
-      'bottom': null,
-      'bottomRight': null,
-    };
-  }
-
   void _loadConfiguration() {
     final state = context.read<TextBookBloc>().state;
     if (state is! TextBookLoaded) return;
@@ -143,7 +91,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
       }
     } else {
       // אם אין הגדרה שמורה, השתמש בברירות מחדל
-      final defaults = _getDefaultCommentators(state.book);
+      final defaults = DefaultCommentators.getDefaults(state.book);
       if (mounted) {
         setState(() {
           _leftCommentator = defaults['left'];
