@@ -64,6 +64,11 @@ class _AboutScreenState extends State<AboutScreen> {
         'url': 'https://github.com/userbot000',
       },
       {
+        'name': 'mosh-dvd',
+        'url': 'https://github.com/mosh-dvd',
+        'description': 'ממפתחי ממשק צורת הדף'
+      },
+      {
         'name': 'NHLOCAL',
         'url': 'https://github.com/NHLOCAL/Shamor-Zachor',
         'description': 'פיתוח "זכור ושמור"'

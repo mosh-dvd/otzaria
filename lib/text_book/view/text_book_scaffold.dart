@@ -6,7 +6,6 @@ import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/text_book/view/splited_view/splited_view_screen.dart';
 import 'package:otzaria/text_book/view/page_shape/page_shape_screen.dart';
-import 'package:otzaria/text_book/view/tzurat_hadaf/tzurat_hadaf_screen.dart';
 
 class TextBookScaffold extends StatelessWidget {
   final List<String> content;
@@ -36,10 +35,6 @@ class TextBookScaffold extends StatelessWidget {
 
         if (state.showPageShapeView) {
           return PageShapeScreen(openBookCallback: openBookCallback);
-        }
-
-        if (state.showTzuratHadafView) {
-          return TzuratHadafScreen(openBookCallback: openBookCallback);
         }
 
         // תמיד משתמשים ב-SplitedViewScreen, הוא יחליט אם להציג split או לא
