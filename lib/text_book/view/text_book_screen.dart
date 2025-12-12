@@ -1023,8 +1023,8 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         widget: _buildSplitViewButton(context, state),
         icon: FluentIcons.panel_left_24_regular,
         tooltip: state.showSplitView
-            ? 'הצגת מפרשים מתחת הטקסט'
-            : 'הצגת מפרשים בצד הטקסט',
+            ? 'הצג מפרשים מתחת הטקסט'
+            : 'הצג מפרשים בצד הטקסט',
         onPressed: () => context.read<TextBookBloc>().add(
               ToggleSplitView(!state.showSplitView),
             ),
@@ -1432,8 +1432,8 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       tooltip: widget.isInCombinedView
           ? 'בתצוגה משולבת, מפרשים תמיד מתחת הטקסט'
           : (state.showSplitView
-              ? 'הצגת מפרשים מתחת הטקסט'
-              : 'הצגת מפרשים בצד הטקסט'),
+              ? 'הצג מפרשים מתחת הטקסט'
+              : 'הצג מפרשים בצד הטקסט'),
     );
   }
 
