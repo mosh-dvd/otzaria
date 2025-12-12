@@ -136,13 +136,13 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
               ),
               const SizedBox(height: 16),
               _buildCommentatorDropdown(
-                label: 'מפרש שמאלי (יוצג בימין)',
+                label: 'מפרש ימני',
                 value: _leftCommentator,
                 onChanged: (value) => setState(() => _leftCommentator = value),
               ),
               const SizedBox(height: 12),
               _buildCommentatorDropdown(
-                label: 'מפרש ימני (יוצג בשמאל)',
+                label: 'מפרש שמאלי',
                 value: _rightCommentator,
                 onChanged: (value) => setState(() => _rightCommentator = value),
               ),
