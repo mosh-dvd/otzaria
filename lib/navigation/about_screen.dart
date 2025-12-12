@@ -132,7 +132,8 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 
   Widget _buildBookEditorsList() {
-    final bookEditors = [
+    // מהדירים שההדירו 10 ספרים ומעלה
+    final topEditors = [
       {
         'name': 'י. פל',
         'url': 'https://mitmachim.top/user/%D7%99.-%D7%A4%D7%9C',
@@ -181,6 +182,10 @@ class _AboutScreenState extends State<AboutScreen> {
         'name': 'יצחק זאב הוכמן',
         'url': '',
       },
+    ];
+
+    // מהדירים שההדירו בין 5 ל-10 ספרים
+    final regularEditors = [
       {
         'name': 'מוטיו',
         'url': '',
@@ -196,37 +201,45 @@ class _AboutScreenState extends State<AboutScreen> {
       {
         'name': 'שני אנשים',
         'url': 'https://mitmachim.top/user/%D7%A9%D7%A0%D7%99-%D7%90%D7%A0%D7%A9%D7%99%D7%9D',
-      },
+      },      
       {
         'name': 'יאיר דניאל',
         'url': 'https://mitmachim.top/user/%D7%99%D7%90%D7%99%D7%A8-%D7%93%D7%A0%D7%99%D7%90%D7%9C',
       },
-      // {
-      //   'name': '',
-      //   'url': '',
-      // },
     ];
 
-    if (bookEditors.isEmpty) {
-      return const Text(
-        'רשימה זו תתמלא בהמשך',
-        style: TextStyle(
-          fontSize: 14,
-          fontStyle: FontStyle.italic,
-          color: Colors.grey,
-        ),
-      );
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // במסכים קטנים, הצג בעמודה
-        if (constraints.maxWidth < 500) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: bookEditors
-                .map((editor) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
+    Widget buildEditorsList(List<Map<String, String>> editors) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // במסכים קטנים, הצג בעמודה
+          if (constraints.maxWidth < 500) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: editors
+                  .map((editor) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            const Icon(FluentIcons.book_24_regular,
+                                size: 16, color: Colors.grey),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildContributor(
+                                  editor['name']!, editor['url']!),
+                            ),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+            );
+          }
+          // במסכים רחבים, השתמש ב-Wrap
+          return Wrap(
+            spacing: 40,
+            runSpacing: 12,
+            children: editors
+                .map((editor) => SizedBox(
+                      width: 220,
                       child: Row(
                         children: [
                           const Icon(FluentIcons.book_24_regular,
@@ -241,29 +254,65 @@ class _AboutScreenState extends State<AboutScreen> {
                     ))
                 .toList(),
           );
-        }
-        // במסכים רחבים, השתמש ב-Wrap
-        return Wrap(
-          spacing: 40,
-          runSpacing: 12,
-          children: bookEditors
-              .map((editor) => SizedBox(
-                    width: 220,
-                    child: Row(
-                      children: [
-                        const Icon(FluentIcons.book_24_regular,
-                            size: 16, color: Colors.grey),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildContributor(
-                              editor['name']!, editor['url']!),
-                        ),
-                      ],
-                    ),
-                  ))
-              .toList(),
-        );
-      },
+        },
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // קטגוריה ראשונה: 10 ספרים ומעלה
+        Text(
+          'מהדירים שההדירו 10 ספרים ומעלה',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 12),
+        buildEditorsList(topEditors),
+        const SizedBox(height: 24),
+
+        // קטגוריה שנייה: 5-10 ספרים
+        Text(
+          'מהדירים שההדירו בין 5 ל-10 ספרים',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 12),
+        buildEditorsList(regularEditors),
+        const SizedBox(height: 16),
+
+        // הודעה בסוף הרשימה
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              const Icon(FluentIcons.info_24_regular,
+                  size: 18, color: Colors.blue),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'באם גם אתם ערכתם ספרים ושמכם אינו מופיע ברשימה, וכן אם אתם מעוניינים בשינוי כלשהו, אנא פנו למייל המערכת',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
