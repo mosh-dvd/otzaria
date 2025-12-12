@@ -1195,29 +1195,6 @@ class CalendarWidget extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: null,
-            icon: const Icon(FluentIcons.book_24_regular),
-            label: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'דף היומי ירושלמי',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '$yerushalmiTractate ${_formatDafNumber(yerushalmiDaf)}',
-                  style: const TextStyle(fontSize: 10),
-                ),
-              ],
-            ),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            ),
-          ),
-        ),
       ],
     );
   }
