@@ -126,84 +126,180 @@ class _TocViewerState extends State<TocViewer>
   }
 
   Widget _buildFilteredList(List<TocEntry> entries, BuildContext context) {
-    List<TocEntry> allEntries = [];
-    void getAllEntries(List<TocEntry> entries) {
+    List<TocEntry> matchingEntries = [];
+
+    void findMatchingEntries(List<TocEntry> entries) {
       for (final TocEntry entry in entries) {
-        allEntries.add(entry);
-        getAllEntries(entry.children);
+        if (entry.text.contains(searchController.text)) {
+          matchingEntries.add(entry);
+        }
+        findMatchingEntries(entry.children);
       }
     }
 
-    getAllEntries(entries);
-    allEntries = allEntries
-        .where((e) => e.text.contains(searchController.text))
-        .toList();
+    findMatchingEntries(entries);
 
     return ListView.builder(
         physics: const NeverScrollableScrollPhysics(),
         shrinkWrap: true,
-        itemCount: allEntries.length,
+        itemCount: matchingEntries.length,
         itemBuilder: (context, index) {
-          final entry = allEntries[index];
-          return InkWell(
-            onTap: () {
-              setState(() {
-                _isManuallyScrolling = false;
-                _lastScrolledTocIndex = null;
-              });
-              final state = context.read<TextBookBloc>().state;
-              if (state is TextBookLoaded && state.showTzuratHadafView) {
-                // במצב צורת הדף, השתמש ב-UpdateSelectedIndex
-                context
-                    .read<TextBookBloc>()
-                    .add(UpdateSelectedIndex(entry.index));
-              } else {
-                // במצב רגיל, השתמש ב-scrollController
+          final entry = matchingEntries[index];
+
+          // אם לכותרת יש ילדים, הצג אותה עם אפשרות לפתוח/לסגור
+          if (entry.children.isNotEmpty) {
+            final bool isExpanded = _expanded[entry.index] ?? false;
+
+            return Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // אזור הטקסט לניווט
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _isManuallyScrolling = false;
+                              _lastScrolledTocIndex = null;
+                            });
+                            widget.scrollController.scrollTo(
+                              index: entry.index,
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.ease,
+                            );
+                            if (Platform.isAndroid) {
+                              widget.closeLeftPaneCallback();
+                            }
+                          },
+                          child: Container(
+                            padding: EdgeInsets.only(
+                              right: 16.0 + (entry.level * 24.0),
+                              left: 8.0,
+                              top: 10.0,
+                              bottom: 10.0,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  entry.level == 1
+                                      ? FluentIcons.book_24_regular
+                                      : FluentIcons.text_bullet_list_24_regular,
+                                  color: entry.level == 1
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.secondary,
+                                  size: entry.level == 1 ? 20 : 18,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    entry.fullText,
+                                    style: TextStyle(
+                                      fontSize: entry.level == 1 ? 15 : 14,
+                                      fontWeight: entry.level == 1
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // כפתור החץ לפתיחה/סגירה
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _expanded[entry.index] = !isExpanded;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.only(
+                            left: 16.0,
+                            right: 8.0,
+                            top: 10.0,
+                            bottom: 10.0,
+                          ),
+                          child: Icon(
+                            isExpanded
+                                ? FluentIcons.chevron_up_24_regular
+                                : FluentIcons.chevron_down_24_regular,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // הצג את הילדים אם הכותרת פתוחה
+                if (isExpanded)
+                  ...entry.children.map((child) => _buildTocItem(child)),
+              ],
+            );
+          } else {
+            // כותרת ללא ילדים - הצג כרגיל
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _isManuallyScrolling = false;
+                  _lastScrolledTocIndex = null;
+                });
                 widget.scrollController.scrollTo(
                   index: entry.index,
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.ease,
                 );
-              }
-              if (Platform.isAndroid) {
-                widget.closeLeftPaneCallback();
-              }
-            },
-            child: Container(
-              padding: EdgeInsets.only(
-                right: 16.0 + (entry.level * 24.0),
-                left: 16.0,
-                top: 10.0,
-                bottom: 10.0,
-              ),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: Theme.of(context).dividerColor,
-                    width: 0.5,
-                  ),
+                if (Platform.isAndroid) {
+                  widget.closeLeftPaneCallback();
+                }
+              },
+              child: Container(
+                padding: EdgeInsets.only(
+                  right: 16.0 + (entry.level * 24.0),
+                  left: 16.0,
+                  top: 10.0,
+                  bottom: 10.0,
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    FluentIcons.text_bullet_list_24_regular,
-                    color: Theme.of(context).colorScheme.secondary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      entry.fullText,
-                      style: const TextStyle(
-                        fontSize: 14,
-                      ),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                      width: 0.5,
                     ),
                   ),
-                ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      FluentIcons.text_bullet_list_24_regular,
+                      color: Theme.of(context).colorScheme.secondary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        entry.fullText,
+                        style: const TextStyle(
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
+            );
+          }
         });
   }
 
