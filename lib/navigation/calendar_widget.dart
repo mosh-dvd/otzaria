@@ -1155,19 +1155,6 @@ class CalendarWidget extends StatelessWidget {
       bavliDaf = 0;
     }
 
-    // חישוב דף יומי ירושלמי
-    String yerushalmiTractate;
-    int yerushalmiDaf;
-    try {
-      final dafYomiYerushalmi =
-          YerushalmiYomiCalculator.getDafYomiYerushalmi(jewishCalendar);
-      yerushalmiTractate = dafYomiYerushalmi.getMasechta();
-      yerushalmiDaf = dafYomiYerushalmi.getDaf();
-    } catch (e) {
-      yerushalmiTractate = 'לא זמין';
-      yerushalmiDaf = 0;
-    }
-
     return Row(
       children: [
         Expanded(
