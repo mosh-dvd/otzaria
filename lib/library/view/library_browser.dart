@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
@@ -37,7 +36,7 @@ import 'package:otzaria/settings/library_settings_dialog.dart';
 import 'package:otzaria/navigation/bloc/navigation_bloc.dart';
 import 'package:otzaria/navigation/bloc/navigation_event.dart';
 import 'package:otzaria/navigation/bloc/navigation_state.dart';
-import 'package:otzaria/widgets/rtl_arrow_fixer.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class LibraryBrowser extends StatefulWidget {
   const LibraryBrowser({super.key});
@@ -314,55 +313,33 @@ class _LibraryBrowserState extends State<LibraryBrowser>
           return Row(
             children: [
               Expanded(
-                child: RtlArrowFixer(
+                child: RtlTextField(
                   controller: focusRepository.librarySearchController,
-                  child: Listener(
-                    onPointerDown: (event) {
-                      if (event.buttons == 2) {
-                        // לחיצה ימנית
-                        _showSearchFieldContextMenu(
-                          context,
-                          event.position,
-                          focusRepository.librarySearchController,
-                        );
-                      }
-                    },
-                    child: TextField(
-                      controller: focusRepository.librarySearchController,
-                      focusNode: context
-                          .read<FocusRepository>()
-                          .librarySearchFocusNode,
-                      autofocus: true,
-                      contextMenuBuilder: (context, editableTextState) {
-                        // השבתת תפריט ההקשר המובנה
-                        return const SizedBox.shrink();
-                      },
-                      decoration: InputDecoration(
-                        constraints: const BoxConstraints(maxWidth: 400),
-                        prefixIcon: const Icon(FluentIcons.search_24_regular),
-                        suffixIcon: IconButton(
-                          onPressed: () {
-                            focusRepository.librarySearchController.clear();
-                            _update(context, state, settingsState);
-                            _refocusSearchBar();
-                          },
-                          icon: const Icon(FluentIcons.dismiss_24_regular),
-                        ),
-                        border: const OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(8.0)),
-                        ),
-                        hintText:
-                            'איתור ספר ב${state.currentCategory?.title ?? ""}',
-                      ),
-                      onChanged: (value) {
-                        context
-                            .read<LibraryBloc>()
-                            .add(UpdateSearchQuery(value));
-                        context.read<LibraryBloc>().add(const SelectTopics([]));
+                  focusNode:
+                      context.read<FocusRepository>().librarySearchFocusNode,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    prefixIcon: const Icon(FluentIcons.search_24_regular),
+                    suffixIcon: IconButton(
+                      onPressed: () {
+                        focusRepository.librarySearchController.clear();
                         _update(context, state, settingsState);
+                        _refocusSearchBar();
                       },
+                      icon: const Icon(FluentIcons.dismiss_24_regular),
                     ),
+                    border: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(8.0)),
+                    ),
+                    hintText:
+                        'איתור ספר ב${state.currentCategory?.title ?? ""}',
                   ),
+                  onChanged: (value) {
+                    context.read<LibraryBloc>().add(UpdateSearchQuery(value));
+                    context.read<LibraryBloc>().add(const SelectTopics([]));
+                    _update(context, state, settingsState);
+                  },
                 ),
               ),
               // כפתור מעבר בין תצוגת רשת לרשימה
@@ -1015,145 +992,6 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         );
     setState(() {});
     _refocusSearchBar();
-  }
-
-  /// הצגת תפריט הקשר לשדה החיפוש
-  void _showSearchFieldContextMenu(
-    BuildContext context,
-    Offset position,
-    TextEditingController controller,
-  ) {
-    final selection = controller.selection;
-    final hasSelection = selection.isValid && !selection.isCollapsed;
-
-    final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
-
-    List<PopupMenuEntry<String>> menuItems = [];
-
-    // אם יש טקסט נבחר - הצג גזור והעתק
-    if (hasSelection) {
-      menuItems.addAll([
-        PopupMenuItem<String>(
-          value: 'cut',
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(FluentIcons.cut_24_regular,
-                  size: 18, color: Theme.of(context).colorScheme.onSurface),
-              const SizedBox(width: 8),
-              const Text('גזור', style: TextStyle(fontSize: 14)),
-            ],
-          ),
-        ),
-        PopupMenuItem<String>(
-          value: 'copy',
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(FluentIcons.copy_24_regular,
-                  size: 18, color: Theme.of(context).colorScheme.onSurface),
-              const SizedBox(width: 8),
-              const Text('העתק', style: TextStyle(fontSize: 14)),
-            ],
-          ),
-        ),
-      ]);
-    }
-
-    // תמיד הצג הדבק
-    menuItems.add(
-      PopupMenuItem<String>(
-        value: 'paste',
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(FluentIcons.clipboard_paste_24_regular,
-                size: 18, color: Theme.of(context).colorScheme.onSurface),
-            const SizedBox(width: 8),
-            const Text('הדבק', style: TextStyle(fontSize: 14)),
-          ],
-        ),
-      ),
-    );
-
-    // אם יש טקסט בשדה - הצג בחר הכל
-    if (controller.text.isNotEmpty) {
-      menuItems.addAll([
-        const PopupMenuDivider(height: 8),
-        PopupMenuItem<String>(
-          value: 'selectAll',
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(FluentIcons.select_all_on_24_regular,
-                  size: 18, color: Theme.of(context).colorScheme.onSurface),
-              const SizedBox(width: 8),
-              const Text('בחר הכל', style: TextStyle(fontSize: 14)),
-            ],
-          ),
-        ),
-      ]);
-    }
-
-    showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(
-        position & const Size(40, 40),
-        Offset.zero & overlay.size,
-      ),
-      items: menuItems,
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      color: Theme.of(context).colorScheme.surface,
-    ).then((value) async {
-      if (value == null) return;
-
-      switch (value) {
-        case 'cut':
-          final text = controller.text;
-          final selectedText = text.substring(selection.start, selection.end);
-          await Clipboard.setData(ClipboardData(text: selectedText));
-          controller.text = text.substring(0, selection.start) +
-              text.substring(selection.end);
-          controller.selection =
-              TextSelection.collapsed(offset: selection.start);
-          break;
-        case 'copy':
-          final text = controller.text;
-          final selectedText = text.substring(selection.start, selection.end);
-          await Clipboard.setData(ClipboardData(text: selectedText));
-          break;
-        case 'paste':
-          final data = await Clipboard.getData('text/plain');
-          if (data?.text != null) {
-            final text = controller.text;
-            final newText = text.substring(0, selection.start) +
-                data!.text! +
-                text.substring(selection.end);
-            controller.text = newText;
-            controller.selection = TextSelection.collapsed(
-                offset: selection.start + data.text!.length);
-          }
-          break;
-        case 'selectAll':
-          controller.selection = TextSelection(
-            baseOffset: 0,
-            extentOffset: controller.text.length,
-          );
-          break;
-      }
-    });
   }
 
   void _refocusSearchBar({bool selectAll = false}) {

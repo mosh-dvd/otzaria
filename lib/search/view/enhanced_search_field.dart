@@ -11,6 +11,7 @@ import 'package:otzaria/navigation/bloc/navigation_bloc.dart';
 import 'package:otzaria/navigation/bloc/navigation_state.dart';
 import 'package:otzaria/tabs/models/searching_tab.dart';
 import 'package:otzaria/search/view/search_options_dropdown.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class EnhancedSearchField extends StatefulWidget {
   final dynamic widget;
@@ -371,18 +372,9 @@ class _EnhancedSearchFieldState extends State<EnhancedSearchField> {
                         }
                       }
                     },
-                    child: TextField(
-                      key: _textFieldKey,
+                    child: RtlTextField(
                       focusNode: widget.tab.searchFieldFocusNode,
                       controller: widget.tab.queryController,
-                      onTap: () {
-                        // עדכון המגירה כשלוחצים בשדה הטקסט
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (_searchOptionsOverlay != null) {
-                            _updateSearchOptionsOverlay();
-                          }
-                        });
-                      },
                       onChanged: (text) {
                         // עדכון המגירה כשהטקסט משתנה
                         WidgetsBinding.instance.addPostFrameCallback((_) {

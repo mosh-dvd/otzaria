@@ -10,6 +10,7 @@ import 'package:otzaria/indexing/bloc/indexing_bloc.dart';
 import 'package:otzaria/indexing/bloc/indexing_state.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/utils/open_book.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class FindRefDialog extends StatefulWidget {
   const FindRefDialog({super.key});
@@ -142,7 +143,7 @@ class _FindRefDialogState extends State<FindRefDialog> {
                     }
                     return KeyEventResult.ignored;
                   },
-                  child: TextField(
+                  child: RtlTextField(
                     focusNode: focusRepository.findRefSearchFocusNode,
                     autofocus: true,
                     decoration: InputDecoration(

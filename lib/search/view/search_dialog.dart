@@ -19,6 +19,7 @@ import 'package:otzaria/tabs/models/searching_tab.dart';
 import 'package:otzaria/navigation/bloc/navigation_bloc.dart';
 import 'package:otzaria/navigation/bloc/navigation_event.dart';
 import 'package:otzaria/navigation/bloc/navigation_state.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// דיאלוג חיפוש מתקדם - מכיל את כל פקדי החיפוש וההגדרות
 /// כשמבצעים חיפוש, הדיאלוג נסגר ונפתחת לשונית תוצאות
@@ -591,7 +592,7 @@ class _SearchDialogState extends State<SearchDialog> {
                           // תיבת מרווח - מעל (תמיד גלויה)
                           Opacity(
                             opacity: isEnabled && wordIndex != null ? 1.0 : 0.5,
-                            child: TextField(
+                            child: RtlTextField(
                               enabled: isEnabled && wordIndex != null,
                               focusNode: wordIndex != null
                                   ? _getSpacingFocusNode(
@@ -670,7 +671,7 @@ class _SearchDialogState extends State<SearchDialog> {
                           const SizedBox(height: 16),
 
                           // תיבת מילה חילופית - מתחת
-                          TextField(
+                          RtlTextField(
                             controller: _alternativeWordController,
                             focusNode: _alternativeWordFocusNode,
                             decoration: InputDecoration(
