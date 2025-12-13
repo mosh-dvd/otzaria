@@ -3,6 +3,7 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:otzaria/text_book/view/page_shape/utils/page_shape_settings_manager.dart';
 import 'package:otzaria/text_book/models/commentator_group.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// דיאלוג הגדרות צורת הדף - בחירת מפרשים לכל מיקום
 class PageShapeSettingsDialog extends StatefulWidget {
@@ -315,7 +316,7 @@ class _CommentatorPickerDialogState extends State<_CommentatorPickerDialog> {
             // שדה חיפוש
             Padding(
               padding: const EdgeInsets.all(12.0),
-              child: TextField(
+              child: RtlTextField(
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: "חיפוש מפרש...",

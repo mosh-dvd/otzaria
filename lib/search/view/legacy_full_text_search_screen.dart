@@ -16,6 +16,7 @@ import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:search_highlight_text/search_highlight_text.dart';
 import '../models/legacy_full_text_searcher.dart';
 import 'book_tree_checklist.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class TextFileSearchScreen extends StatefulWidget {
   final void Function(OpenedTab) openBookCallback;
@@ -72,7 +73,7 @@ class TextFileSearchScreenState extends State<TextFileSearchScreen>
   Widget buildSearchField(bool isSearching) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(60, 30, 60, 10),
-      child: TextField(
+      child: RtlTextField(
         focusNode: focusNode,
         controller: widget.searcher.queryController,
         onSubmitted: (e) => widget.searcher.search(),

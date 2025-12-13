@@ -14,6 +14,7 @@ import 'package:otzaria/data/data_providers/file_system_data_provider.dart';
 import 'package:otzaria/core/scaffold_messenger.dart';
 import 'package:otzaria/widgets/confirmation_dialog.dart';
 import 'markdown_toolbar.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// Full-screen dialog for editing text sections with split-pane interface
 ///
@@ -684,14 +685,13 @@ class _SearchDialogState extends State<_SearchDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
+          RtlTextField(
             controller: _searchController,
             decoration: const InputDecoration(
               labelText: 'הכנס טקסט לחיפוש',
               hintText: 'מה לחפש...',
               prefixIcon: Icon(FluentIcons.search_24_regular),
             ),
-            textDirection: TextDirection.rtl,
             autofocus: true,
             onSubmitted: (_) => _performSearch(),
           ),
@@ -755,23 +755,21 @@ class _LinkInsertDialogState extends State<_LinkInsertDialog> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            RtlTextField(
               controller: _textController,
               autofocus: true,
               decoration: const InputDecoration(
                 labelText: 'טקסט הקישור',
                 hintText: 'לחץ כאן',
               ),
-              textDirection: TextDirection.rtl,
             ),
             const SizedBox(height: 16),
-            TextField(
+            RtlTextField(
               controller: _urlController,
               decoration: const InputDecoration(
                 labelText: 'כתובת URL',
                 hintText: 'https://example.com',
               ),
-              textDirection: TextDirection.ltr,
               onSubmitted: (_) {
                 widget.onInsert(_textController.text, _urlController.text);
                 Navigator.of(context).pop();

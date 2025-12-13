@@ -5,6 +5,7 @@ import 'package:otzaria/text_book/models/commentator_group.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:otzaria/widgets/filter_list/src/filter_list_dialog.dart';
 import 'package:otzaria/widgets/filter_list/src/theme/filter_list_theme.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// Widget לבחירת מפרשים עבור PDF - מבוסס על CommentatorsListView
 class PdfCommentatorsSelector extends StatefulWidget {
@@ -254,7 +255,7 @@ class _PdfCommentatorsSelectorState extends State<PdfCommentatorsSelector> {
               // שדה החיפוש
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: TextField(
+                child: RtlTextField(
                   controller: searchController,
                   decoration: InputDecoration(
                     hintText: "סינון מפרשים...",

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class PageNumberDisplay extends StatefulWidget {
   final PdfViewerController controller;
@@ -70,7 +71,7 @@ class _PageNumberDisplayState extends State<PageNumberDisplay> {
       child: _isEditing
           ? SizedBox(
               width: 65,
-              child: TextField(
+              child: RtlTextField(
                 controller: _textController,
                 focusNode: _focusNode,
                 keyboardType: TextInputType.number,

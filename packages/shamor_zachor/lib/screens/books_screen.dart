@@ -73,7 +73,8 @@ class _BooksScreenState extends State<BooksScreen>
 
     return Consumer<ShamorZachorDataProvider>(
       builder: (context, dataProvider, child) {
-        _logger.info('BooksScreen Consumer builder - hasData: ${dataProvider.hasData}, isLoading: ${dataProvider.isLoading}');
+        _logger.info(
+            'BooksScreen Consumer builder - hasData: ${dataProvider.hasData}, isLoading: ${dataProvider.isLoading}');
 
         if (dataProvider.isLoading) {
           return const Center(
@@ -135,7 +136,8 @@ class _BooksScreenState extends State<BooksScreen>
 
         _logger.info('Custom books count: ${customBooksData.length}');
         if (hasCustomBooks) {
-          _logger.info('Custom books: ${customBooksData.map((b) => "${b['categoryName']} - ${b['bookName']}").toList()}');
+          _logger.info(
+              'Custom books: ${customBooksData.map((b) => "${b['categoryName']} - ${b['bookName']}").toList()}');
         }
 
         final customOrder = [
@@ -331,7 +333,8 @@ class _BooksScreenState extends State<BooksScreen>
   /// Build view for custom (user-added) books
   Widget _buildCustomBooksView(ShamorZachorDataProvider dataProvider) {
     final customBooksData = dataProvider.getCustomBooks();
-    _logger.info('_buildCustomBooksView: ${customBooksData.length} custom books');
+    _logger
+        .info('_buildCustomBooksView: ${customBooksData.length} custom books');
 
     final items = <_BookItem>[];
 
@@ -568,10 +571,10 @@ class _BooksScreenState extends State<BooksScreen>
         bookName: item.bookName,
       );
 
-      ShamorZachorMessenger.showSuccess(
-          'הספר "${item.bookName}" הוסר מהמעקב');
+      ShamorZachorMessenger.showSuccess('הספר "${item.bookName}" הוסר מהמעקב');
     } catch (e, stackTrace) {
-      _logger.severe('Failed to delete custom book ${item.bookName}', e, stackTrace);
+      _logger.severe(
+          'Failed to delete custom book ${item.bookName}', e, stackTrace);
       ShamorZachorMessenger.showError('שגיאה בהסרת הספר: $e');
     }
   }

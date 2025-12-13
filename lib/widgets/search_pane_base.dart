@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class SearchPaneBase extends StatefulWidget {
   const SearchPaneBase({
@@ -57,7 +58,7 @@ class _SearchPaneBaseState extends State<SearchPaneBase> {
           child: ValueListenableBuilder<TextEditingValue>(
             valueListenable: widget.searchController,
             builder: (context, value, _) {
-              return TextField(
+              return RtlTextField(
                 autofocus: true,
                 focusNode: widget.focusNode,
                 controller: widget.searchController,
@@ -88,7 +89,6 @@ class _SearchPaneBaseState extends State<SearchPaneBase> {
                   ),
                 ),
                 textInputAction: TextInputAction.search,
-                textDirection: TextDirection.rtl,
               );
             },
           ),

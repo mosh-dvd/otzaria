@@ -11,6 +11,7 @@ import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class CommentaryList extends StatefulWidget {
   final Function(TextBookTab) openBookCallback;
@@ -119,7 +120,7 @@ class _CommentaryListState extends State<CommentaryList> {
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: RtlTextField(
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'חפש בתוך המפרשים המוצגים...',
@@ -136,7 +137,8 @@ class _CommentaryListState extends State<CommentaryList> {
                                   ),
                                   const SizedBox(width: 4),
                                   IconButton(
-                                    icon: const Icon(FluentIcons.chevron_up_24_regular),
+                                    icon: const Icon(
+                                        FluentIcons.chevron_up_24_regular),
                                     iconSize: 20,
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints(
@@ -153,7 +155,8 @@ class _CommentaryListState extends State<CommentaryList> {
                                         : null,
                                   ),
                                   IconButton(
-                                    icon: const Icon(FluentIcons.chevron_down_24_regular),
+                                    icon: const Icon(
+                                        FluentIcons.chevron_down_24_regular),
                                     iconSize: 20,
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints(
@@ -172,7 +175,8 @@ class _CommentaryListState extends State<CommentaryList> {
                                   ),
                                 ],
                                 IconButton(
-                                  icon: const Icon(FluentIcons.dismiss_24_regular),
+                                  icon: const Icon(
+                                      FluentIcons.dismiss_24_regular),
                                   onPressed: () {
                                     _searchController.clear();
                                     setState(() {

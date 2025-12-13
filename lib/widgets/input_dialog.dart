@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// דיאלוג הזנת טקסט עם תמיכה באנטר וחיצים
 class InputDialog extends StatefulWidget {
@@ -113,7 +114,7 @@ class _InputDialogState extends State<InputDialog> {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
-            TextField(
+            RtlTextField(
               controller: _controller,
               focusNode: _textFieldFocusNode,
               keyboardType: widget.keyboardType,

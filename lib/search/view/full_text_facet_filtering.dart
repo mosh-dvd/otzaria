@@ -10,6 +10,7 @@ import 'package:otzaria/search/bloc/search_state.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/library/models/library.dart';
 import 'package:otzaria/tabs/models/searching_tab.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 // Constants
 const double _kMinQueryLength = 2;
@@ -90,9 +91,9 @@ class _SearchFacetFilteringState extends State<SearchFacetFiltering>
   Widget _buildSearchField() {
     return Container(
       height: 60, // Same height as the container on the right
-      alignment: Alignment.center, // Vertically centers the TextField
+      alignment: Alignment.center, // Vertically centers the RtlTextField
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: TextField(
+      child: RtlTextField(
         controller: _filterQuery,
         decoration: InputDecoration(
           hintText: 'איתור ספר…',
@@ -487,7 +488,6 @@ class _SearchFacetFilteringState extends State<SearchFacetFiltering>
 
         return BlocBuilder<SearchBloc, SearchState>(
           builder: (context, searchState) {
-
             if (libraryState.library == null) {
               return const Center(child: Text('No library data available'));
             }

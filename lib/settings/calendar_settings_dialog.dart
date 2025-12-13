@@ -3,6 +3,7 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:otzaria/navigation/calendar_cubit.dart';
 import 'package:otzaria/settings/settings_repository.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// פונקציה גלובלית להצגת דיאלוג הגדרות לוח שנה
 /// ניתן לקרוא לה מכל מקום באפליקציה
@@ -314,7 +315,7 @@ class _CitySearchWidgetState extends State<_CitySearchWidget> {
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: TextField(
+            child: RtlTextField(
               controller: _searchController,
               autofocus: true,
               decoration: const InputDecoration(

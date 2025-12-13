@@ -14,6 +14,7 @@ import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:otzaria/utils/context_menu_utils.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// Widget שמציג את הקישורים של השורה הנבחרת בלבד
 class SelectedLineLinksView extends StatefulWidget {
@@ -65,7 +66,7 @@ class _SelectedLineLinksViewState extends State<SelectedLineLinksView> {
               padding: const EdgeInsets.all(8.0),
               child: Column(
                 children: [
-                  TextField(
+                  RtlTextField(
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'חפש בתוך הקישורים המוצגים...',

@@ -13,6 +13,7 @@ import 'package:otzaria/settings/settings_state.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
 import 'package:otzaria/utils/context_menu_utils.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// מייצג קבוצת קטעי פירוש רצופים מאותו ספר
 class CommentaryGroup {
@@ -585,7 +586,7 @@ class CommentaryListBaseState extends State<CommentaryListBase> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: RtlTextField(
                       controller: _searchController,
                       decoration: InputDecoration(
                         hintText: 'חפש בתוך המפרשים המוצגים...',

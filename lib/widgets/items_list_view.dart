@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class ItemsListView extends StatefulWidget {
   final List<dynamic> items;
@@ -74,7 +75,7 @@ class _ItemsListViewState extends State<ItemsListView> {
       children: [
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: TextField(
+          child: RtlTextField(
             controller: _searchController,
             focusNode: _searchFocusNode,
             decoration: InputDecoration(

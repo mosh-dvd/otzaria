@@ -177,10 +177,17 @@ RtlTextField(
 
 ## קבצים שכבר משתמשים ב-RtlTextField
 
+### שדות חיפוש ראשיים
 - ✅ `lib/library/view/library_browser.dart` - שדה חיפוש בספרייה
 - ✅ `lib/find_ref/find_ref_dialog.dart` - שדה איתור מקורות
 - ✅ `lib/search/view/search_dialog.dart` - שדות מרווח ומילה חילופית
 - ✅ `lib/search/view/enhanced_search_field.dart` - שדה החיפוש הראשי
+
+### שדות חיפוש בספרים
+- ✅ `lib/widgets/search_pane_base.dart` - בסיס לכל שדות החיפוש בספרים
+- ✅ `lib/text_book/view/commentary_list_base.dart` - חיפוש במפרשים
+- ✅ `lib/text_book/view/selected_line_links_view.dart` - חיפוש בקישורים
+- ✅ `lib/text_book/view/toc_navigator_screen.dart` - חיפוש בתוכן עניינים
 
 ## סיכום
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class PersonalNoteEditorDialog extends StatefulWidget {
   final TextEditingController controller;
@@ -182,11 +183,15 @@ class _PersonalNoteEditorDialogState extends State<PersonalNoteEditorDialog> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (widget.referenceText != null && widget.referenceText!.isNotEmpty) ...[
+                  if (widget.referenceText != null &&
+                      widget.referenceText!.isNotEmpty) ...[
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.5),
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(4),
                           topRight: Radius.circular(4),
@@ -196,7 +201,9 @@ class _PersonalNoteEditorDialogState extends State<PersonalNoteEditorDialog> {
                         widget.referenceText!,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w500,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                         textAlign: TextAlign.right,
                         textDirection: TextDirection.rtl,
@@ -205,12 +212,15 @@ class _PersonalNoteEditorDialogState extends State<PersonalNoteEditorDialog> {
                     Divider(
                       height: 1,
                       thickness: 1,
-                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outline
+                          .withValues(alpha: 0.3),
                     ),
                   ],
                   Padding(
                     padding: const EdgeInsets.all(8.0),
-                    child: TextField(
+                    child: RtlTextField(
                       controller: widget.controller,
                       focusNode: _textFieldFocusNode,
                       minLines: 6,

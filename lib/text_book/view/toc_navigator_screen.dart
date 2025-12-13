@@ -8,6 +8,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:otzaria/models/books.dart';
 import 'package:otzaria/utils/ref_helper.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class TocViewer extends StatefulWidget {
   const TocViewer({
@@ -532,7 +533,7 @@ class _TocViewerState extends State<TocViewer>
               children: [
                 Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: TextField(
+                  child: RtlTextField(
                     controller: searchController,
                     onChanged: (value) => setState(() {}),
                     focusNode: widget.focusNode,

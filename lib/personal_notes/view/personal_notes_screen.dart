@@ -16,6 +16,7 @@ import 'package:otzaria/library/bloc/library_bloc.dart';
 import 'package:otzaria/library/bloc/library_state.dart';
 import 'package:otzaria/library/models/library.dart';
 import 'package:otzaria/models/books.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 class PersonalNotesManagerScreen extends StatefulWidget {
   const PersonalNotesManagerScreen({super.key});
@@ -25,7 +26,8 @@ class PersonalNotesManagerScreen extends StatefulWidget {
       _PersonalNotesManagerScreenState();
 }
 
-class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen> {
+class _PersonalNotesManagerScreenState
+    extends State<PersonalNotesManagerScreen> {
   final PersonalNotesRepository _repository = PersonalNotesRepository();
 
   List<BookNotesInfo> _books = [];
@@ -131,10 +133,12 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
           setState(() {
             _bookStates[state.bookId!] = state;
           });
-          
+
           // If this is a new book (not in _books list), refresh the books list
           final bookExists = _books.any((book) => book.bookId == state.bookId);
-          if (!bookExists && (state.locatedNotes.isNotEmpty || state.missingNotes.isNotEmpty)) {
+          if (!bookExists &&
+              (state.locatedNotes.isNotEmpty ||
+                  state.missingNotes.isNotEmpty)) {
             _loadBooks();
           }
         }
@@ -160,8 +164,9 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
                     child: GestureDetector(
                       onHorizontalDragUpdate: (details) {
                         setState(() {
-                          _navigationWidth = (_navigationWidth - details.delta.dx)
-                              .clamp(150.0, 500.0);
+                          _navigationWidth =
+                              (_navigationWidth - details.delta.dx)
+                                  .clamp(150.0, 500.0);
                         });
                       },
                       child: Container(
@@ -190,8 +195,6 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
     );
   }
 
-
-
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.all(8.0),
@@ -210,7 +213,7 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
           const SizedBox(width: 8),
           // חלונית חיפוש באמצע
           Expanded(
-            child: TextField(
+            child: RtlTextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'חפש בהערות...',
@@ -266,7 +269,8 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
         }
 
         final rootCategory = libraryState.library!;
-        final totalNotesCount = _getNotesCountForCategory(rootCategory) + _getMissingNotesCount();
+        final totalNotesCount =
+            _getNotesCountForCategory(rootCategory) + _getMissingNotesCount();
         final isRootExpanded = _expansionState['/personal_notes_root'] ?? true;
         final isRootSelected = _selectedFilter == null;
 
@@ -274,86 +278,91 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
           padding: EdgeInsets.zero,
           children: [
             Column(
-            children: [
-              // Root "הערות אישיות" folder
-              InkWell(
-                onTap: () => _onFilterChanged(null),
-                child: Container(
-                  padding: const EdgeInsets.only(
-                    right: 16.0,
-                    left: 16.0,
-                    top: 12.0,
-                    bottom: 12.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isRootSelected
-                        ? Theme.of(context)
-                            .colorScheme
-                            .primaryContainer
-                            .withValues(alpha: 0.3)
-                        : null,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: Theme.of(context).dividerColor,
-                        width: 0.5,
+              children: [
+                // Root "הערות אישיות" folder
+                InkWell(
+                  onTap: () => _onFilterChanged(null),
+                  child: Container(
+                    padding: const EdgeInsets.only(
+                      right: 16.0,
+                      left: 16.0,
+                      top: 12.0,
+                      bottom: 12.0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isRootSelected
+                          ? Theme.of(context)
+                              .colorScheme
+                              .primaryContainer
+                              .withValues(alpha: 0.3)
+                          : null,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Theme.of(context).dividerColor,
+                          width: 0.5,
+                        ),
                       ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isRootExpanded
-                            ? FluentIcons.folder_open_24_regular
-                            : FluentIcons.folder_24_regular,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'הערות אישיות',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.primary,
+                    child: Row(
+                      children: [
+                        Icon(
+                          isRootExpanded
+                              ? FluentIcons.folder_open_24_regular
+                              : FluentIcons.folder_24_regular,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'הערות אישיות',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                           ),
                         ),
-                      ),
-                      if (totalNotesCount > 0)
-                        Text(
-                          '($totalNotesCount)',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        if (totalNotesCount > 0)
+                          Text(
+                            '($totalNotesCount)',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _expansionState['/personal_notes_root'] =
+                                  !isRootExpanded;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Icon(
+                              isRootExpanded
+                                  ? FluentIcons.chevron_up_24_regular
+                                  : FluentIcons.chevron_down_24_regular,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                           ),
                         ),
-                      const SizedBox(width: 8),
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            _expansionState['/personal_notes_root'] = !isRootExpanded;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(4),
-                        child: Padding(
-                          padding: const EdgeInsets.all(4.0),
-                          child: Icon(
-                            isRootExpanded
-                                ? FluentIcons.chevron_up_24_regular
-                                : FluentIcons.chevron_down_24_regular,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              if (isRootExpanded) ...[
-                ..._buildCategoryChildren(rootCategory, 0),
-                _buildMissingNotesTile(),
+                if (isRootExpanded) ...[
+                  ..._buildCategoryChildren(rootCategory, 0),
+                  _buildMissingNotesTile(),
+                ],
               ],
-            ],
             ),
           ],
         );
@@ -379,7 +388,7 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
 
   int _getNotesCountForCategory(Category category) {
     int count = 0;
-    
+
     // Deduplicate books by title to avoid counting notes twice
     // when the same book exists in both PDF and text formats
     final seenTitles = <String>{};
@@ -389,7 +398,7 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
         seenTitles.add(book.title);
       }
     }
-    
+
     for (final subCat in category.subCategories) {
       count += _getNotesCountForCategory(subCat);
     }
@@ -399,7 +408,7 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
   Widget _buildMissingNotesTile() {
     final count = _getMissingNotesCount();
     if (count == 0) return const SizedBox.shrink();
-    
+
     final isSelected = _selectedFilter == '__missing__';
 
     return InkWell(
@@ -519,7 +528,8 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
                     ),
                   ),
                 const SizedBox(width: 8),
-                if (category.subCategories.isNotEmpty || category.books.isNotEmpty)
+                if (category.subCategories.isNotEmpty ||
+                    category.books.isNotEmpty)
                   InkWell(
                     onTap: () {
                       setState(() {
@@ -565,7 +575,7 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
       if (seenTitles.contains(book.title)) {
         continue;
       }
-      
+
       final count = _getNotesCountForBook(book.title);
       if (count > 0) {
         children.add(_buildBookTile(book, count, level + 1));
@@ -634,11 +644,9 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
     );
   }
 
-
-
   List<String> _getBooksInCategory(Category category) {
     final List<String> bookTitles = [];
-    
+
     void collectBooks(Category cat) {
       for (final book in cat.books) {
         bookTitles.add(book.title);
@@ -647,7 +655,7 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
         collectBooks(subCat);
       }
     }
-    
+
     collectBooks(category);
     return bookTitles;
   }
@@ -677,8 +685,8 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
       allNotes.removeWhere((noteWithBook) {
         final note = noteWithBook.note;
         return !note.content.toLowerCase().contains(query) &&
-               !note.bookId.toLowerCase().contains(query) &&
-               !(note.lineNumber?.toString().contains(query) ?? false);
+            !note.bookId.toLowerCase().contains(query) &&
+            !(note.lineNumber?.toString().contains(query) ?? false);
       });
     }
 
@@ -707,7 +715,9 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
         final category = findCategory(libraryState.library!, _selectedFilter!);
         if (category != null) {
           final booksInCategory = _getBooksInCategory(category);
-          filteredNotes = allNotes.where((n) => booksInCategory.contains(n.bookId)).toList();
+          filteredNotes = allNotes
+              .where((n) => booksInCategory.contains(n.bookId))
+              .toList();
         } else {
           filteredNotes = [];
         }
@@ -716,13 +726,13 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
       }
     } else {
       // Book selected
-      filteredNotes = allNotes.where((n) => n.bookId == _selectedFilter).toList();
+      filteredNotes =
+          allNotes.where((n) => n.bookId == _selectedFilter).toList();
     }
 
     // Filter missing notes if not showing missing filter
-    final displayNotes = _selectedFilter == '__missing__'
-        ? filteredNotes
-        : filteredNotes;
+    final displayNotes =
+        _selectedFilter == '__missing__' ? filteredNotes : filteredNotes;
 
     // Sort by book and line number
     displayNotes.sort((a, b) {
@@ -745,7 +755,8 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
     for (final note in displayNotes) {
       if (note.bookId != currentBookId) {
         if (currentGroup.isNotEmpty) {
-          groupedNotes.add(_NotesGroup(bookId: currentBookId!, notes: currentGroup));
+          groupedNotes
+              .add(_NotesGroup(bookId: currentBookId!, notes: currentGroup));
         }
         currentBookId = note.bookId;
         currentGroup = [note];
@@ -754,7 +765,8 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
       }
     }
     if (currentGroup.isNotEmpty) {
-      groupedNotes.add(_NotesGroup(bookId: currentBookId!, notes: currentGroup));
+      groupedNotes
+          .add(_NotesGroup(bookId: currentBookId!, notes: currentGroup));
     }
 
     return ListView.builder(
@@ -796,21 +808,25 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
                 const minCardWidth = 400.0;
                 const spacing = 12.0;
                 final availableWidth = constraints.maxWidth;
-                
+
                 // Calculate maximum number of cards that can fit
                 // Formula: (width + spacing) / (cardWidth + spacing)
-                int crossAxisCount = ((availableWidth + spacing) / (minCardWidth + spacing)).floor();
-                
+                int crossAxisCount =
+                    ((availableWidth + spacing) / (minCardWidth + spacing))
+                        .floor();
+
                 // Ensure at least 1 card per row
                 if (crossAxisCount < 1) crossAxisCount = 1;
-                
+
                 // Calculate actual card width based on available space
-                final actualCardWidth = (availableWidth - (spacing * (crossAxisCount - 1))) / crossAxisCount;
-                
+                final actualCardWidth =
+                    (availableWidth - (spacing * (crossAxisCount - 1))) /
+                        crossAxisCount;
+
                 // Adjust aspect ratio based on actual card width
                 // Target height is around 150px (lower = more rectangular), so aspectRatio = width / 150
                 final aspectRatio = actualCardWidth / 150.0;
-                
+
                 return GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -841,7 +857,10 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
         padding: const EdgeInsets.all(16),
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest
+              .withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
@@ -866,10 +885,11 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
                     Expanded(
                       child: Text(
                         isMissing ? 'הערה ללא מיקום' : note.title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -879,7 +899,8 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
                       children: [
                         IconButton(
                           tooltip: 'עריכה',
-                          icon: const Icon(FluentIcons.edit_24_regular, size: 18),
+                          icon:
+                              const Icon(FluentIcons.edit_24_regular, size: 18),
                           onPressed: () => _editNote(note),
                           padding: const EdgeInsets.all(8),
                           constraints: const BoxConstraints(
@@ -890,7 +911,8 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
                         if (isMissing) ...[
                           IconButton(
                             tooltip: 'מיקום מחדש',
-                            icon: const Icon(FluentIcons.location_24_regular, size: 18),
+                            icon: const Icon(FluentIcons.location_24_regular,
+                                size: 18),
                             onPressed: () => _repositionMissing(note),
                             padding: const EdgeInsets.all(8),
                             constraints: const BoxConstraints(
@@ -901,7 +923,8 @@ class _PersonalNotesManagerScreenState extends State<PersonalNotesManagerScreen>
                         ],
                         IconButton(
                           tooltip: 'מחיקה',
-                          icon: const Icon(FluentIcons.delete_24_regular, size: 18),
+                          icon: const Icon(FluentIcons.delete_24_regular,
+                              size: 18),
                           onPressed: () => _deleteNote(note),
                           padding: const EdgeInsets.all(8),
                           constraints: const BoxConstraints(

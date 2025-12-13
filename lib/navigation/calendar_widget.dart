@@ -10,6 +10,7 @@ import 'package:otzaria/widgets/confirmation_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'dart:io';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 // הפכנו את הווידג'ט ל-Stateless כי הוא כבר לא מנהל מצב בעצמו.
 class CalendarWidget extends StatelessWidget {
@@ -1486,7 +1487,7 @@ class CalendarWidget extends StatelessWidget {
                 child: Column(
                   children: [
                     // הזנת תאריך ידנית
-                    TextField(
+                    RtlTextField(
                       controller: dateController,
                       autofocus: true,
                       textInputAction: TextInputAction.done,
@@ -1696,7 +1697,7 @@ class CalendarWidget extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextField(
+                      RtlTextField(
                         controller: titleController,
                         autofocus: true,
                         textInputAction: TextInputAction.done,
@@ -1743,7 +1744,7 @@ class CalendarWidget extends StatelessWidget {
                         },
                       ),
                       const SizedBox(height: 16),
-                      TextField(
+                      RtlTextField(
                         controller: descriptionController,
                         decoration: const InputDecoration(
                           labelText: 'תיאור (אופציונלי)',
@@ -1836,7 +1837,7 @@ class CalendarWidget extends StatelessWidget {
                               const SizedBox(height: 8),
 
                               // שדה מספר השנים מושבת כעת אם "תמיד" מסומן
-                              TextField(
+                              RtlTextField(
                                 controller: yearsController,
                                 keyboardType: TextInputType.number,
                                 enabled: !recurForever, // <-- החלק החשוב
@@ -2258,7 +2259,7 @@ class _TimesAndEventsTabViewState extends State<_TimesAndEventsTabView>
                         ],
                       ),
                       const SizedBox(height: 16),
-                      TextField(
+                      RtlTextField(
                         onChanged: (query) => context
                             .read<CalendarCubit>()
                             .setEventSearchQuery(query),

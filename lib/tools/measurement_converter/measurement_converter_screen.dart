@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/services.dart';
 import 'measurement_data.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 // START OF ADDITIONS - MODERN UNITS
 const List<String> modernLengthUnits = ['מ"מ', 'ס"מ', 'מטר', 'ק"מ'];
@@ -1143,7 +1144,7 @@ class _MeasurementConverterScreenState
   }
 
   Widget _buildInputField() {
-    return TextField(
+    return RtlTextField(
       controller: _inputController,
       focusNode: _inputFocusNode,
       style: const TextStyle(fontSize: 16.0),
@@ -1188,22 +1189,20 @@ class _MeasurementConverterScreenState
         }
         _convert();
       },
-      textDirection: TextDirection.ltr,
       textAlign: TextAlign.right,
     );
   }
 
   Widget _buildResultDisplay() {
-    return TextField(
+    return RtlTextField(
       controller: _resultController,
-      readOnly: true,
+      enabled: false,
       decoration: const InputDecoration(
         labelText: 'תוצאה',
         border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0),
       ),
       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      textDirection: TextDirection.ltr,
       textAlign: TextAlign.right,
     );
   }

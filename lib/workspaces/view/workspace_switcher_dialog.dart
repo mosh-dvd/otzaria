@@ -240,7 +240,8 @@ class _WorkspaceSwitcherDialogState extends State<WorkspaceSwitcherDialog> {
                                   ),
                                 ),
                                 IconButton(
-                                    icon: const Icon(FluentIcons.edit_24_regular),
+                                    icon:
+                                        const Icon(FluentIcons.edit_24_regular),
                                     onPressed: () {
                                       setState(() {
                                         editController = TextEditingController(

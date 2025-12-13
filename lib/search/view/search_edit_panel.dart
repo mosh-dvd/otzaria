@@ -7,6 +7,7 @@ import 'package:otzaria/search/bloc/search_event.dart';
 import 'package:otzaria/search/bloc/search_state.dart';
 import 'package:otzaria/search/models/search_configuration.dart';
 import 'package:otzaria/tabs/models/searching_tab.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 
 /// פאנל עריכת חיפוש - מופיע מתחת לשורת "מוצגות תוצאות של..."
 /// מאפשר עריכת החיפוש הנוכחי ללא יצירת כרטיסייה חדשה
@@ -25,7 +26,8 @@ class SearchEditPanel extends StatefulWidget {
 }
 
 class _SearchEditPanelState extends State<SearchEditPanel> {
-  final TextEditingController _alternativeWordController = TextEditingController();
+  final TextEditingController _alternativeWordController =
+      TextEditingController();
   final Map<String, TextEditingController> _spacingControllers = {};
   final Map<String, FocusNode> _spacingFocusNodes = {};
   final FocusNode _alternativeWordFocusNode = FocusNode();
@@ -34,7 +36,7 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
   @override
   void initState() {
     super.initState();
-    
+
     // מאזין לשינויים בתיבת החיפוש
     widget.tab.queryController.addListener(() {
       if (mounted) {
@@ -75,7 +77,8 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
         _currentAlternatives.addAll(alternatives);
       }
 
-      final words = widget.tab.queryController.text.trim().split(RegExp(r'\s+'));
+      final words =
+          widget.tab.queryController.text.trim().split(RegExp(r'\s+'));
       final totalWords = words.where((w) => w.isNotEmpty).length;
       if (wordIndex < totalWords - 1) {
         final key = '$wordIndex-${wordIndex + 1}';
@@ -210,7 +213,8 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
             selected: isSelected,
             onSelected: (selected) {
               if (selected) {
-                widget.tab.searchBloc.add(SetSearchMode(modeData['mode'] as SearchMode));
+                widget.tab.searchBloc
+                    .add(SetSearchMode(modeData['mode'] as SearchMode));
               }
             },
           ),
@@ -227,7 +231,8 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
         final wordIndex = _getCurrentWordIndex();
         final isEnabled = currentWord != null && wordIndex != null;
 
-        final words = widget.tab.queryController.text.trim().split(RegExp(r'\s+'));
+        final words =
+            widget.tab.queryController.text.trim().split(RegExp(r'\s+'));
         final totalWords = words.where((w) => w.isNotEmpty).length;
 
         return Container(
@@ -271,29 +276,37 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
                       'מרווח כללי בין מילים:',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.7),
                       ),
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
                       width: 80,
-                      child: TextField(
+                      child: RtlTextField(
                         decoration: const InputDecoration(
                           hintText: '0-30',
                           border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                           isDense: true,
                         ),
-                        controller: TextEditingController(text: state.distance.toString()),
+                        controller: TextEditingController(
+                            text: state.distance.toString()),
                         keyboardType: TextInputType.number,
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
-                          FilteringTextInputFormatter.allow(RegExp(r'^([0-9]|[12][0-9]|30)$')),
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'^([0-9]|[12][0-9]|30)$')),
                         ],
                         textAlign: TextAlign.center,
                         onChanged: (value) {
                           final distance = int.tryParse(value);
-                          if (distance != null && distance >= 0 && distance <= 30) {
+                          if (distance != null &&
+                              distance >= 0 &&
+                              distance <= 30) {
                             widget.tab.searchBloc.add(UpdateDistance(distance));
                           }
                         },
@@ -303,16 +316,16 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
                   const Spacer(),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // שורה שנייה: שדה חיפוש + כפתורים
               Row(
                 children: [
                   // שדה חיפוש
                   Expanded(
                     flex: 3,
-                    child: TextField(
+                    child: RtlTextField(
                       controller: widget.tab.queryController,
                       focusNode: widget.tab.searchFieldFocusNode,
                       decoration: InputDecoration(
@@ -355,14 +368,15 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 16),
 
               // שורה תחתונה: אפשרויות מתקדמות בפריסה רחבה (רק בחיפוש מתקדם)
               if (state.configuration.searchMode == SearchMode.advanced)
-                _buildAdvancedOptions(isEnabled, currentWord, wordIndex, totalWords, words)
+                _buildAdvancedOptions(
+                    isEnabled, currentWord, wordIndex, totalWords, words)
               else
                 Center(
                   child: Padding(
@@ -427,18 +441,19 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
           child: Column(
             children: [
               // ניווט בין מילים
-              _buildWordNavigation(isEnabled, currentWord, wordIndex, totalWords, words),
-              
+              _buildWordNavigation(
+                  isEnabled, currentWord, wordIndex, totalWords, words),
+
               const SizedBox(height: 16),
-              
+
               // תיבת מרווח
               _buildSpacingField(isEnabled, wordIndex),
-              
+
               const SizedBox(height: 16),
-              
+
               // תיבת מילה חילופית
               _buildAlternativeWordField(isEnabled, wordIndex),
-              
+
               // רשימת מילים חילופיות
               if (_currentAlternatives.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -447,9 +462,9 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
             ],
           ),
         ),
-        
+
         const SizedBox(width: 24),
-        
+
         // עמודה ימנית: תיבות סימון בפריסה רחבה
         Expanded(
           flex: 3,
@@ -479,8 +494,10 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
                     final wordStart = text.indexOf(words[i], currentPos);
                     currentPos = wordStart + words[i].length;
                   }
-                  final targetWordStart = text.indexOf(words[wordIndex - 1], currentPos);
-                  widget.tab.queryController.selection = TextSelection.collapsed(
+                  final targetWordStart =
+                      text.indexOf(words[wordIndex - 1], currentPos);
+                  widget.tab.queryController.selection =
+                      TextSelection.collapsed(
                     offset: targetWordStart + words[wordIndex - 1].length ~/ 2,
                   );
                   setState(() {});
@@ -509,7 +526,9 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
         ),
         IconButton(
           icon: const Icon(FluentIcons.chevron_right_24_regular),
-          onPressed: isEnabled && wordIndex != null && wordIndex < totalWords - 1
+          onPressed: isEnabled &&
+                  wordIndex != null &&
+                  wordIndex < totalWords - 1
               ? () {
                   final text = widget.tab.queryController.text;
                   int currentPos = 0;
@@ -517,8 +536,10 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
                     final wordStart = text.indexOf(words[i], currentPos);
                     currentPos = wordStart + words[i].length;
                   }
-                  final targetWordStart = text.indexOf(words[wordIndex + 1], currentPos);
-                  widget.tab.queryController.selection = TextSelection.collapsed(
+                  final targetWordStart =
+                      text.indexOf(words[wordIndex + 1], currentPos);
+                  widget.tab.queryController.selection =
+                      TextSelection.collapsed(
                     offset: targetWordStart + words[wordIndex + 1].length ~/ 2,
                   );
                   setState(() {});
@@ -533,14 +554,17 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
   Widget _buildSpacingField(bool isEnabled, int? wordIndex) {
     return Opacity(
       opacity: isEnabled && wordIndex != null ? 1.0 : 0.5,
-      child: TextField(
+      child: RtlTextField(
         enabled: isEnabled && wordIndex != null,
-        focusNode: wordIndex != null ? _getSpacingFocusNode(wordIndex, wordIndex + 1) : null,
+        focusNode: wordIndex != null
+            ? _getSpacingFocusNode(wordIndex, wordIndex + 1)
+            : null,
         decoration: InputDecoration(
           labelText: 'מרווח למילה הבאה',
           hintText: '0-30',
           border: const OutlineInputBorder(),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           suffixIcon: IconButton(
             icon: const Icon(FluentIcons.dismiss_24_regular, size: 20),
             onPressed: isEnabled && wordIndex != null
@@ -585,7 +609,7 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
   }
 
   Widget _buildAlternativeWordField(bool isEnabled, int? wordIndex) {
-    return TextField(
+    return RtlTextField(
       controller: _alternativeWordController,
       focusNode: _alternativeWordFocusNode,
       enabled: isEnabled,
@@ -608,7 +632,8 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
                     if (!widget.tab.alternativeWords.containsKey(wordIndex)) {
                       widget.tab.alternativeWords[wordIndex] = [];
                     }
-                    if (!widget.tab.alternativeWords[wordIndex]!.contains(text)) {
+                    if (!widget.tab.alternativeWords[wordIndex]!
+                        .contains(text)) {
                       widget.tab.alternativeWords[wordIndex]!.add(text);
                     }
                     widget.tab.alternativeWordsChanged.value++;
@@ -680,7 +705,8 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
     );
   }
 
-  Widget _buildCheckboxGrid(bool isEnabled, String? currentWord, int? wordIndex) {
+  Widget _buildCheckboxGrid(
+      bool isEnabled, String? currentWord, int? wordIndex) {
     const List<String> options = [
       'קידומות דקדוקיות',
       'סיומות דקדוקיות',
@@ -722,7 +748,8 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
                   : null,
               borderRadius: BorderRadius.circular(4),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
                 child: Row(
                   children: [
                     Container(
@@ -737,7 +764,9 @@ class _SearchEditPanelState extends State<SearchEditPanel> {
                         ),
                         borderRadius: BorderRadius.circular(3),
                         color: isEnabled && isChecked
-                            ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
+                            ? Theme.of(context)
+                                .primaryColor
+                                .withValues(alpha: 0.1)
                             : Colors.transparent,
                       ),
                       child: isEnabled && isChecked
