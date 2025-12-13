@@ -180,9 +180,9 @@ class _AboutScreenState extends State<AboutScreen> {
 
     // מהדירים שההדירו בין 5 ל-10 ספרים
     final regularEditors = [
-      // {
-      //   'name': 'מוטיו',
-      // },
+      {
+        'name': 'מוטיו',
+      },
       {
         'name': 'דוד משה 1',
         'url': 'https://mitmachim.top/user/%D7%93%D7%95%D7%93-%D7%9E%D7%A9%D7%94-1',
