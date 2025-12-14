@@ -684,22 +684,23 @@ class _PdfCommentaryPanelState extends State<PdfCommentaryPanel>
             backgroundColor: Theme.of(context).colorScheme.surface,
             collapsedBackgroundColor: Theme.of(context).colorScheme.surface,
             title: Text(
-              link.heRef,
+              utils.getTitleFromPath(link.path2),
               style: TextStyle(
                 fontSize: settingsState.commentatorsFontSize - 2,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.bold,
                 fontFamily: settingsState.commentatorsFontFamily,
               ),
             ),
             subtitle: Text(
-              utils.getTitleFromPath(link.path2),
+              link.heRef,
               style: TextStyle(
                 fontSize: settingsState.commentatorsFontSize - 4,
+                fontWeight: FontWeight.normal,
                 fontFamily: settingsState.commentatorsFontFamily,
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withValues(alpha: 0.7),
+                    .withValues(alpha: 0.5),
               ),
             ),
             children: [

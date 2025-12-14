@@ -257,7 +257,7 @@ class _SelectedLineLinksViewState extends State<SelectedLineLinksView> {
         collapsedBackgroundColor: Theme.of(context).colorScheme.surface,
         title: BlocBuilder<SettingsBloc, SettingsState>(
           builder: (context, settingsState) {
-            String displayTitle = link.heRef;
+            String displayTitle = utils.getTitleFromPath(link.path2);
             if (settingsState.replaceHolyNames) {
               displayTitle = utils.replaceHolyNames(displayTitle);
             }
@@ -265,7 +265,7 @@ class _SelectedLineLinksViewState extends State<SelectedLineLinksView> {
               displayTitle,
               style: TextStyle(
                 fontSize: settingsState.commentatorsFontSize - 2,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.bold,
                 fontFamily: settingsState.commentatorsFontFamily,
               ),
             );
@@ -273,7 +273,7 @@ class _SelectedLineLinksViewState extends State<SelectedLineLinksView> {
         ),
         subtitle: BlocBuilder<SettingsBloc, SettingsState>(
           builder: (context, settingsState) {
-            String displaySubtitle = utils.getTitleFromPath(link.path2);
+            String displaySubtitle = link.heRef;
             if (settingsState.replaceHolyNames) {
               displaySubtitle = utils.replaceHolyNames(displaySubtitle);
             }
@@ -281,8 +281,9 @@ class _SelectedLineLinksViewState extends State<SelectedLineLinksView> {
               displaySubtitle,
               style: TextStyle(
                 fontSize: settingsState.commentatorsFontSize - 4,
+                fontWeight: FontWeight.normal,
                 fontFamily: settingsState.commentatorsFontFamily,
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(180),
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(128),
               ),
             );
           },
