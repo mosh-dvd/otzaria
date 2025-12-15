@@ -613,7 +613,6 @@ class _MySettingsScreenState extends State<MySettingsScreen>
                   ),
                   const SizedBox(height: 24),
                   _BackupSettingsSection(),
-                  _BackupSettingsSection(),
                   const SizedBox(height: 24),
                   SettingsGroup(
                     title: 'כללי',
