@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:file_picker/file_picker.dart';
@@ -183,6 +184,7 @@ class _MySettingsScreenState extends State<MySettingsScreen>
 
             // גלילה לאלמנט הזה אחרי שהמסך מתעדכן
             WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
               if (_networkModeTileKey.currentContext != null) {
                 Scrollable.ensureVisible(
                   _networkModeTileKey.currentContext!,
@@ -1267,7 +1269,13 @@ class _BackupSettingsSectionState extends State<_BackupSettingsSection> {
           content: const Text('הנתונים שוחזרו בהצלחה. יש להפעיל מחדש את התוכנה.'),
           actions: [
             TextButton(
-              onPressed: () => exit(0),
+              onPressed: () {
+                if (Platform.isAndroid || Platform.isIOS) {
+                  SystemNavigator.pop();
+                } else {
+                  windowManager.close();
+                }
+              },
               child: const Text('סגור את התוכנה'),
             ),
           ],
@@ -1430,6 +1438,9 @@ class _BackupSettingsSectionState extends State<_BackupSettingsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final cardColor = Theme.of(context).cardColor;
+
     return SettingsGroup(
       title: 'גיבוי',
       titleAlignment: Alignment.centerRight,
@@ -1437,61 +1448,55 @@ class _BackupSettingsSectionState extends State<_BackupSettingsSection> {
       children: [
         _buildCommonActions(),
         const SizedBox(height: 16),
-        Builder(
-          builder: (context) {
-            final primaryColor = Theme.of(context).colorScheme.primary;
-            final cardColor = Theme.of(context).cardColor;
-            return Column(
-              children: [
-                ListTile(
-                  leading: const Icon(FluentIcons.options_24_regular),
-                  title: Text(
-                    'בחר מה לגבות',
-                    style: TextStyle(
-                      fontSize: 16,
-                      letterSpacing: -0.1, // רווח בין אותיות - 0 = רגיל, שלילי = צפוף יותר
+        Column(
+          children: [
+            ListTile(
+              leading: const Icon(FluentIcons.options_24_regular),
+              title: Text(
+                'בחר מה לגבות',
+                style: TextStyle(
+                  fontSize: 16,
+                  letterSpacing: -0.1, // רווח בין אותיות - 0 = רגיל, שלילי = צפוף יותר
+                ),
+              ),
+              trailing: SegmentedButton<_BackupMode>(
+                style: ButtonStyle(
+                  shape: WidgetStateProperty.all(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  trailing: SegmentedButton<_BackupMode>(
-                    style: ButtonStyle(
-                      shape: WidgetStateProperty.all(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      backgroundColor: WidgetStateProperty.resolveWith<Color?>(
-                        (Set<WidgetState> states) {
-                          if (states.contains(WidgetState.selected)) {
-                            return primaryColor.withValues(alpha: 0.2);
-                          }
-                          return cardColor;
-                        },
-                      ),
-                    ),
-                    segments: const [
-                      ButtonSegment<_BackupMode>(
-                        value: _BackupMode.all,
-                        label: Text('גבה הכל'),
-                        icon: Icon(FluentIcons.checkmark_circle_24_regular),
-                      ),
-                      ButtonSegment<_BackupMode>(
-                        value: _BackupMode.custom,
-                        label: Text('מותאם אישית'),
-                        icon: Icon(FluentIcons.options_24_regular),
-                      ),
-                    ],
-                    selected: {_selectedBackupMode},
-                    onSelectionChanged: (Set<_BackupMode> newSelection) {
-                      setState(() {
-                        _selectedBackupMode = newSelection.first;
-                      });
+                  backgroundColor: WidgetStateProperty.resolveWith<Color?>(
+                    (Set<WidgetState> states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return primaryColor.withValues(alpha: 0.2);
+                      }
+                      return cardColor;
                     },
                   ),
                 ),
-                const Divider(height: 0),
-              ],
-            );
-          },
+                segments: const [
+                  ButtonSegment<_BackupMode>(
+                    value: _BackupMode.all,
+                    label: Text('גבה הכל'),
+                    icon: Icon(FluentIcons.checkmark_circle_24_regular),
+                  ),
+                  ButtonSegment<_BackupMode>(
+                    value: _BackupMode.custom,
+                    label: Text('מותאם אישית'),
+                    icon: Icon(FluentIcons.options_24_regular),
+                  ),
+                ],
+                selected: {_selectedBackupMode},
+                onSelectionChanged: (Set<_BackupMode> newSelection) {
+                  setState(() {
+                    _selectedBackupMode = newSelection.first;
+                  });
+                },
+              ),
+            ),
+            const Divider(height: 0),
+          ],
         ),
         if (_selectedBackupMode == _BackupMode.custom) ...[
           Padding(
