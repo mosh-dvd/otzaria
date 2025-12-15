@@ -166,9 +166,7 @@ class _MySettingsScreenState extends State<MySettingsScreen>
         ],
         selected: {isOffline},
         onSelectionChanged: (Set<bool> newSelection) {
-          final value = newSelection.first;
-          Settings.setValue(SettingsRepository.keyOfflineMode, value);
-          context.read<SettingsBloc>().add(UpdateOfflineMode(value));
+          context.read<SettingsBloc>().add(UpdateOfflineMode(newSelection.first));
         },
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith<Color?>(
@@ -1334,10 +1332,7 @@ class _SettingsTile extends StatelessWidget {
             subtitle: subtitle != null
                 ? Text(
                     subtitle!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).textTheme.bodySmall?.color,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 13),
                   )
                 : null,
             trailing: trailing,
