@@ -184,9 +184,10 @@ class _AboutScreenState extends State<AboutScreen> {
       // {
       //   'name': 'יעקב אייזנשטיין',
       // },
-      // {
-      //   'name': 'יצחק זאב הוכמן',
-      // },
+      {
+        'name': 'הבל הבלים',
+        'url': 'https://mitmachim.top/user/%D7%94%D7%91%D7%9C-%D7%94%D7%91%D7%9C%D7%99%D7%9D',
+      },
     ];
 
     // מהדירים שההדירו בין 5 ל-10 ספרים
