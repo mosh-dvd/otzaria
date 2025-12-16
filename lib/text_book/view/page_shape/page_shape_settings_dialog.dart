@@ -125,18 +125,22 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
     );
     // שמירת הגופן של המפרשים התחתונים (הגדרה גלובלית)
     await Settings.setValue<String>('page_shape_bottom_font', _bottomFontFamily);
-    setState(() => _hasChanges = false);
+    // לא מאפסים את _hasChanges כדי שהאב ידע שהיה שינוי
   }
 
   void _onCommentatorChanged(String? value, void Function(String?) setter) {
-    setter(value);
-    _hasChanges = true;
+    setState(() {
+      setter(value);
+      _hasChanges = true;
+    });
     _saveSettings();
   }
 
   void _onFontChanged(String value) {
-    setState(() => _bottomFontFamily = value);
-    _hasChanges = true;
+    setState(() {
+      _bottomFontFamily = value;
+      _hasChanges = true;
+    });
     _saveSettings();
   }
 
