@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:otzaria/constants/fonts.dart';
 import 'package:otzaria/text_book/view/page_shape/utils/page_shape_settings_manager.dart';
 import 'package:otzaria/text_book/models/commentator_group.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
@@ -35,24 +36,10 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
   String? _rightCommentator;
   String? _bottomCommentator;
   String? _bottomRightCommentator;
-  String _bottomFontFamily = 'KeterYG'; // גופן ברירת מחדל למפרשים תחתונים
+  String _bottomFontFamily = AppFonts.defaultFont; // גופן ברירת מחדל למפרשים תחתונים
   List<CommentatorGroup> _groups = [];
   bool _isLoadingGroups = true;
   bool _hasChanges = false; // האם היו שינויים שצריך לשמור
-
-  // רשימת הגופנים הזמינים - כמו בהגדרות הרגילות
-  static const List<Map<String, String>> _availableFonts = [
-    {'value': 'KeterYG', 'label': 'כתר'},
-    {'value': 'Shofar', 'label': 'שופר'},
-    {'value': 'NotoSerifHebrew', 'label': 'נוטו'},
-    {'value': 'Tinos', 'label': 'טינוס'},
-    {'value': 'NotoRashiHebrew', 'label': 'רש"י'},
-    {'value': 'Candara', 'label': 'קנדרה'},
-    {'value': 'roboto', 'label': 'רובוטו'},
-    {'value': 'Calibri', 'label': 'קליברי'},
-    {'value': 'Arial', 'label': 'אריאל'},
-    {'value': 'TaameyAshkenaz', 'label': 'טעמי אשכנז'},
-  ];
 
   @override
   void initState() {
@@ -68,7 +55,7 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
       _rightCommentator = widget.currentRight;
       _bottomCommentator = widget.currentBottom;
       _bottomRightCommentator = widget.currentBottomRight;
-      _bottomFontFamily = Settings.getValue<String>('page_shape_bottom_font') ?? 'KeterYG';
+      _bottomFontFamily = Settings.getValue<String>('page_shape_bottom_font') ?? AppFonts.defaultFont;
     });
   }
 
@@ -212,13 +199,13 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
-                      items: _availableFonts.map((font) {
+                      items: AppFonts.availableFonts.map((font) {
                         return DropdownMenuItem<String>(
-                          value: font['value'],
+                          value: font.value,
                           child: Text(
-                            font['label']!, 
+                            font.label,
                             style: TextStyle(
-                              fontFamily: font['value'],
+                              fontFamily: font.value,
                               fontSize: 13,
                             ),
                           ),

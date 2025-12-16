@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:otzaria/constants/fonts.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/text_book/view/page_shape/page_shape_settings_dialog.dart';
@@ -534,7 +535,7 @@ class _CommentaryPaneState extends State<_CommentaryPane> {
         return BlocBuilder<SettingsBloc, SettingsState>(
           builder: (context, settingsState) {
             // מפרשים תחתונים משתמשים בגופן מההגדרות, עליונים בגופן הרגיל
-            final bottomFont = Settings.getValue<String>('page_shape_bottom_font') ?? 'KeterYG';
+            final bottomFont = Settings.getValue<String>('page_shape_bottom_font') ?? AppFonts.defaultFont;
             final fontFamily = widget.isBottom
                 ? bottomFont
                 : settingsState.commentatorsFontFamily;
