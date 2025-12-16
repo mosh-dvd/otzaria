@@ -366,8 +366,7 @@ $textWithBreaks
 
     // בדיקה חדשה - האם השורה מודגשת כפרשן קשור (מקומי)
     final isCommentaryHighlighted = !widget.isMainText &&
-        widget.highlightedIndices != null &&
-        widget.highlightedIndices!.contains(index);
+        (widget.highlightedIndices?.contains(index) ?? false);
 
     final theme = Theme.of(context);
     final backgroundColor = () {

@@ -342,7 +342,17 @@ class _CommentaryPaneState extends State<_CommentaryPane> {
     if (oldWidget.commentatorName != widget.commentatorName) {
       _loadCommentary();
     }
-    // טעינה מחדש של הגדרת הדגשה
+    _updateHighlightSettings();
+  }
+
+  @override
+  void dispose() {
+    _blocSubscription?.cancel();
+    super.dispose();
+  }
+
+  /// עדכון הגדרות הדגשה
+  void _updateHighlightSettings() {
     final state = context.read<TextBookBloc>().state;
     if (state is TextBookLoaded) {
       final newHighlightEnabled =
@@ -358,15 +368,9 @@ class _CommentaryPaneState extends State<_CommentaryPane> {
     }
   }
 
-  @override
-  void dispose() {
-    _blocSubscription?.cancel();
-    super.dispose();
-  }
-
   /// הגדרת מאזין לשינויים ב-Bloc
   void _setupBlocListener() {
-    // טעינת הגדרת הדגשה
+    // טעינת הגדרת הדגשה ראשונית
     final state = context.read<TextBookBloc>().state;
     if (state is TextBookLoaded) {
       _highlightEnabled =
