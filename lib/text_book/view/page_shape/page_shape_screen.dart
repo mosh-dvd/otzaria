@@ -15,6 +15,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:collection/collection.dart';
 import 'dart:async';
 
 /// מסך תצוגת צורת הדף - מציג את הטקסט המרכזי עם מפרשים מסביב
@@ -405,7 +406,7 @@ class _CommentaryPaneState extends State<_CommentaryPane> {
     final newHighlights =
         relevantLinks.map((link) => link.index2 - 1).toSet();
 
-    if (newHighlights != _highlightedIndices) {
+    if (!const SetEquality().equals(newHighlights, _highlightedIndices)) {
       setState(() {
         _highlightedIndices = newHighlights;
       });
