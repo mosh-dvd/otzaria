@@ -36,6 +36,7 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
   String? _bottomRightCommentator;
   List<CommentatorGroup> _groups = [];
   bool _isLoadingGroups = true;
+  bool _highlightRelatedCommentators = false;
 
   @override
   void initState() {
@@ -51,6 +52,8 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
       _rightCommentator = widget.currentRight;
       _bottomCommentator = widget.currentBottom;
       _bottomRightCommentator = widget.currentBottomRight;
+      _highlightRelatedCommentators =
+          PageShapeSettingsManager.getHighlightSetting(widget.bookTitle);
     });
   }
 
@@ -118,6 +121,10 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
         'bottomRight': _bottomRightCommentator,
       },
     );
+    await PageShapeSettingsManager.saveHighlightSetting(
+      widget.bookTitle,
+      _highlightRelatedCommentators,
+    );
   }
 
   @override
@@ -134,6 +141,15 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
               const Text(
                 'בחר מפרשים להצגה:',
                 style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('הדגש פרשנים קשורים'),
+                subtitle: const Text('הדגשת קטעים בפרשנים הקשורים לשורה שנבחרה'),
+                value: _highlightRelatedCommentators,
+                onChanged: (value) {
+                  setState(() => _highlightRelatedCommentators = value);
+                },
               ),
               const SizedBox(height: 16),
               _buildCommentatorDropdown(

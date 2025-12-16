@@ -38,6 +38,8 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
   double? _rightWidth;
   double? _bottomHeight;
 
+  int _settingsVersion = 0; // מונה לעדכון widgets
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -125,6 +127,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                       SizedBox(
                         width: _leftWidth,
                         child: _CommentaryPane(
+                          key: ValueKey('left_$_settingsVersion'),
                           commentatorName: _leftCommentator!,
                           openBookCallback: widget.openBookCallback,
                         ),
@@ -197,6 +200,10 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                                     );
                                     if (result == true && mounted) {
                                       _loadConfiguration();
+                                      // עדכון המונה כדי לגרום ל-widgets להתעדכן
+                                      setState(() {
+                                        _settingsVersion++;
+                                      });
                                     }
                                   },
                                 ),
@@ -221,6 +228,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                       SizedBox(
                         width: _rightWidth,
                         child: _CommentaryPane(
+                          key: ValueKey('right_$_settingsVersion'),
                           commentatorName: _rightCommentator!,
                           openBookCallback: widget.openBookCallback,
                         ),
@@ -251,6 +259,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                             if (_bottomCommentator != null) ...[
                               Expanded(
                                 child: _CommentaryPane(
+                                  key: ValueKey('bottom_$_settingsVersion'),
                                   commentatorName: _bottomCommentator!,
                                   openBookCallback: widget.openBookCallback,
                                 ),
@@ -262,6 +271,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                             ],
                             Expanded(
                               child: _CommentaryPane(
+                                key: ValueKey('bottomRight_$_settingsVersion'),
                                 commentatorName: _bottomRightCommentator!,
                                 openBookCallback: widget.openBookCallback,
                               ),
@@ -269,6 +279,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                           ],
                         )
                       : _CommentaryPane(
+                          key: ValueKey('bottomOnly_$_settingsVersion'),
                           commentatorName: _bottomCommentator!,
                           openBookCallback: widget.openBookCallback,
                         ),
@@ -288,6 +299,7 @@ class _CommentaryPane extends StatefulWidget {
   final Function(OpenedTab) openBookCallback;
 
   const _CommentaryPane({
+    super.key,
     required this.commentatorName,
     required this.openBookCallback,
   });
@@ -305,6 +317,8 @@ class _CommentaryPaneState extends State<_CommentaryPane> {
   List<Link> _relevantLinks = [];
   int? _lastSyncedIndex; // האינדקס האחרון שסונכרן
   StreamSubscription<TextBookState>? _blocSubscription;
+  Set<int> _highlightedIndices = {}; // אינדקסים להדגשה
+  bool _highlightEnabled = false;
 
   @override
   void initState() {
@@ -327,6 +341,20 @@ class _CommentaryPaneState extends State<_CommentaryPane> {
     if (oldWidget.commentatorName != widget.commentatorName) {
       _loadCommentary();
     }
+    // טעינה מחדש של הגדרת הדגשה
+    final state = context.read<TextBookBloc>().state;
+    if (state is TextBookLoaded) {
+      final newHighlightEnabled =
+          PageShapeSettingsManager.getHighlightSetting(state.book.title);
+      if (newHighlightEnabled != _highlightEnabled) {
+        setState(() {
+          _highlightEnabled = newHighlightEnabled;
+          if (!_highlightEnabled) {
+            _highlightedIndices = {};
+          }
+        });
+      }
+    }
   }
 
   @override
@@ -337,11 +365,51 @@ class _CommentaryPaneState extends State<_CommentaryPane> {
 
   /// הגדרת מאזין לשינויים ב-Bloc
   void _setupBlocListener() {
+    // טעינת הגדרת הדגשה
+    final state = context.read<TextBookBloc>().state;
+    if (state is TextBookLoaded) {
+      _highlightEnabled =
+          PageShapeSettingsManager.getHighlightSetting(state.book.title);
+    }
+
     _blocSubscription = context.read<TextBookBloc>().stream.listen((state) {
       if (state is TextBookLoaded && mounted) {
         _syncWithMainText(state);
+        _updateHighlights(state);
       }
     });
+  }
+
+  void _updateHighlights(TextBookLoaded state) {
+    if (!_highlightEnabled || state.selectedIndex == null) {
+      if (_highlightedIndices.isNotEmpty) {
+        setState(() {
+          _highlightedIndices = {};
+        });
+      }
+      return;
+    }
+
+    // חישוב האינדקס הלוגי
+    final logicalIndex = CommentarySyncHelper.getLogicalIndex(
+      state.selectedIndex!,
+      state.content,
+    );
+    final mainLineNumber = logicalIndex + 1;
+
+    // מציאת כל הקישורים לשורה זו
+    final relevantLinks = _relevantLinks.where((link) {
+      return link.index1 == mainLineNumber;
+    }).toList();
+
+    final newHighlights =
+        relevantLinks.map((link) => link.index2 - 1).toSet();
+
+    if (newHighlights != _highlightedIndices) {
+      setState(() {
+        _highlightedIndices = newHighlights;
+      });
+    }
   }
 
   Future<void> _loadCommentary() async {
@@ -485,6 +553,7 @@ class _CommentaryPaneState extends State<_CommentaryPane> {
               isMainText: false,
               title: widget.commentatorName,
               bookTitle: widget.commentatorName, // לפתיחה בטאב נפרד
+              highlightedIndices: _highlightedIndices, // הדגשות מקומיות
             );
           },
         );
