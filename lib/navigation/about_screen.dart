@@ -161,13 +161,13 @@ class _AboutScreenState extends State<AboutScreen> {
         'url': 'https://mitmachim.top/user/%D7%93%D7%95%D7%A8%D7%A9-%D7%98%D7%95%D7%91',
       },
       // {
-      //   'name': 'מרדכי פינק',
+      //   'name': 'מרדכי פינק', כרגע לא רוצה
       // },
       // {
       //   'name': 'זקצ',
       // },
       {
-        'name': 'קטנטן',
+        'name': 'קטנטן', // דוד בנדל
         'url': 'https://mitmachim.top/user/%D7%A7%D7%98%D7%A0%D7%98%D7%9F',
       },
       {
@@ -175,17 +175,18 @@ class _AboutScreenState extends State<AboutScreen> {
         'url': 'https://mitmachim.top/user/%D7%93%D7%90%D7%A0%D7%A6%D7%99%D7%92',
       },
       // {
-      //   'name': 'ישי אשכנזי',
+      //   'name': 'ישי אשכנזי', כרגע לא רוצה
       // },
       {
         'name': '333',
         'url': 'https://mitmachim.top/user/333',
       },
-      // {
-      //   'name': 'יעקב אייזנשטיין',
-      // },
       {
-        'name': 'הבל הבלים',
+        'name': "טכנולוגי גו'ניור", // יעקב אייזנשטיין
+        'url': 'https://mitmachim.top/user/%D7%98%D7%9B%D7%A0%D7%95%D7%9C%D7%95%D7%92%D7%99-%D7%92%D7%95-%D7%A0%D7%99%D7%95%D7%A8',
+      },
+      {
+        'name': 'הבל הבלים', // גאון גדול
         'url': 'https://mitmachim.top/user/%D7%94%D7%91%D7%9C-%D7%94%D7%91%D7%9C%D7%99%D7%9D',
       },
     ];
