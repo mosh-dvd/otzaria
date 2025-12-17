@@ -2065,72 +2065,87 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
             padding: const EdgeInsets.fromLTRB(1, 0, 4, 0),
             child: Column(
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: Theme.of(context).dividerColor,
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TabBar(
-                          controller: tabController,
-                          tabs: const [
-                            Tab(text: 'ניווט'),
-                            Tab(text: 'חיפוש'),
-                          ],
-                          labelColor: Theme.of(context).colorScheme.primary,
-                          unselectedLabelColor: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
-                          indicatorColor: Theme.of(context).colorScheme.primary,
-                          dividerColor: Colors.transparent,
-                          overlayColor:
-                              WidgetStateProperty.all(Colors.transparent),
+                SizedBox(
+                  height: 48,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Theme.of(context).dividerColor,
+                          width: 1,
                         ),
                       ),
-                      if (MediaQuery.of(context).size.width >= 600)
-                        IconButton(
-                          onPressed:
-                              (Settings.getValue<bool>('key-pin-sidebar') ??
-                                      false)
-                                  ? null
-                                  : () => context.read<TextBookBloc>().add(
-                                        TogglePinLeftPane(!state.pinLeftPane),
-                                      ),
-                          icon: AnimatedRotation(
-                            turns: (state.pinLeftPane ||
-                                    (Settings.getValue<bool>(
-                                            'key-pin-sidebar') ??
-                                        false))
-                                ? -0.125
-                                : 0.0,
-                            duration: const Duration(milliseconds: 200),
-                            child: Icon(
-                              (state.pinLeftPane ||
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TabBar(
+                            controller: tabController,
+                            tabs: const [
+                              Tab(
+                                icon: Icon(
+                                    FluentIcons.navigation_24_regular,
+                                    size: 18),
+                                iconMargin: EdgeInsets.only(bottom: 2),
+                                height: 48,
+                                child:
+                                    Text('ניווט', style: TextStyle(fontSize: 12)),
+                              ),
+                              Tab(
+                                icon:
+                                    Icon(FluentIcons.search_24_regular, size: 18),
+                                iconMargin: EdgeInsets.only(bottom: 2),
+                                height: 48,
+                                child:
+                                    Text('חיפוש', style: TextStyle(fontSize: 12)),
+                              ),
+                            ],
+                            labelColor: Theme.of(context).colorScheme.primary,
+                            unselectedLabelColor: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                            indicatorColor: Theme.of(context).colorScheme.primary,
+                            dividerColor: Colors.transparent,
+                          ),
+                        ),
+                        if (MediaQuery.of(context).size.width >= 600)
+                          IconButton(
+                            onPressed:
+                                (Settings.getValue<bool>('key-pin-sidebar') ??
+                                        false)
+                                    ? null
+                                    : () => context.read<TextBookBloc>().add(
+                                          TogglePinLeftPane(!state.pinLeftPane),
+                                        ),
+                            icon: AnimatedRotation(
+                              turns: (state.pinLeftPane ||
                                       (Settings.getValue<bool>(
                                               'key-pin-sidebar') ??
                                           false))
-                                  ? FluentIcons.pin_24_filled
-                                  : FluentIcons.pin_24_regular,
+                                  ? -0.125
+                                  : 0.0,
+                              duration: const Duration(milliseconds: 200),
+                              child: Icon(
+                                (state.pinLeftPane ||
+                                        (Settings.getValue<bool>(
+                                                'key-pin-sidebar') ??
+                                            false))
+                                    ? FluentIcons.pin_24_filled
+                                    : FluentIcons.pin_24_regular,
+                              ),
                             ),
+                            color: (state.pinLeftPane ||
+                                    (Settings.getValue<bool>('key-pin-sidebar') ??
+                                        false))
+                                ? Theme.of(context).colorScheme.primary
+                                : null,
+                            isSelected: state.pinLeftPane ||
+                                (Settings.getValue<bool>('key-pin-sidebar') ??
+                                    false),
                           ),
-                          color: (state.pinLeftPane ||
-                                  (Settings.getValue<bool>('key-pin-sidebar') ??
-                                      false))
-                              ? Theme.of(context).colorScheme.primary
-                              : null,
-                          isSelected: state.pinLeftPane ||
-                              (Settings.getValue<bool>('key-pin-sidebar') ??
-                                  false),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 Expanded(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otzaria/constants/fonts.dart';
 import 'package:otzaria/utils/color_utils.dart';
 import 'package:otzaria/utils/shortcut_validator.dart';
 import 'package:otzaria/utils/settings_wrapper.dart';
@@ -73,11 +74,11 @@ class SettingsRepository {
       'fontSize': _settings.getValue<double>(keyFontSize, defaultValue: 25),
       'fontFamily': _settings.getValue<String>(
         keyFontFamily,
-        defaultValue: 'FrankRuhlCLM',
+        defaultValue: AppFonts.defaultFont,
       ),
       'commentatorsFontFamily': _settings.getValue<String>(
         keyCommentatorsFontFamily,
-        defaultValue: 'NotoRashiHebrew',
+        defaultValue: AppFonts.defaultCommentatorsFont,
       ),
       'commentatorsFontSize': _settings.getValue<double>(
         keyCommentatorsFontSize,
@@ -398,8 +399,8 @@ class SettingsRepository {
     await _settings.setValue(keyDarkSwatchColor, '#ffce93d8');
     await _settings.setValue(keyTextMaxWidth, -1.0);
     await _settings.setValue(keyFontSize, 25.0);
-    await _settings.setValue(keyFontFamily, 'FrankRuhlCLM');
-    await _settings.setValue(keyCommentatorsFontFamily, 'NotoRashiHebrew');
+    await _settings.setValue(keyFontFamily, AppFonts.defaultFont);
+    await _settings.setValue(keyCommentatorsFontFamily, AppFonts.defaultCommentatorsFont);
     await _settings.setValue(keyCommentatorsFontSize, 22.0);
     await _settings.setValue(keyShowOtzarHachochma, false);
     await _settings.setValue(keyShowHebrewBooks, false);
