@@ -16,14 +16,14 @@ class AppFonts {
   /// רשימת כל הגופנים הזמינים לבחירה ב-UI
   /// הערה: Candara, roboto, Calibri, Arial הם גופני מערכת ולא קיימים בתיקיית fonts
   static const List<FontInfo> availableFonts = [
-    FontInfo(value: 'TaameyDavidCLM', label: 'טעמי דוד'),
-    FontInfo(value: 'FrankRuhlCLM', label: 'פרנק רוהל'),
+    FontInfo(value: 'TaameyDavidCLM', label: 'דוד'),
+    FontInfo(value: 'FrankRuhlCLM', label: 'פרנק-רוהל'),
     FontInfo(value: 'TaameyAshkenaz', label: 'טעמי אשכנז'),
     FontInfo(value: 'KeterYG', label: 'כתר'),
     FontInfo(value: 'Shofar', label: 'שופר'),
-    FontInfo(value: 'NotoSerifHebrew', label: 'נוטו סריף'),
+    FontInfo(value: 'NotoSerifHebrew', label: 'נוטו'),
     FontInfo(value: 'Tinos', label: 'טינוס'),
-    FontInfo(value: 'NotoRashiHebrew', label: 'נוטו רש"י'),
+    FontInfo(value: 'NotoRashiHebrew', label: 'רש"י'),
     FontInfo(value: 'Rubik', label: 'רוביק'),
     FontInfo(value: 'Candara', label: 'קנדרה'),
     FontInfo(value: 'roboto', label: 'רובוטו'),
@@ -46,17 +46,11 @@ class AppFonts {
   };
 
   /// מיפוי גופנים לשמות בעברית (לשימוש בהדפסה)
-  static const Map<String, String> fontLabels = {
-    'TaameyDavidCLM': 'טעמי דוד',
-    'FrankRuhlCLM': 'פרנק רוהל',
-    'TaameyAshkenaz': 'טעמי אשכנז',
-    'KeterYG': 'כתר',
-    'Shofar': 'שופר',
-    'NotoSerifHebrew': 'נוטו סריף',
-    'Tinos': 'טינוס',
-    'NotoRashiHebrew': 'נוטו רש"י',
-    'Rubik': 'רוביק',
-  };
+  /// מחושב אוטומטית מ-availableFonts, רק עבור גופנים עם קבצים
+  static Map<String, String> get fontLabels => {
+        for (final font in availableFonts)
+          if (fontPaths.containsKey(font.value)) font.value: font.label
+      };
 
   /// יצירת רשימת DropdownMenuItem לבחירת גופן
   static List<DropdownMenuItem<String>> buildDropdownItems() {
