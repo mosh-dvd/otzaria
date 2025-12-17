@@ -197,7 +197,7 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
                   ),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _bottomFontFamily,
+value: _bottomFontFamily,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
