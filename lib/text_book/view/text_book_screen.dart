@@ -987,39 +987,12 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
         onPressed: () => _handlePdfButtonPress(context, state),
       ),
 
-      // 2) Split View Button
+      // 2) View Mode Dropdown (מאחד את Split View ו-Page Shape View)
       ActionButtonData(
-        widget: _buildSplitViewButton(context, state),
-        icon: FluentIcons.panel_left_24_regular,
-        tooltip: state.showSplitView
-            ? 'הצג מפרשים מתחת הטקסט'
-            : 'הצג מפרשים בצד הטקסט',
-        onPressed: () async {
-          final newValue = !state.showSplitView;
-          context.read<TextBookBloc>().add(ToggleSplitView(newValue));
-          await _savePerBookSettingsDirectly(context, state,
-              showSplitView: newValue);
-        },
-      ),
-
-      // Page Shape View Button
-      ActionButtonData(
-        widget: IconButton(
-          icon: Icon(state.showPageShapeView
-              ? FluentIcons.book_open_24_filled
-              : FluentIcons.book_open_24_regular),
-          tooltip: 'צורת הדף',
-          onPressed: () => context.read<TextBookBloc>().add(
-                TogglePageShapeView(!state.showPageShapeView),
-              ),
-        ),
-        icon: state.showPageShapeView
-            ? FluentIcons.book_open_24_filled
-            : FluentIcons.book_open_24_regular,
-        tooltip: 'צורת הדף',
-        onPressed: () => context.read<TextBookBloc>().add(
-              TogglePageShapeView(!state.showPageShapeView),
-            ),
+        widget: _buildViewModeDropdown(context, state),
+        icon: _getViewModeIcon(state),
+        tooltip: _getViewModeTooltip(state),
+        onPressed: () {}, // התפריט נפתח בלחיצה על הכפתור עצמו
       ),
 
       // 3) Nikud Button
@@ -1393,28 +1366,153 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
     );
   }
 
-  Widget _buildSplitViewButton(BuildContext context, TextBookLoaded state) {
-    return IconButton(
-      // בתצוגה משולבת, הכפתור מושבת (מפרשים תמיד מתחת)
-      onPressed: widget.isInCombinedView
-          ? null
-          : () async {
-              final newValue = !state.showSplitView;
-              context.read<TextBookBloc>().add(ToggleSplitView(newValue));
-              await _savePerBookSettingsDirectly(context, state,
-                  showSplitView: newValue);
-            },
-      icon: RotatedBox(
-        quarterTurns: state.showSplitView
-            ? 0
-            : 3, // מסובב 270 מעלות (90 נגד כיוון השעון) כשמתחת
-        child: const Icon(FluentIcons.panel_left_24_regular),
-      ),
-      tooltip: widget.isInCombinedView
-          ? 'בתצוגה משולבת, מפרשים תמיד מתחת הטקסט'
-          : (state.showSplitView
-              ? 'הצג מפרשים מתחת הטקסט'
-              : 'הצג מפרשים בצד הטקסט'),
+  /// קבלת האייקון המתאים למצב התצוגה הנוכחי
+  IconData _getViewModeIcon(TextBookLoaded state) {
+    if (state.showPageShapeView) {
+      return FluentIcons.book_open_24_filled;
+    } else if (state.showSplitView) {
+      return FluentIcons.panel_left_24_regular;
+    } else {
+      // מפרשים מתחת - משתמשים באותו אייקון מסובב
+      return FluentIcons.panel_left_24_regular;
+    }
+  }
+
+  /// קבלת ה-tooltip למצב התצוגה הנוכחי
+  String _getViewModeTooltip(TextBookLoaded state) {
+    if (state.showPageShapeView) {
+      return 'תצוגה: צורת הדף';
+    } else if (state.showSplitView) {
+      return 'תצוגה: מפרשים בצד';
+    } else {
+      return 'תצוגה: מפרשים מתחת';
+    }
+  }
+
+  /// בניית תפריט נפתח לבחירת מצב תצוגה
+  Widget _buildViewModeDropdown(BuildContext context, TextBookLoaded state) {
+    // אייקון מסובב כשמפרשים מתחת
+    final iconWidget = state.showPageShapeView
+        ? Icon(_getViewModeIcon(state))
+        : RotatedBox(
+            quarterTurns: state.showSplitView ? 0 : 3,
+            child: Icon(_getViewModeIcon(state)),
+          );
+
+    return PopupMenuButton<String>(
+      tooltip: 'בחירת תצוגה',
+      icon: iconWidget,
+      enabled: !widget.isInCombinedView,
+      onSelected: (value) async {
+        switch (value) {
+          case 'split':
+            // מפרשים בצד הטקסט
+            if (state.showPageShapeView) {
+              context.read<TextBookBloc>().add(const TogglePageShapeView(false));
+            }
+            if (!state.showSplitView) {
+              context.read<TextBookBloc>().add(const ToggleSplitView(true));
+              await _savePerBookSettingsDirectly(context, state, showSplitView: true);
+            }
+            break;
+          case 'below':
+            // מפרשים מתחת הטקסט
+            if (state.showPageShapeView) {
+              context.read<TextBookBloc>().add(const TogglePageShapeView(false));
+            }
+            if (state.showSplitView) {
+              context.read<TextBookBloc>().add(const ToggleSplitView(false));
+              await _savePerBookSettingsDirectly(context, state, showSplitView: false);
+            }
+            break;
+          case 'page':
+            // צורת הדף
+            if (!state.showPageShapeView) {
+              context.read<TextBookBloc>().add(const TogglePageShapeView(true));
+            }
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'split',
+          child: Row(
+            children: [
+              Icon(
+                FluentIcons.panel_left_24_regular,
+                color: (!state.showPageShapeView && state.showSplitView)
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'מפרשים בצד',
+                style: (!state.showPageShapeView && state.showSplitView)
+                    ? TextStyle(color: Theme.of(context).colorScheme.primary)
+                    : null,
+              ),
+              if (!state.showPageShapeView && state.showSplitView) ...[
+                const Spacer(),
+                Icon(FluentIcons.checkmark_24_regular,
+                    size: 16, color: Theme.of(context).colorScheme.primary),
+              ],
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'below',
+          child: Row(
+            children: [
+              RotatedBox(
+                quarterTurns: 3, // מסובב 270 מעלות להראות מתחת
+                child: Icon(
+                  FluentIcons.panel_left_24_regular,
+                  color: (!state.showPageShapeView && !state.showSplitView)
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'מפרשים מתחת',
+                style: (!state.showPageShapeView && !state.showSplitView)
+                    ? TextStyle(color: Theme.of(context).colorScheme.primary)
+                    : null,
+              ),
+              if (!state.showPageShapeView && !state.showSplitView) ...[
+                const Spacer(),
+                Icon(FluentIcons.checkmark_24_regular,
+                    size: 16, color: Theme.of(context).colorScheme.primary),
+              ],
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'page',
+          child: Row(
+            children: [
+              Icon(
+                FluentIcons.book_open_24_regular,
+                color: state.showPageShapeView
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'צורת הדף',
+                style: state.showPageShapeView
+                    ? TextStyle(color: Theme.of(context).colorScheme.primary)
+                    : null,
+              ),
+              if (state.showPageShapeView) ...[
+                const Spacer(),
+                Icon(FluentIcons.checkmark_24_regular,
+                    size: 16, color: Theme.of(context).colorScheme.primary),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
