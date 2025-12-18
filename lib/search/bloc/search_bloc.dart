@@ -229,7 +229,12 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     final newConfig =
         state.configuration.copyWith(currentFacets: [event.facet]);
     emit(state.copyWith(configuration: newConfig));
-    add(UpdateSearchQuery(state.searchQuery));
+    add(UpdateSearchQuery(
+      state.searchQuery,
+      customSpacing: event.customSpacing,
+      alternativeWords: event.alternativeWords,
+      searchOptions: event.searchOptions,
+    ));
   }
 
   void _onUpdateSortOrder(

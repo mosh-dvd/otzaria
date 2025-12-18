@@ -53,7 +53,11 @@ class RemoveFacet extends SearchEvent {
 
 class SetFacet extends SearchEvent {
   final String facet;
-  SetFacet(this.facet);
+  final Map<String, String>? customSpacing;
+  final Map<int, List<String>>? alternativeWords;
+  final Map<String, Map<String, bool>>? searchOptions;
+  SetFacet(this.facet,
+      {this.customSpacing, this.alternativeWords, this.searchOptions});
 }
 
 class UpdateSortOrder extends SearchEvent {
