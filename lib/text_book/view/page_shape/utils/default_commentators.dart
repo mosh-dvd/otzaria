@@ -23,8 +23,8 @@ class DefaultCommentators {
       };
     }
 
-    // משנה
-    if (categoryPath.contains('משנה')) {
+    // משנה (לא משנה תורה להרמב"ם)
+    if (categoryPath.contains('משנה') && !categoryPath.contains('משנה תורה')) {
       return {
         'right': 'תוספות יום טוב על $bookTitle', // יוצג בשמאל
         'left': 'ברטנורא על $bookTitle', // יוצג בימין

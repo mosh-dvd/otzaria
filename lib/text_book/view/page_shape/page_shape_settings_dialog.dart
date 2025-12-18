@@ -40,6 +40,7 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
   List<CommentatorGroup> _groups = [];
   bool _isLoadingGroups = true;
   bool _hasChanges = false; // האם היו שינויים שצריך לשמור
+  bool _highlightRelatedCommentators = false;
 
   @override
   void initState() {
@@ -56,6 +57,8 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
       _bottomCommentator = widget.currentBottom;
       _bottomRightCommentator = widget.currentBottomRight;
       _bottomFontFamily = Settings.getValue<String>('page_shape_bottom_font') ?? AppFonts.defaultFont;
+      _highlightRelatedCommentators =
+          PageShapeSettingsManager.getHighlightSetting(widget.bookTitle);
     });
   }
 
@@ -125,7 +128,10 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
     );
     // שמירת הגופן של המפרשים התחתונים (הגדרה גלובלית)
     await Settings.setValue<String>('page_shape_bottom_font', _bottomFontFamily);
-    // לא מאפסים את _hasChanges כדי שהאב ידע שהיה שינוי
+    await PageShapeSettingsManager.saveHighlightSetting(
+      widget.bookTitle,
+      _highlightRelatedCommentators,
+    );
   }
 
   void _onCommentatorChanged(String? value, void Function(String?) setter) {
@@ -160,28 +166,42 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('הדגש פרשנים קשורים'),
+                subtitle: const Text('הדגשת קטעים בפרשנים הקשורים לשורה שנבחרה'),
+                value: _highlightRelatedCommentators,
+                onChanged: (value) {
+                  setState(() {
+                    _highlightRelatedCommentators = value;
+                    _hasChanges = true;
+                  });
+                  _saveSettings();
+                },
+              ),
+              const Divider(),
+              const SizedBox(height: 8),
               _buildCommentatorDropdown(
                 label: 'מפרש ימני',
                 value: _leftCommentator,
-                onChanged: (value) => _onCommentatorChanged(value, (v) => setState(() => _leftCommentator = v)),
+                onChanged: (value) => _onCommentatorChanged(value, (v) => _leftCommentator = v),
               ),
               const SizedBox(height: 12),
               _buildCommentatorDropdown(
                 label: 'מפרש שמאלי',
                 value: _rightCommentator,
-                onChanged: (value) => _onCommentatorChanged(value, (v) => setState(() => _rightCommentator = v)),
+                onChanged: (value) => _onCommentatorChanged(value, (v) => _rightCommentator = v),
               ),
               const SizedBox(height: 12),
               _buildCommentatorDropdown(
                 label: 'מפרש תחתון',
                 value: _bottomCommentator,
-                onChanged: (value) => _onCommentatorChanged(value, (v) => setState(() => _bottomCommentator = v)),
+                onChanged: (value) => _onCommentatorChanged(value, (v) => _bottomCommentator = v),
               ),
               const SizedBox(height: 12),
               _buildCommentatorDropdown(
                 label: 'מפרש תחתון נוסף',
                 value: _bottomRightCommentator,
-                onChanged: (value) => _onCommentatorChanged(value, (v) => setState(() => _bottomRightCommentator = v)),
+                onChanged: (value) => _onCommentatorChanged(value, (v) => _bottomRightCommentator = v),
               ),
               const SizedBox(height: 20),
               const Divider(),
@@ -197,7 +217,7 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
                   ),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-value: _bottomFontFamily,
+                      value: _bottomFontFamily,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),

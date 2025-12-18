@@ -31,6 +31,7 @@ class SimpleTextViewer extends StatefulWidget {
   final bool isMainText; // האם זה הטקסט המרכזי או מפרש
   final String? title; // כותרת (לכותרת עליונה)
   final String? bookTitle; // שם הספר (למפרשים - לפתיחה בטאב נפרד)
+  final Set<int>? highlightedIndices; // אינדקסים להדגשה (למפרשים)
 
   const SimpleTextViewer({
     super.key,
@@ -43,6 +44,7 @@ class SimpleTextViewer extends StatefulWidget {
     this.isMainText = false,
     this.title,
     this.bookTitle,
+    this.highlightedIndices,
   });
 
   @override
@@ -362,13 +364,18 @@ $textWithBreaks
     final isSelected = widget.isMainText && state.selectedIndex == index;
     final isHighlighted = widget.isMainText && state.highlightedLine == index;
 
+    // בדיקה חדשה - האם השורה מודגשת כפרשן קשור (מקומי)
+    final isCommentaryHighlighted = !widget.isMainText &&
+        (widget.highlightedIndices?.contains(index) ?? false);
+
     final theme = Theme.of(context);
     final backgroundColor = () {
       if (isHighlighted) {
-        return theme.colorScheme.secondaryContainer.withValues(alpha: 0.4);
+        return theme.colorScheme.secondaryContainer.withAlpha((0.4 * 255).round());
       }
-      if (isSelected) {
-        return theme.colorScheme.primary.withValues(alpha: 0.08);
+      if (isCommentaryHighlighted || isSelected) {
+        // צבע הדגשה למפרש קשור - כמו השורה הנבחרת
+        return theme.colorScheme.primary.withAlpha((0.08 * 255).round());
       }
       return null;
     }();
