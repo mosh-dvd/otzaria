@@ -60,6 +60,10 @@ class PageShapeSettingsManager {
 
   static const String _visibilityPrefix = 'page_shape_visibility_';
 
+  /// פונקציית עזר ליצירת מפתח visibility
+  static String _visibilityKey(String column, String bookTitle) =>
+      '${_visibilityPrefix}${column}_$bookTitle';
+
   /// שמירת הגדרות הצגת טורים עבור ספר מסוים
   static Future<void> saveColumnVisibility(
     String bookTitle,
@@ -67,23 +71,20 @@ class PageShapeSettingsManager {
   ) async {
     // שמירה נפרדת לכל טור - פשוט ובטוח יותר
     await Settings.setValue<bool>(
-        '${_visibilityPrefix}left_$bookTitle', visibility['left'] ?? true);
+        _visibilityKey('left', bookTitle), visibility['left'] ?? true);
     await Settings.setValue<bool>(
-        '${_visibilityPrefix}right_$bookTitle', visibility['right'] ?? true);
+        _visibilityKey('right', bookTitle), visibility['right'] ?? true);
     await Settings.setValue<bool>(
-        '${_visibilityPrefix}bottom_$bookTitle', visibility['bottom'] ?? true);
+        _visibilityKey('bottom', bookTitle), visibility['bottom'] ?? true);
   }
 
   /// טעינת הגדרות הצגת טורים עבור ספר מסוים
   /// ברירת מחדל: כל הטורים מוצגים
   static Map<String, bool> getColumnVisibility(String bookTitle) {
     return {
-      'left':
-          Settings.getValue<bool>('${_visibilityPrefix}left_$bookTitle') ?? true,
-      'right':
-          Settings.getValue<bool>('${_visibilityPrefix}right_$bookTitle') ?? true,
-      'bottom':
-          Settings.getValue<bool>('${_visibilityPrefix}bottom_$bookTitle') ?? true,
+      'left': Settings.getValue<bool>(_visibilityKey('left', bookTitle)) ?? true,
+      'right': Settings.getValue<bool>(_visibilityKey('right', bookTitle)) ?? true,
+      'bottom': Settings.getValue<bool>(_visibilityKey('bottom', bookTitle)) ?? true,
     };
   }
 }

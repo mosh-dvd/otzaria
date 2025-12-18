@@ -1,0 +1,165 @@
+@gemini-code-assist[bot] commented on this pull request.
+
+Code Review
+This pull request introduces significant enhancements to the commentary display and navigation features. Key changes include adding functionality to show/hide commentary columns (left, right, bottom) and enabling highlighting of related commentary lines based on the main text selection. The PageShapeScreen now manages these visibility settings and renders _EmptyCommentaryPane widgets when a column is visible but no commentator is selected. The _CommentaryPane was updated to support line highlighting and uses a new _settingsVersion counter to force widget rebuilds when settings change, although review comments suggest replacing this with ValueKey based on commentator names for better efficiency. The PageShapeSettingsDialog was extended to include UI controls for toggling column visibility and highlight settings. The SimpleTextViewer now accepts highlightedIndices to visually mark relevant lines in commentary panes. Additionally, the serialization format for commentary configurations in PageShapeSettingsManager was updated to handle book titles with commas, and search filters in both PDF outlines and TOC navigation were refined to exclude top-level book titles from search results, preventing erroneous matches.
+
+In lib/text_book/view/page_shape/page_shape_screen.dart:
+
+> @@ -38,6 +39,13 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
+   double? _rightWidth;
+   double? _bottomHeight;
+ 
++  // הגדרות הצגת טורים
++  bool _showLeftColumn = true;
++  bool _showRightColumn = true;
++  bool _showBottomRow = true;
++
++  int _settingsVersion = 0; // מונה לעדכון widgets
+medium
+
+השימוש במשתנה _settingsVersion כדי לאלץ בנייה מחדש של כל חלוניות המפרשים הוא פתרון שניתן לשפר. הוא גורם לבנייה מחדש של כל החלוניות גם אם רק הגדרה של אחת מהן השתנתה, מה שעלול להיות לא יעיל. ניתן להשיג תוצאה מדויקת יותר על ידי שימוש ב-ValueKey המבוסס על שם המפרש עצמו. אני מציע להסיר את המשתנה הזה ואת העדכונים שלו, ובמקום זאת לעדכן את ה-key של כל _CommentaryPane כפי שאפרט בהערות הבאות.
+
+In lib/text_book/view/page_shape/page_shape_screen.dart:
+
+> +      setState(() {
++        _settingsVersion++;
++      });
+medium
+
+לאחר החלפת ה-key של המפרשים ל-ValueKey המבוסס על שם המפרש, אין עוד צורך לעדכן את _settingsVersion כאן. הקריאה ל-_loadConfiguration כבר תפעיל setState ותעדכן את ה-UI.
+
+In lib/text_book/view/page_shape/page_shape_screen.dart:
+
+>                        SizedBox(
+                         width: _leftWidth,
+-                        child: _CommentaryPane(
+-                          commentatorName: _leftCommentator!,
+-                          openBookCallback: widget.openBookCallback,
+-                        ),
++                        child: _leftCommentator != null
++                            ? _CommentaryPane(
++                                key: ValueKey('left_$_settingsVersion'),
+medium
+
+בהמשך להערה על _settingsVersion, אני מציע לשנות את ה-key כאן כדי שיהיה תלוי בשם המפרש. זה יבטיח שה-widget ייבנה מחדש רק כאשר המפרש הספציפי הזה משתנה, ויאפשר להסיר את _settingsVersion.
+
+⬇️ Suggested change
+-                                key: ValueKey('left_$_settingsVersion'),
++                                key: ValueKey('left_${_leftCommentator!}'),
+In lib/text_book/view/page_shape/page_shape_screen.dart:
+
+> +                                      // עדכון המונה כדי לגרום ל-widgets להתעדכן
++                                      setState(() {
++                                        _settingsVersion++;
++                                      });
+medium
+
+בדומה להערה הקודמת, לאחר הסרת _settingsVersion, ניתן להסיר את הבלוק הזה. הקריאה ל-_loadConfiguration כבר תדאג לעדכון ה-UI.
+
+In lib/text_book/view/page_shape/page_shape_screen.dart:
+
+> @@ -220,18 +271,26 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
+                       ),
+                       SizedBox(
+                         width: _rightWidth,
+-                        child: _CommentaryPane(
+-                          commentatorName: _rightCommentator!,
+-                          openBookCallback: widget.openBookCallback,
+-                        ),
++                        child: _rightCommentator != null
++                            ? _CommentaryPane(
++                                key: ValueKey('right_$_settingsVersion'),
+medium
+
+בדומה להערה הקודמת, יש לעדכן גם כאן את ה-key כך שיסתמך על שם המפרש.
+
+⬇️ Suggested change
+-                                key: ValueKey('right_$_settingsVersion'),
++                                key: ValueKey('right_${_rightCommentator!}'),
+In lib/text_book/view/page_shape/page_shape_screen.dart:
+
+> @@ -251,6 +310,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
+                             if (_bottomCommentator != null) ...[
+                               Expanded(
+                                 child: _CommentaryPane(
++                                  key: ValueKey('bottom_$_settingsVersion'),
+medium
+
+בדומה להערות הקודמות, יש לעדכן גם כאן את ה-key.
+
+⬇️ Suggested change
+-                                  key: ValueKey('bottom_$_settingsVersion'),
++                                  key: ValueKey('bottom_${_bottomCommentator!}'),
+In lib/text_book/view/page_shape/page_shape_screen.dart:
+
+> @@ -262,13 +322,15 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
+                             ],
+                             Expanded(
+                               child: _CommentaryPane(
++                                key: ValueKey('bottomRight_$_settingsVersion'),
+medium
+
+בדומה להערות הקודמות, יש לעדכן גם כאן את ה-key.
+
+⬇️ Suggested change
+-                                key: ValueKey('bottomRight_$_settingsVersion'),
++                                key: ValueKey('bottomRight_${_bottomRightCommentator!}'),
+In lib/text_book/view/page_shape/page_shape_screen.dart:
+
+>                                  commentatorName: _bottomRightCommentator!,
+                                 openBookCallback: widget.openBookCallback,
+                               ),
+                             ),
+                           ],
+                         )
+                       : _CommentaryPane(
++                          key: ValueKey('bottomOnly_$_settingsVersion'),
+medium
+
+בדומה להערות הקודמות, יש לעדכן גם כאן את ה-key.
+
+⬇️ Suggested change
+-                          key: ValueKey('bottomOnly_$_settingsVersion'),
++                          key: ValueKey('bottomOnly_${_bottomCommentator!}'),
+In lib/text_book/view/page_shape/page_shape_settings_dialog.dart:
+
+> +                  FilterChip(
++                    label: const Text('ימין'),
++                    selected: _showLeftColumn,
++                    onSelected: (value) =>
++                        setState(() => _showLeftColumn = value),
++                  ),
++                  const SizedBox(width: 8),
++                  FilterChip(
++                    label: const Text('שמאל'),
++                    selected: _showRightColumn,
++                    onSelected: (value) =>
++                        setState(() => _showRightColumn = value),
++                  ),
+medium
+
+התוויות 'ימין' ו'שמאל' כאן נכונות מבחינת המיקום הפיזי של החלוניות, אך הן מקושרות למשתני מצב (_showLeftColumn, _showRightColumn) בעלי שם הפוך, כפי שצוין בהערה על הקובץ page_shape_screen.dart. הדבר עלול לגרום לבלבול בתחזוקת הקוד. שינוי שמות המשתנים כפי שהוצע שם ישפר את הקריאות גם כאן.
+
+In lib/text_book/view/page_shape/utils/page_shape_settings_manager.dart:
+
+> +  /// שמירת הגדרות הצגת טורים עבור ספר מסוים
++  static Future<void> saveColumnVisibility(
++    String bookTitle,
++    Map<String, bool> visibility,
++  ) async {
++    // שמירה נפרדת לכל טור - פשוט ובטוח יותר
++    await Settings.setValue<bool>(
++        '${_visibilityPrefix}left_$bookTitle', visibility['left'] ?? true);
++    await Settings.setValue<bool>(
++        '${_visibilityPrefix}right_$bookTitle', visibility['right'] ?? true);
++    await Settings.setValue<bool>(
++        '${_visibilityPrefix}bottom_$bookTitle', visibility['bottom'] ?? true);
++  }
+medium
+
+ישנה חזרה על הלוגיקה של יצירת המפתחות לשמירת נראות העמודות, גם כאן וגם בפונקציה getColumnVisibility. כדאי לשקול לרכז את יצירת המפתח לפונקציית עזר פרטית כדי למנוע כפילות ולהקל על תחזוקה עתידית. לדוגמה, פונקציה כמו _visibilityKey(String column, String bookTitle).
+
+—
+Reply to this email directly, view it on GitHub, or unsubscribe.
+You are receiving this because you were mentioned.
+

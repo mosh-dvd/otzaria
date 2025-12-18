@@ -39,12 +39,10 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
   double? _rightWidth;
   double? _bottomHeight;
 
-  // הגדרות הצגת טורים
-  bool _showLeftColumn = true;
-  bool _showRightColumn = true;
+  // הגדרות הצגת טורים (שמות לפי מיקום פיזי במסך RTL)
+  bool _showRightPhysicalColumn = true; // הטור הימני במסך (מפרש שמאלי בקוד)
+  bool _showLeftPhysicalColumn = true; // הטור השמאלי במסך (מפרש ימני בקוד)
   bool _showBottomRow = true;
-
-  int _settingsVersion = 0; // מונה לעדכון widgets
 
   @override
   void didChangeDependencies() {
@@ -115,8 +113,8 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
         PageShapeSettingsManager.getColumnVisibility(state.book.title);
     if (mounted) {
       setState(() {
-        _showLeftColumn = visibility['left'] ?? true;
-        _showRightColumn = visibility['right'] ?? true;
+        _showRightPhysicalColumn = visibility['left'] ?? true;
+        _showLeftPhysicalColumn = visibility['right'] ?? true;
         _showBottomRow = visibility['bottom'] ?? true;
       });
     }
@@ -137,9 +135,6 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
     );
     if (result == true && mounted) {
       _loadConfiguration();
-      setState(() {
-        _settingsVersion++;
-      });
     }
   }
 
@@ -160,13 +155,13 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
               Expanded(
                 child: Row(
                   children: [
-                    // Left Commentary
-                    if (_showLeftColumn) ...[
+                    // Right Physical Column (left commentator in RTL)
+                    if (_showRightPhysicalColumn) ...[
                       SizedBox(
                         width: _leftWidth,
                         child: _leftCommentator != null
                             ? _CommentaryPane(
-                                key: ValueKey('left_$_settingsVersion'),
+                                key: ValueKey('left_${_leftCommentator!}'),
                                 commentatorName: _leftCommentator!,
                                 openBookCallback: widget.openBookCallback,
                               )
@@ -244,10 +239,6 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                                     );
                                     if (result == true && mounted) {
                                       _loadConfiguration();
-                                      // עדכון המונה כדי לגרום ל-widgets להתעדכן
-                                      setState(() {
-                                        _settingsVersion++;
-                                      });
                                     }
                                   },
                                 ),
@@ -257,8 +248,8 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                         ),
                       ),
                     ),
-                    // Right Commentary
-                    if (_showRightColumn) ...[
+                    // Left Physical Column (right commentator in RTL)
+                    if (_showLeftPhysicalColumn) ...[
                       _ResizableDivider(
                         isVertical: true,
                         onDrag: (delta) {
@@ -273,7 +264,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                         width: _rightWidth,
                         child: _rightCommentator != null
                             ? _CommentaryPane(
-                                key: ValueKey('right_$_settingsVersion'),
+                                key: ValueKey('right_${_rightCommentator!}'),
                                 commentatorName: _rightCommentator!,
                                 openBookCallback: widget.openBookCallback,
                               )
@@ -310,7 +301,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                             if (_bottomCommentator != null) ...[
                               Expanded(
                                 child: _CommentaryPane(
-                                  key: ValueKey('bottom_$_settingsVersion'),
+                                  key: ValueKey('bottom_${_bottomCommentator!}'),
                                   commentatorName: _bottomCommentator!,
                                   openBookCallback: widget.openBookCallback,
                                 ),
@@ -322,7 +313,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                             ],
                             Expanded(
                               child: _CommentaryPane(
-                                key: ValueKey('bottomRight_$_settingsVersion'),
+                                key: ValueKey('bottomRight_${_bottomRightCommentator!}'),
                                 commentatorName: _bottomRightCommentator!,
                                 openBookCallback: widget.openBookCallback,
                               ),
@@ -330,7 +321,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
                           ],
                         )
                       : _CommentaryPane(
-                          key: ValueKey('bottomOnly_$_settingsVersion'),
+                          key: ValueKey('bottomOnly_${_bottomCommentator!}'),
                           commentatorName: _bottomCommentator!,
                           openBookCallback: widget.openBookCallback,
                         ),

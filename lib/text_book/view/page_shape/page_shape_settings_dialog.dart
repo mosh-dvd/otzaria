@@ -37,9 +37,9 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
   List<CommentatorGroup> _groups = [];
   bool _isLoadingGroups = true;
   bool _highlightRelatedCommentators = false;
-  // הגדרות הסתרת טורים
-  bool _showLeftColumn = true;
-  bool _showRightColumn = true;
+  // הגדרות הסתרת טורים (שמות לפי מיקום פיזי במסך RTL)
+  bool _showRightPhysicalColumn = true; // הטור הימני במסך
+  bool _showLeftPhysicalColumn = true; // הטור השמאלי במסך
   bool _showBottomRow = true;
 
   @override
@@ -61,8 +61,8 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
       // טעינת הגדרות הסתרת טורים
       final visibility =
           PageShapeSettingsManager.getColumnVisibility(widget.bookTitle);
-      _showLeftColumn = visibility['left'] ?? true;
-      _showRightColumn = visibility['right'] ?? true;
+      _showRightPhysicalColumn = visibility['left'] ?? true;
+      _showLeftPhysicalColumn = visibility['right'] ?? true;
       _showBottomRow = visibility['bottom'] ?? true;
     });
   }
@@ -138,8 +138,8 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
     await PageShapeSettingsManager.saveColumnVisibility(
       widget.bookTitle,
       {
-        'left': _showLeftColumn,
-        'right': _showRightColumn,
+        'left': _showRightPhysicalColumn,
+        'right': _showLeftPhysicalColumn,
         'bottom': _showBottomRow,
       },
     );
@@ -176,16 +176,16 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
                   const SizedBox(width: 8),
                   FilterChip(
                     label: const Text('ימין'),
-                    selected: _showLeftColumn,
+                    selected: _showRightPhysicalColumn,
                     onSelected: (value) =>
-                        setState(() => _showLeftColumn = value),
+                        setState(() => _showRightPhysicalColumn = value),
                   ),
                   const SizedBox(width: 8),
                   FilterChip(
                     label: const Text('שמאל'),
-                    selected: _showRightColumn,
+                    selected: _showLeftPhysicalColumn,
                     onSelected: (value) =>
-                        setState(() => _showRightColumn = value),
+                        setState(() => _showLeftPhysicalColumn = value),
                   ),
                 ],
               ),
