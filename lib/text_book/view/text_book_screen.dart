@@ -1412,6 +1412,7 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
       tooltip: 'בחירת תצוגה',
       icon: iconWidget,
       enabled: !widget.isInCombinedView,
+      position: PopupMenuPosition.under,
       onSelected: (value) async {
         final bloc = context.read<TextBookBloc>();
 
@@ -2156,21 +2157,20 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
                             controller: tabController,
                             tabs: const [
                               Tab(
-                                icon: Icon(
-                                    FluentIcons.navigation_24_regular,
+                                icon: Icon(FluentIcons.navigation_24_regular,
                                     size: 18),
                                 iconMargin: EdgeInsets.only(bottom: 2),
                                 height: 48,
-                                child:
-                                    Text('ניווט', style: TextStyle(fontSize: 12)),
+                                child: Text('ניווט',
+                                    style: TextStyle(fontSize: 12)),
                               ),
                               Tab(
-                                icon:
-                                    Icon(FluentIcons.search_24_regular, size: 18),
+                                icon: Icon(FluentIcons.search_24_regular,
+                                    size: 18),
                                 iconMargin: EdgeInsets.only(bottom: 2),
                                 height: 48,
-                                child:
-                                    Text('חיפוש', style: TextStyle(fontSize: 12)),
+                                child: Text('חיפוש',
+                                    style: TextStyle(fontSize: 12)),
                               ),
                             ],
                             labelColor: Theme.of(context).colorScheme.primary,
@@ -2178,7 +2178,8 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
                                 .colorScheme
                                 .onSurface
                                 .withValues(alpha: 0.6),
-                            indicatorColor: Theme.of(context).colorScheme.primary,
+                            indicatorColor:
+                                Theme.of(context).colorScheme.primary,
                             dividerColor: Colors.transparent,
                           ),
                         ),
@@ -2209,7 +2210,8 @@ class _TextBookViewerBlocState extends State<TextBookViewerBloc>
                               ),
                             ),
                             color: (state.pinLeftPane ||
-                                    (Settings.getValue<bool>('key-pin-sidebar') ??
+                                    (Settings.getValue<bool>(
+                                            'key-pin-sidebar') ??
                                         false))
                                 ? Theme.of(context).colorScheme.primary
                                 : null,
