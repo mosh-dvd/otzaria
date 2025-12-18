@@ -36,7 +36,8 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
   String? _rightCommentator;
   String? _bottomCommentator;
   String? _bottomRightCommentator;
-  String _bottomFontFamily = AppFonts.defaultFont; // גופן ברירת מחדל למפרשים תחתונים
+  String _bottomFontFamily =
+      AppFonts.defaultFont; // גופן ברירת מחדל למפרשים תחתונים
   List<CommentatorGroup> _groups = [];
   bool _isLoadingGroups = true;
   bool _hasChanges = false; // האם היו שינויים שצריך לשמור
@@ -56,7 +57,8 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
       _rightCommentator = widget.currentRight;
       _bottomCommentator = widget.currentBottom;
       _bottomRightCommentator = widget.currentBottomRight;
-      _bottomFontFamily = Settings.getValue<String>('page_shape_bottom_font') ?? AppFonts.defaultFont;
+      _bottomFontFamily = Settings.getValue<String>('page_shape_bottom_font') ??
+          AppFonts.defaultFont;
       _highlightRelatedCommentators =
           PageShapeSettingsManager.getHighlightSetting(widget.bookTitle);
     });
@@ -127,7 +129,8 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
       },
     );
     // שמירת הגופן של המפרשים התחתונים (הגדרה גלובלית)
-    await Settings.setValue<String>('page_shape_bottom_font', _bottomFontFamily);
+    await Settings.setValue<String>(
+        'page_shape_bottom_font', _bottomFontFamily);
     await PageShapeSettingsManager.saveHighlightSetting(
       widget.bookTitle,
       _highlightRelatedCommentators,
@@ -168,7 +171,8 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
               const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('הדגש פרשנים קשורים'),
-                subtitle: const Text('הדגשת קטעים בפרשנים הקשורים לשורה שנבחרה'),
+                subtitle:
+                    const Text('הדגשת קטעים בפרשנים הקשורים לשורה שנבחרה'),
                 value: _highlightRelatedCommentators,
                 onChanged: (value) {
                   setState(() {
@@ -183,25 +187,29 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
               _buildCommentatorDropdown(
                 label: 'מפרש ימני',
                 value: _leftCommentator,
-                onChanged: (value) => _onCommentatorChanged(value, (v) => _leftCommentator = v),
+                onChanged: (value) =>
+                    _onCommentatorChanged(value, (v) => _leftCommentator = v),
               ),
               const SizedBox(height: 12),
               _buildCommentatorDropdown(
                 label: 'מפרש שמאלי',
                 value: _rightCommentator,
-                onChanged: (value) => _onCommentatorChanged(value, (v) => _rightCommentator = v),
+                onChanged: (value) =>
+                    _onCommentatorChanged(value, (v) => _rightCommentator = v),
               ),
               const SizedBox(height: 12),
               _buildCommentatorDropdown(
                 label: 'מפרש תחתון',
                 value: _bottomCommentator,
-                onChanged: (value) => _onCommentatorChanged(value, (v) => _bottomCommentator = v),
+                onChanged: (value) =>
+                    _onCommentatorChanged(value, (v) => _bottomCommentator = v),
               ),
               const SizedBox(height: 12),
               _buildCommentatorDropdown(
                 label: 'מפרש תחתון נוסף',
                 value: _bottomRightCommentator,
-                onChanged: (value) => _onCommentatorChanged(value, (v) => _bottomRightCommentator = v),
+                onChanged: (value) => _onCommentatorChanged(
+                    value, (v) => _bottomRightCommentator = v),
               ),
               const SizedBox(height: 20),
               const Divider(),
@@ -217,10 +225,11 @@ class _PageShapeSettingsDialogState extends State<PageShapeSettingsDialog> {
                   ),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _bottomFontFamily,
+                      initialValue: _bottomFontFamily,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
                       items: AppFonts.availableFonts.map((font) {
                         return DropdownMenuItem<String>(
