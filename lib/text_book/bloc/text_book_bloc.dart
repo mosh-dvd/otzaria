@@ -68,6 +68,8 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
     List<String> commentators;
     late final List<int> visibleIndices;
 
+    bool initialShowPageShapeView = false;
+
     if (state is TextBookLoaded && event.preserveState) {
       // Preserve current state when reloading
       final currentState = state as TextBookLoaded;
@@ -76,6 +78,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       showLeftPane = currentState.showLeftPane;
       commentators = currentState.activeCommentators;
       visibleIndices = currentState.visibleIndices;
+      initialShowPageShapeView = currentState.showPageShapeView;
     } else if (state is TextBookInitial) {
       // Normal initial load
       final initial = state as TextBookInitial;
@@ -84,6 +87,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
       showLeftPane = initial.showLeftPane;
       commentators = initial.commentators;
       visibleIndices = [initial.index];
+      initialShowPageShapeView = initial.showPageShapeView;
 
       emit(TextBookLoading(
           book, initial.index, initial.showLeftPane, initial.commentators));
@@ -168,6 +172,7 @@ class TextBookBloc extends Bloc<TextBookEvent, TextBookState> {
             ? false
             : (showLeftPane || searchText.isNotEmpty),
         showSplitView: event.showSplitView,
+        showPageShapeView: initialShowPageShapeView,
         activeCommentators: commentators,
         commentatorGroups: event.loadCommentators
             ? _buildCommentatorGroups(eras, availableCommentators)

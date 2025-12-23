@@ -19,13 +19,24 @@ abstract class TextBookState extends Equatable {
 
 class TextBookInitial extends TextBookState {
   final String searchText;
+  final bool showPageShapeView;
 
   const TextBookInitial(
       super.book, super.index, super.showLeftPane, super.commentators,
-      [this.searchText = '']);
+      [this.searchText = '', this.showPageShapeView = false]);
+
+  // קונסטרקטור עם פרמטרים בשם
+  const TextBookInitial.named(
+    TextBook book,
+    int index,
+    bool showLeftPane,
+    List<String> commentators, {
+    this.searchText = '',
+    this.showPageShapeView = false,
+  }) : super(book, index, showLeftPane, commentators);
 
   @override
-  List<Object?> get props => [book.title, searchText];
+  List<Object?> get props => [book.title, searchText, showPageShapeView];
 }
 
 class TextBookLoading extends TextBookState {
