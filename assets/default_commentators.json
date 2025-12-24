@@ -4,7 +4,6 @@
       "id": "torah",
       "name": "תנ\"ך - תורה",
       "pathContains": ["תנך", "תורה"],
-      "pathContainsAll": true,
       "commentators": {
         "right": "רמבן על {bookTitle}",
         "left": "רשי על {bookTitle}",

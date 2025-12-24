@@ -85,36 +85,24 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
     if (state is! TextBookLoaded) return;
 
     final config = PageShapeSettingsManager.loadConfiguration(state.book.title);
-    
-    // DEBUG - הדפסת מידע על הספר והקטגוריה
-    debugPrint('=== DEBUG DefaultCommentators ===');
-    debugPrint('Book title: ${state.book.title}');
-    debugPrint('Saved config: $config');
 
+    final Map<String, String?> commentators;
     if (config != null) {
       // יש הגדרה שמורה - להשתמש בה (גם אם ריקה)
-      if (mounted) {
-        setState(() {
-          _leftCommentator = config['left'];
-          _rightCommentator = config['right'];
-          _bottomCommentator = config['bottom'];
-          _bottomRightCommentator = config['bottomRight'];
-          _isLoadingConfig = false;
-        });
-      }
+      commentators = config;
     } else {
       // אין הגדרה שמורה בכלל - השתמש בברירות מחדל
-      final defaults = await DefaultCommentators.getDefaults(state.book);
-      debugPrint('Defaults from JSON: $defaults');
-      if (mounted) {
-        setState(() {
-          _leftCommentator = defaults['left'];
-          _rightCommentator = defaults['right'];
-          _bottomCommentator = defaults['bottom'];
-          _bottomRightCommentator = defaults['bottomRight'];
-          _isLoadingConfig = false;
-        });
-      }
+      commentators = await DefaultCommentators.getDefaults(state.book);
+    }
+
+    if (mounted) {
+      setState(() {
+        _leftCommentator = commentators['left'];
+        _rightCommentator = commentators['right'];
+        _bottomCommentator = commentators['bottom'];
+        _bottomRightCommentator = commentators['bottomRight'];
+        _isLoadingConfig = false;
+      });
     }
   }
 

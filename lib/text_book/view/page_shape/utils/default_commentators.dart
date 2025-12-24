@@ -14,8 +14,6 @@ class DefaultCommentators {
     final titleToPath = await book.data.titleToPath;
     final bookPath = titleToPath[book.title] ?? '';
     
-    debugPrint('DefaultCommentators - Book: ${book.title}, Path: $bookPath');
-    
     return _getDefaultsFromConfig(config, book.title, bookPath);
   }
 
@@ -24,7 +22,8 @@ class DefaultCommentators {
       final jsonString =
           await rootBundle.loadString('assets/default_commentators.json');
       return json.decode(jsonString) as Map<String, dynamic>;
-    } catch (e) {
+    } catch (e, s) {
+      debugPrint('Failed to load default commentators config: $e\n$s');
       return {
         'categories': [],
         'default': {
@@ -43,34 +42,26 @@ class DefaultCommentators {
 
     for (final category in categories) {
       if (_matchesCategory(bookPath, category as Map<String, dynamic>)) {
-        debugPrint('DefaultCommentators - Matched category: ${category['name']}');
         return _parseCommentators(
             category['commentators'] as Map<String, dynamic>, bookTitle);
       }
     }
 
-    debugPrint('DefaultCommentators - No category matched, using default');
     final defaultConfig = config['default'] as Map<String, dynamic>;
     return _parseCommentators(defaultConfig, bookTitle);
   }
 
   static bool _matchesCategory(
       String bookPath, Map<String, dynamic> category) {
+    // pathContains - כל המחרוזות חייבות להיות בנתיב (AND)
     if (category.containsKey('pathContains')) {
       final pathContains = category['pathContains'] as List<dynamic>;
-      final containsAll = category['pathContainsAll'] == true;
-
-      if (containsAll) {
-        if (!pathContains.every((p) => bookPath.contains(p as String))) {
-          return false;
-        }
-      } else {
-        if (!pathContains.any((p) => bookPath.contains(p as String))) {
-          return false;
-        }
+      if (!pathContains.every((p) => bookPath.contains(p as String))) {
+        return false;
       }
     }
 
+    // pathContainsAny - לפחות מחרוזת אחת חייבת להיות בנתיב (OR)
     if (category.containsKey('pathContainsAny')) {
       final pathContainsAny = category['pathContainsAny'] as List<dynamic>;
       if (!pathContainsAny.any((p) => bookPath.contains(p as String))) {
@@ -78,6 +69,7 @@ class DefaultCommentators {
       }
     }
 
+    // pathNotContains - אף מחרוזת לא יכולה להיות בנתיב
     if (category.containsKey('pathNotContains')) {
       final pathNotContains = category['pathNotContains'] as List<dynamic>;
       if (pathNotContains.any((p) => bookPath.contains(p as String))) {
