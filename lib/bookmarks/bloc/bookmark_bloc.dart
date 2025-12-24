@@ -30,8 +30,11 @@ class BookmarkBloc extends Cubit<BookmarkState> {
         book: book,
         index: index,
         commentatorsToShow: commentatorsToShow ?? []);
-    // check if bookmark already exists
-    if (state.bookmarks.any((b) => b.ref == bookmark.ref)) return false;
+    // check if bookmark already exists - בודק גם ref וגם index וגם שם הספר
+    if (state.bookmarks.any((b) =>
+        b.ref == bookmark.ref &&
+        b.index == bookmark.index &&
+        b.book.title == bookmark.book.title)) return false;
 
     final newBookmarks = [...state.bookmarks, bookmark];
     _repository.saveBookmarks(newBookmarks);
