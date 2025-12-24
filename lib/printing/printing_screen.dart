@@ -17,6 +17,7 @@ import 'package:otzaria/models/books.dart';
 class PrintingScreen extends StatefulWidget {
   final Future<String> data;
   final bool removeNikud;
+  final bool removeTaamim;
   final int startLine;
   final List<TocEntry> tableOfContents;
   const PrintingScreen({
@@ -24,6 +25,7 @@ class PrintingScreen extends StatefulWidget {
     required this.data,
     this.startLine = 0,
     this.removeNikud = false,
+    this.removeTaamim = false,
     this.tableOfContents = const [],
   });
   @override
@@ -47,11 +49,19 @@ class _PrintingScreenState extends State<PrintingScreen> {
   int? _endHeaderIndex;
   List<TocEntry> _flatHeaders = [];
 
+  // הגדרות ניקוד וטעמים - ברירת מחדל לפי תצוגת הספר
+  late bool _removeNikud;
+  late bool _removeTaamim;
+
   @override
   void initState() {
     super.initState();
     startLine = widget.startLine;
     endLine = startLine;
+
+    // אתחול הגדרות ניקוד וטעמים לפי תצוגת הספר
+    _removeNikud = widget.removeNikud;
+    _removeTaamim = widget.removeTaamim;
 
     // יצירת רשימה שטוחה של כל הכותרות
     _flatHeaders = _flattenHeaders(widget.tableOfContents);
@@ -129,9 +139,25 @@ class _PrintingScreenState extends State<PrintingScreen> {
     if (orientation == pw.PageOrientation.landscape) {
       format = format.landscape;
     }
-    if (widget.removeNikud) {
+
+    // הסרת ניקוד וטעמים לפי הגדרות המשתמש
+    // טעמים: U+0591-U+05AF
+    // ניקוד: U+05B0-U+05C7
+    if (_removeNikud && _removeTaamim) {
+      // הסרת ניקוד וטעמים (U+0591-U+05C7)
       dataString = removeVolwels(dataString);
+    } else if (_removeNikud && !_removeTaamim) {
+      // הסרת ניקוד בלבד, שמירת טעמים (U+05B0-U+05C7)
+      dataString = dataString
+          .replaceAll('־', ' ')
+          .replaceAll('׀', ' ')
+          .replaceAll('|', ' ')
+          .replaceAll(RegExp(r'[\u05B0-\u05C7]'), '');
+    } else if (!_removeNikud && _removeTaamim) {
+      // הסרת טעמים בלבד, שמירת ניקוד
+      dataString = removeTeamim(dataString);
     }
+    // אם שניהם false - לא מסירים כלום
 
     final shouldReplaceHolyNames =
         Settings.getValue<bool>('key-replace-holy-names') ?? true;
@@ -489,6 +515,30 @@ class _PrintingScreenState extends State<PrintingScreen> {
                                     );
                                   }).toList(),
                                 ),
+                              ),
+                              const SizedBox(height: 16),
+                              // הגדרות ניקוד וטעמים
+                              SwitchListTile(
+                                title: const Text('הדפסה עם ניקוד'),
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                value: !_removeNikud,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _removeNikud = !value;
+                                  });
+                                },
+                              ),
+                              SwitchListTile(
+                                title: const Text('הדפסה עם טעמים'),
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                value: !_removeTaamim,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _removeTaamim = !value;
+                                  });
+                                },
                               ),
                             ],
                           ),
