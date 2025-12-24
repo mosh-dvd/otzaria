@@ -46,7 +46,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
     _loadConfiguration();
   }
 
-  void _loadConfiguration() {
+  Future<void> _loadConfiguration() async {
     final state = context.read<TextBookBloc>().state;
     if (state is! TextBookLoaded) return;
 
@@ -63,7 +63,7 @@ class _PageShapeScreenState extends State<PageShapeScreen> {
       }
     } else {
       // אם אין הגדרה קיימת, השתמש בברירות מחדל
-      final defaults = DefaultCommentators.getDefaults(state.book);
+      final defaults = await DefaultCommentators.getDefaults(state.book);
       if (mounted) {
         setState(() {
           _leftCommentator = defaults['left'];
