@@ -1076,6 +1076,8 @@ class _LibraryBrowserState extends State<LibraryBrowser>
   ) {
     // בדיקה אם נמצאים בתיקיה הראשית
     final isAtRoot = _depth == 0;
+    // בדיקה אם יש חיפוש פעיל
+    final hasActiveSearch = context.read<FocusRepository>().librarySearchController.text.isNotEmpty;
 
     return [
       // חזור לתיקיה קודמת (ראשון במסך הרחב)
@@ -1083,9 +1085,18 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         widget: IconButton(
           icon: const Icon(FluentIcons.arrow_up_24_regular),
           tooltip: 'חזרה לתיקיה הקודמת',
-          onPressed: isAtRoot
+          onPressed: (isAtRoot && !hasActiveSearch)
               ? null
               : () {
+                  // אם יש חיפוש פעיל - נקה את החיפוש
+                  if (hasActiveSearch) {
+                    context.read<FocusRepository>().librarySearchController.clear();
+                    context.read<LibraryBloc>().add(const UpdateSearchQuery(''));
+                    context.read<LibraryBloc>().add(const SelectTopics([]));
+                    _update(context, state, settingsState);
+                    _refocusSearchBar(selectAll: true);
+                    return;
+                  }
                   // בתצוגת רשימה - סגור את הקטגוריה האחרונה שנפתחה
                   if (_viewMode == ViewMode.list &&
                       _expandedCategories.isNotEmpty) {
@@ -1106,9 +1117,18 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         ),
         icon: FluentIcons.arrow_up_24_regular,
         tooltip: 'חזרה לתיקיה הקודמת',
-        onPressed: isAtRoot
+        onPressed: (isAtRoot && !hasActiveSearch)
             ? null
             : () {
+                // אם יש חיפוש פעיל - נקה את החיפוש
+                if (hasActiveSearch) {
+                  context.read<FocusRepository>().librarySearchController.clear();
+                  context.read<LibraryBloc>().add(const UpdateSearchQuery(''));
+                  context.read<LibraryBloc>().add(const SelectTopics([]));
+                  _update(context, state, settingsState);
+                  _refocusSearchBar(selectAll: true);
+                  return;
+                }
                 // בתצוגת רשימה - סגור את הקטגוריה האחרונה שנפתחה
                 if (_viewMode == ViewMode.list &&
                     _expandedCategories.isNotEmpty) {
@@ -1133,7 +1153,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         widget: IconButton(
           icon: const Icon(FluentIcons.home_24_regular),
           tooltip: 'חזרה לתיקיה הראשית',
-          onPressed: isAtRoot
+          onPressed: (isAtRoot && !hasActiveSearch)
               ? null
               : () {
                   setState(() {
@@ -1151,7 +1171,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         ),
         icon: FluentIcons.home_24_regular,
         tooltip: 'חזרה לתיקיה הראשית',
-        onPressed: isAtRoot
+        onPressed: (isAtRoot && !hasActiveSearch)
             ? null
             : () {
                 setState(() {
@@ -1235,6 +1255,8 @@ class _LibraryBrowserState extends State<LibraryBrowser>
   ) {
     // בדיקה אם נמצאים בתיקיה הראשית
     final isAtRoot = _depth == 0;
+    // בדיקה אם יש חיפוש פעיל
+    final hasActiveSearch = context.read<FocusRepository>().librarySearchController.text.isNotEmpty;
 
     return [
       // 1) חזור לתיקיה קודמת, חזרה לתיקיה ראשית (החשובים ביותר)
@@ -1242,9 +1264,18 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         widget: IconButton(
           icon: const Icon(FluentIcons.arrow_up_24_regular),
           tooltip: 'חזרה לתיקיה הקודמת',
-          onPressed: isAtRoot
+          onPressed: (isAtRoot && !hasActiveSearch)
               ? null
               : () {
+                  // אם יש חיפוש פעיל - נקה את החיפוש
+                  if (hasActiveSearch) {
+                    context.read<FocusRepository>().librarySearchController.clear();
+                    context.read<LibraryBloc>().add(const UpdateSearchQuery(''));
+                    context.read<LibraryBloc>().add(const SelectTopics([]));
+                    _update(context, state, settingsState);
+                    _refocusSearchBar(selectAll: true);
+                    return;
+                  }
                   // בתצוגת רשימה - סגור את הקטגוריה האחרונה שנפתחה
                   if (_viewMode == ViewMode.list &&
                       _expandedCategories.isNotEmpty) {
@@ -1265,9 +1296,18 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         ),
         icon: FluentIcons.arrow_up_24_regular,
         tooltip: 'חזרה לתיקיה הקודמת',
-        onPressed: isAtRoot
+        onPressed: (isAtRoot && !hasActiveSearch)
             ? null
             : () {
+                // אם יש חיפוש פעיל - נקה את החיפוש
+                if (hasActiveSearch) {
+                  context.read<FocusRepository>().librarySearchController.clear();
+                  context.read<LibraryBloc>().add(const UpdateSearchQuery(''));
+                  context.read<LibraryBloc>().add(const SelectTopics([]));
+                  _update(context, state, settingsState);
+                  _refocusSearchBar(selectAll: true);
+                  return;
+                }
                 // בתצוגת רשימה - סגור את הקטגוריה האחרונה שנפתחה
                 if (_viewMode == ViewMode.list &&
                     _expandedCategories.isNotEmpty) {
@@ -1291,7 +1331,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         widget: IconButton(
           icon: const Icon(FluentIcons.home_24_regular),
           tooltip: 'חזרה לתיקיה הראשית',
-          onPressed: isAtRoot
+          onPressed: (isAtRoot && !hasActiveSearch)
               ? null
               : () {
                   setState(() {
@@ -1309,7 +1349,7 @@ class _LibraryBrowserState extends State<LibraryBrowser>
         ),
         icon: FluentIcons.home_24_regular,
         tooltip: 'חזרה לתיקיה הראשית',
-        onPressed: isAtRoot
+        onPressed: (isAtRoot && !hasActiveSearch)
             ? null
             : () {
                 setState(() {
