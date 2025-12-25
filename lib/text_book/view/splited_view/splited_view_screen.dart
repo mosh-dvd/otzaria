@@ -164,7 +164,8 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
     // בדיקה אם יש מפרשים פעילים לאינדקסים הנראים
     return state.links.any((link) =>
         visibleIndicesSet.contains(link.index1 - 1) &&
-        (link.connectionType == "commentary" || link.connectionType == "targum") &&
+        (link.connectionType == "commentary" ||
+            link.connectionType == "targum") &&
         state.activeCommentators.contains(utils.getTitleFromPath(link.path2)));
   }
 
@@ -186,21 +187,23 @@ class _SplitedViewScreenState extends State<SplitedViewScreen> {
     return ContextMenu(
       entries: [
         MenuItem(
-          label: 'העתק',
-          icon: FluentIcons.copy_24_regular,
+          label: const Text('העתק'),
+          icon: const Icon(FluentIcons.copy_24_regular),
           enabled: _savedSelectedText != null &&
               _savedSelectedText!.trim().isNotEmpty,
-          onSelected: () => ContextMenuUtils.copyFormattedText(
+          onSelected: (_) => ContextMenuUtils.copyFormattedText(
             context: context,
             savedSelectedText: _savedSelectedText,
             fontSize: state.fontSize,
           ),
         ),
-        MenuItem(label: 'חיפוש', onSelected: () => widget.openLeftPaneTab(1)),
+        MenuItem(
+            label: const Text('חיפוש'),
+            onSelected: (_) => widget.openLeftPaneTab(1)),
         const MenuDivider(),
         MenuItem(
-          label: 'בחר את כל הטקסט',
-          onSelected: () =>
+          label: const Text('בחר את כל הטקסט'),
+          onSelected: (_) =>
               _selectionKey.currentState?.selectableRegion.selectAll(),
         ),
       ],

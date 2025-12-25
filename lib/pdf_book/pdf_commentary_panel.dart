@@ -148,21 +148,21 @@ class _PdfCommentaryPanelState extends State<PdfCommentaryPanel>
     return ctx.ContextMenu(
       entries: [
         ctx.MenuItem(
-          label: 'העתק',
-          icon: FluentIcons.copy_24_regular,
+          label: const Text('העתק'),
+          icon: const Icon(FluentIcons.copy_24_regular),
           enabled: _savedSelectedText != null &&
               _savedSelectedText!.trim().isNotEmpty,
-          onSelected: _copyFormattedText,
+          onSelected: (_) => _copyFormattedText(),
         ),
         ctx.MenuItem(
-          label: 'העתק את כל הטקסט',
-          icon: FluentIcons.document_copy_24_regular,
-          onSelected: _copyAllVisibleText,
+          label: const Text('העתק את כל הטקסט'),
+          icon: const Icon(FluentIcons.document_copy_24_regular),
+          onSelected: (_) => _copyAllVisibleText(),
         ),
         ctx.MenuItem(
-          label: 'בחר את כל הטקסט',
-          icon: FluentIcons.select_all_on_24_regular,
-          onSelected: () =>
+          label: const Text('בחר את כל הטקסט'),
+          icon: const Icon(FluentIcons.select_all_on_24_regular),
+          onSelected: (_) =>
               _selectionKey.currentState?.selectableRegion.selectAll(),
         ),
       ],

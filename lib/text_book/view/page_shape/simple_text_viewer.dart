@@ -92,9 +92,9 @@ class _SimpleTextViewerState extends State<SimpleTextViewer> {
     return ctx.ContextMenu(
       entries: [
         ctx.MenuItem(
-          label: 'חיפוש',
-          icon: FluentIcons.search_24_regular,
-          onSelected: () {
+          label: const Text('חיפוש'),
+          icon: const Icon(FluentIcons.search_24_regular),
+          onSelected: (_) {
             // בצורת הדף אין חיפוש - אפשר להוסיף בעתיד
             UiSnack.show('חיפוש לא זמין בתצוגה זו');
           },
@@ -102,31 +102,31 @@ class _SimpleTextViewerState extends State<SimpleTextViewer> {
         const ctx.MenuDivider(),
         // הערות אישיות
         ctx.MenuItem(
-          label: 'הוסף הערה אישית ',
-          icon: FluentIcons.note_add_24_regular,
-          onSelected: () => _createNoteForCurrentLine(index),
+          label: const Text('הוסף הערה אישית '),
+          icon: const Icon(FluentIcons.note_add_24_regular),
+          onSelected: (_) => _createNoteForCurrentLine(index),
         ),
         const ctx.MenuDivider(),
         // העתקה
         ctx.MenuItem(
-          label: 'העתק',
-          icon: FluentIcons.copy_24_regular,
+          label: const Text('העתק'),
+          icon: const Icon(FluentIcons.copy_24_regular),
           enabled: _savedSelectedText != null &&
               _savedSelectedText!.trim().isNotEmpty,
-          onSelected: _copyFormattedText,
+          onSelected: (_) => _copyFormattedText(),
         ),
         ctx.MenuItem(
-          label: 'העתק את כל הפסקה',
-          icon: FluentIcons.document_copy_24_regular,
+          label: const Text('העתק את כל הפסקה'),
+          icon: const Icon(FluentIcons.document_copy_24_regular),
           enabled: index >= 0 && index < widget.content.length,
-          onSelected: () => _copyParagraphByIndex(index),
+          onSelected: (_) => _copyParagraphByIndex(index),
         ),
         const ctx.MenuDivider(),
         // עריכת פסקה
         ctx.MenuItem(
-          label: 'ערוך פסקה זו',
-          icon: FluentIcons.edit_24_regular,
-          onSelected: () => _editParagraph(index),
+          label: const Text('ערוך פסקה זו'),
+          icon: const Icon(FluentIcons.edit_24_regular),
+          onSelected: (_) => _editParagraph(index),
         ),
       ],
     );
