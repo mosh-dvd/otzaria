@@ -8,6 +8,7 @@ import 'package:otzaria/tabs/models/text_tab.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/text_book/view/combined_view/commentary_content.dart';
+import 'package:otzaria/text_book/view/commentators_list_screen.dart';
 import 'package:otzaria/widgets/progressive_scrolling.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/settings/settings_state.dart';
@@ -70,7 +71,6 @@ class CommentaryListBase extends StatefulWidget {
   final VoidCallback? onClosePane;
   final bool shrinkWrap;
   final ItemPositionsListener? itemPositionsListener;
-  final VoidCallback? onOpenCommentatorsFilter;
 
   const CommentaryListBase({
     super.key,
@@ -81,7 +81,6 @@ class CommentaryListBase extends StatefulWidget {
     this.onClosePane,
     this.shrinkWrap = true,
     this.itemPositionsListener,
-    this.onOpenCommentatorsFilter,
   });
 
   @override
@@ -106,6 +105,7 @@ class CommentaryListBaseState extends State<CommentaryListBase> {
   final Map<String, ExpansibleController> _controllers =
       {}; // controllers לכל ExpansionTile
   String? _savedSelectedText; // טקסט נבחר לתפריט הקשר
+  bool _showCommentatorsFilter = false; // האם להציג את מסך בחירת המפרשים
 
   String _getLinkKey(Link link) => '${link.path2}_${link.index2}';
 
@@ -412,9 +412,13 @@ class CommentaryListBaseState extends State<CommentaryListBase> {
               // אם יש מפרשים זמינים אבל לא נבחרו בכלל - פתח אוטומטית את מסך הבחירה
               if (hasAnyCommentaryLinks &&
                   state.activeCommentators.isEmpty &&
-                  widget.onOpenCommentatorsFilter != null) {
+                  !_showCommentatorsFilter) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  widget.onOpenCommentatorsFilter!();
+                  if (mounted) {
+                    setState(() {
+                      _showCommentatorsFilter = true;
+                    });
+                  }
                 });
                 return const Center(child: CircularProgressIndicator());
               }
@@ -518,6 +522,51 @@ class CommentaryListBaseState extends State<CommentaryListBase> {
       }
 
       if (widget.showSearch) {
+        // אם מסך בחירת המפרשים פתוח, מציג אותו במקום הרשימה
+        if (_showCommentatorsFilter) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // שורת כותרת עם כפתור חזרה
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(FluentIcons.arrow_right_24_regular),
+                      tooltip: 'חזרה למפרשים',
+                      onPressed: () {
+                        setState(() {
+                          _showCommentatorsFilter = false;
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'בחירת מפרשים',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: CommentatorsListView(
+                  onCommentatorSelected: () {
+                    // סגירת מסך בחירת המפרשים וחזרה לרשימה
+                    setState(() {
+                      _showCommentatorsFilter = false;
+                    });
+                  },
+                ),
+              ),
+            ],
+          );
+        }
+
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -525,6 +574,29 @@ class CommentaryListBaseState extends State<CommentaryListBase> {
               padding: const EdgeInsets.all(8.0),
               child: Row(
                 children: [
+                  // כפתור בחירת מפרשים - בצד ימין
+                  IconButton(
+                    icon: Icon(
+                      FluentIcons.apps_list_24_regular,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
+                      size: 20,
+                    ),
+                    tooltip: 'בחירת מפרשים',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 40,
+                      minHeight: 40,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _showCommentatorsFilter = true;
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: RtlTextField(
                       controller: _searchController,
