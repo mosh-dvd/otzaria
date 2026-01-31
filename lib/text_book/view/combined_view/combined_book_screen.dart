@@ -566,10 +566,50 @@ $textWithBreaks
               .replaceAll(RegExp(r'\s+'), ' ')
               .trim();
 
-          // אם הטקסט הפשוט תואם לטקסט המקורי (או חלק ממנו), נשתמש במקורי
-          if (originalCleaned.contains(plainTextCleaned) ||
-              plainTextCleaned.contains(originalCleaned)) {
-            htmlContentToUse = originalData;
+          // חיפוש הטקסט הנבחר בתוך הטקסט המקורי
+          if (originalCleaned.contains(plainTextCleaned)) {
+            // מציאת המיקום של הטקסט הנבחר בטקסט המקורי
+            final startIndex = originalCleaned.indexOf(plainTextCleaned);
+            
+            // חילוץ החלק המתאים מהטקסט המקורי עם תגי HTML
+            // נעבור על הטקסט המקורי ונספור תווים (ללא תגי HTML) עד שנגיע למיקום הנכון
+            int charCount = 0;
+            int htmlStartIndex = 0;
+            int htmlEndIndex = originalData.length;
+            bool inTag = false;
+            
+            for (int i = 0; i < originalData.length; i++) {
+              if (originalData[i] == '<') {
+                inTag = true;
+              } else if (originalData[i] == '>') {
+                inTag = false;
+                continue;
+              }
+              
+              if (!inTag && originalData[i] != '>') {
+                if (charCount == startIndex) {
+                  htmlStartIndex = i;
+                }
+                if (charCount == startIndex + plainTextCleaned.length) {
+                  htmlEndIndex = i;
+                  break;
+                }
+                charCount++;
+              }
+            }
+            
+            // חילוץ הטקסט עם התגים
+            if (htmlStartIndex < htmlEndIndex) {
+              // נוודא שאנחנו לא חותכים באמצע תג
+              while (htmlStartIndex > 0 && originalData[htmlStartIndex - 1] != '>' && originalData[htmlStartIndex - 1] != ' ') {
+                htmlStartIndex--;
+              }
+              while (htmlEndIndex < originalData.length && originalData[htmlEndIndex] != '<' && originalData[htmlEndIndex] != ' ') {
+                htmlEndIndex++;
+              }
+              
+              htmlContentToUse = originalData.substring(htmlStartIndex, htmlEndIndex).trim();
+            }
           }
         }
 
