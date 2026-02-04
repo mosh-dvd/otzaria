@@ -6,19 +6,20 @@ import 'package:otzaria/settings/settings_state.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:otzaria/settings/settings_bloc.dart';
 import 'package:otzaria/text_book/bloc/text_book_bloc.dart';
-import 'package:otzaria/text_book/bloc/text_book_event.dart';
 import 'package:otzaria/text_book/bloc/text_book_state.dart';
 import 'package:otzaria/text_book/models/search_results.dart';
 import 'package:otzaria/utils/text_manipulation.dart' as utils;
-import 'package:otzaria/widgets/search_pane_base.dart';
+import 'package:otzaria/widgets/rtl_text_field.dart';
 import 'package:otzaria/search/search_repository.dart';
 import 'package:otzaria/search/book_facet.dart';
 import 'package:search_engine/search_engine.dart';
-import 'package:otzaria/search/view/search_dialog.dart';
-import 'package:otzaria/tabs/models/searching_tab.dart';
-import 'package:otzaria/search/bloc/search_event.dart';
 import 'package:otzaria/search/models/search_configuration.dart';
 import 'package:otzaria/models/books.dart';
+
+enum SearchScope {
+  currentSection,
+  wholeBook,
+}
 
 class _GroupedResultItem {
   final String? header;
@@ -71,6 +72,9 @@ class TextBookSearchViewState extends State<TextBookSearchView>
   Map<int, List<String>> _alternativeWords = {};
   Map<String, String> _spacingValues = {};
   SearchMode _searchMode = SearchMode.exact;
+  
+  // היקף החיפוש - כל הספר או כותרת נוכחית
+  SearchScope _searchScope = SearchScope.wholeBook;
 
   bool get _isSimpleSearch =>
       !_forceSearchEngine &&
@@ -154,8 +158,34 @@ class TextBookSearchViewState extends State<TextBookSearchView>
       final results = await Future(() {
         final List<SearchResult> matches = [];
         final List<String> address = [];
+        
+        // קביעת טווח החיפוש
+        int startIndex = 0;
+        int endIndex = _content.length;
+        
+        if (_searchScope == SearchScope.currentSection) {
+          // מציאת הכותרת הנוכחית
+          final state = context.read<TextBookBloc>().state;
+          if (state is TextBookLoaded) {
+            final currentIndex = state.positionsListener.itemPositions.value.isNotEmpty
+                ? state.positionsListener.itemPositions.value.first.index
+                : 0;
+            
+            // מציאת תחילת הכותרת הנוכחית
+            startIndex = currentIndex;
+            while (startIndex > 0 && !_content[startIndex].startsWith('<h')) {
+              startIndex--;
+            }
+            
+            // מציאת סוף הכותרת הנוכחית (תחילת הכותרת הבאה)
+            endIndex = currentIndex + 1;
+            while (endIndex < _content.length && !_content[endIndex].startsWith('<h')) {
+              endIndex++;
+            }
+          }
+        }
 
-        for (int i = 0; i < _content.length; i++) {
+        for (int i = startIndex; i < endIndex; i++) {
           final line = _content[i];
 
           // Update address based on headers
@@ -305,15 +335,174 @@ class TextBookSearchViewState extends State<TextBookSearchView>
       items.add(_GroupedResultItem.result(r));
     }
 
-    return SearchPaneBase(
-      searchController: searchTextController,
-      focusNode: widget.focusNode,
-      progressWidget:
-          _isSearching ? const LinearProgressIndicator(minHeight: 4) : null,
-      resultCountString: searchResults.isNotEmpty
-          ? 'נמצאו ${searchResults.length} תוצאות'
-          : null,
-      resultsWidget: ListView.builder(
+    return Column(
+      children: [
+        // שורת החיפוש
+        if (_isSearching) const LinearProgressIndicator(minHeight: 4),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: RtlTextField(
+            autofocus: true,
+            focusNode: widget.focusNode,
+            controller: searchTextController,
+            textAlign: TextAlign.right,
+            onChanged: (value) => _searchTextUpdated(),
+            onSubmitted: (_) {
+              widget.focusNode.requestFocus();
+            },
+            decoration: InputDecoration(
+              hintText: 'חפש בספר...',
+              prefixIcon: const Icon(FluentIcons.search_24_regular),
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // כפתורי בחירת היקף החיפוש
+                  Container(
+                    height: 32,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _searchScope = SearchScope.currentSection;
+                            });
+                            if (searchTextController.text.isNotEmpty) {
+                              _searchTextUpdated();
+                            }
+                          },
+                          borderRadius: const BorderRadius.horizontal(right: Radius.circular(16)),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _searchScope == SearchScope.currentSection
+                                  ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                  : Colors.transparent,
+                              borderRadius: const BorderRadius.horizontal(right: Radius.circular(16)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  FluentIcons.document_24_regular,
+                                  size: 16,
+                                  color: _searchScope == SearchScope.currentSection
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'כותרת',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _searchScope == SearchScope.currentSection
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 20,
+                          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
+                        ),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _searchScope = SearchScope.wholeBook;
+                            });
+                            if (searchTextController.text.isNotEmpty) {
+                              _searchTextUpdated();
+                            }
+                          },
+                          borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _searchScope == SearchScope.wholeBook
+                                  ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                  : Colors.transparent,
+                              borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  FluentIcons.book_24_regular,
+                                  size: 16,
+                                  color: _searchScope == SearchScope.wholeBook
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'כל הספר',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _searchScope == SearchScope.wholeBook
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  if (searchTextController.text.isNotEmpty)
+                    IconButton(
+                      tooltip: 'נקה',
+                      onPressed: () {
+                        searchTextController.clear();
+                        setState(() {
+                          searchResults = [];
+                        });
+                        widget.focusNode.requestFocus();
+                      },
+                      icon: const Icon(FluentIcons.dismiss_24_regular),
+                    ),
+                ],
+              ),
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+            ),
+            textInputAction: TextInputAction.search,
+          ),
+        ),
+        if (searchResults.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                'נמצאו ${searchResults.length} תוצאות',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodySmall?.color ??
+                      Colors.grey[700],
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 4),
+        Expanded(
+          child: searchResults.isEmpty && searchTextController.text.isNotEmpty && !_isSearching
+              ? const Center(child: Text('אין תוצאות'))
+              : ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: items.length,
         itemBuilder: (context, index) {
@@ -441,55 +630,8 @@ class TextBookSearchViewState extends State<TextBookSearchView>
           );
         },
       ),
-      isNoResults: searchResults.isEmpty &&
-          searchTextController.text.isNotEmpty &&
-          !_isSearching,
-      onSearchTextChanged: (value) {
-        context.read<TextBookBloc>().add(UpdateSearchText(value));
-        _searchTextUpdated();
-      },
-      resetSearchCallback: () {
-        setState(() {
-          searchResults = [];
-          _forceSearchEngine = false;
-          _searchOptions = {};
-          _alternativeWords = {};
-          _spacingValues = {};
-          _searchMode = SearchMode.exact;
-        });
-      },
-      hintText: 'חפש כאן...',
-      onAdvancedSearch: () {
-        // Create a temporary SearchingTab to hold the state
-        final tempTab = SearchingTab("חיפוש", searchTextController.text);
-        tempTab.searchOptions.addAll(_searchOptions);
-        tempTab.alternativeWords.addAll(_alternativeWords);
-        tempTab.spacingValues.addAll(_spacingValues);
-        tempTab.searchBloc.add(SetSearchMode(_searchMode));
-
-        final bookTitle =
-            (context.read<TextBookBloc>().state as TextBookLoaded).book.title;
-
-        showDialog(
-          context: context,
-          builder: (context) => SearchDialog(
-            existingTab: tempTab,
-            bookTitle: bookTitle,
-            onSearch: (query, searchOptions, alternativeWords, spacingValues,
-                searchMode) {
-              searchTextController.text = query;
-              setState(() {
-                _forceSearchEngine = true;
-                _searchOptions = searchOptions;
-                _alternativeWords = alternativeWords;
-                _spacingValues = spacingValues;
-                _searchMode = searchMode;
-              });
-              _searchTextUpdated();
-            },
-          ),
-        );
-      },
+        ),
+      ],
     );
   }
 

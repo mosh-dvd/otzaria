@@ -8,6 +8,7 @@ import 'package:otzaria/constants/fonts.dart';
 
 import '../../bloc/text_book_bloc.dart';
 import '../../bloc/text_book_event.dart';
+import '../../bloc/text_book_state.dart';
 
 import '../services/preview_renderer.dart';
 import '../models/editor_settings.dart';
@@ -444,8 +445,64 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
       context: context,
       builder: (context) => _SearchDialog(
         onSearch: (searchText) => _performSearch(searchText),
+        onSearchWholeBook: (searchText) => _performWholeBookSearch(searchText),
       ),
     );
+  }
+
+  void _performWholeBookSearch(String searchText) {
+    if (searchText.isEmpty) return;
+
+    // שמירת טקסט החיפוש עבור F3
+    _lastSearchText = searchText;
+
+    // קבלת כל תוכן הספר מה-BLoC
+    final state = context.read<TextBookBloc>().state;
+    if (state is! TextBookLoaded) {
+      UiSnack.show('לא ניתן לחפש - הספר לא נטען');
+      return;
+    }
+
+    final allContent = state.content.join('\n');
+    
+    // חיפוש בכל התוכן
+    int foundIndex = allContent.indexOf(searchText);
+
+    // אם לא נמצא, נסה חיפוש case-insensitive
+    if (foundIndex == -1) {
+      final searchLower = searchText.toLowerCase();
+      final contentLower = allContent.toLowerCase();
+      foundIndex = contentLower.indexOf(searchLower);
+    }
+
+    if (foundIndex != -1) {
+      // מציאת מספר השורה בתוכן הספר
+      final linesBeforeFound = '\n'.allMatches(allContent.substring(0, foundIndex)).length;
+      
+      UiSnack.show('נמצא בשורה ${linesBeforeFound + 1} בספר. סוגר את העורך...');
+      
+      // סגירת העורך
+      Navigator.of(context).pop(); // סגירת דיאלוג החיפוש
+      Navigator.of(context).pop(); // סגירת העורך
+      
+      // מעבר לשורה בספר
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          context.read<TextBookBloc>().add(UpdateSelectedIndex(linesBeforeFound));
+          // גלילה לשורה
+          final tab = (context.read<TextBookBloc>().state as TextBookLoaded);
+          if (tab.scrollController.isAttached) {
+            tab.scrollController.scrollTo(
+              index: linesBeforeFound,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        }
+      });
+    } else {
+      UiSnack.show('הטקסט לא נמצא בספר');
+    }
   }
 
   void _performSearch(String searchText) {
@@ -683,15 +740,25 @@ class _TextSectionEditorDialogState extends State<TextSectionEditorDialog> {
 /// Dialog for search functionality
 class _SearchDialog extends StatefulWidget {
   final Function(String) onSearch;
+  final Function(String) onSearchWholeBook;
 
-  const _SearchDialog({required this.onSearch});
+  const _SearchDialog({
+    required this.onSearch,
+    required this.onSearchWholeBook,
+  });
 
   @override
   State<_SearchDialog> createState() => _SearchDialogState();
 }
 
+enum SearchScope {
+  currentSection,
+  wholeBook,
+}
+
 class _SearchDialogState extends State<_SearchDialog> {
   final _searchController = TextEditingController();
+  SearchScope _searchScope = SearchScope.currentSection;
 
   @override
   void dispose() {
@@ -702,8 +769,12 @@ class _SearchDialogState extends State<_SearchDialog> {
   void _performSearch() {
     final searchText = _searchController.text.trim();
     if (searchText.isNotEmpty) {
-      widget.onSearch(searchText);
-      // Don't close dialog - allow multiple searches
+      if (_searchScope == SearchScope.currentSection) {
+        widget.onSearch(searchText);
+        // Don't close dialog - allow multiple searches
+      } else {
+        widget.onSearchWholeBook(searchText);
+      }
     }
   }
 
@@ -724,11 +795,43 @@ class _SearchDialogState extends State<_SearchDialog> {
             autofocus: true,
             onSubmitted: (_) => _performSearch(),
           ),
+          const SizedBox(height: 16),
+          // כפתורי בחירת היקף החיפוש
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: SegmentedButton<SearchScope>(
+                  segments: const [
+                    ButtonSegment<SearchScope>(
+                      value: SearchScope.currentSection,
+                      label: Text('כותרת נוכחית'),
+                      icon: Icon(FluentIcons.document_24_regular),
+                    ),
+                    ButtonSegment<SearchScope>(
+                      value: SearchScope.wholeBook,
+                      label: Text('כל הספר'),
+                      icon: Icon(FluentIcons.book_24_regular),
+                    ),
+                  ],
+                  selected: {_searchScope},
+                  onSelectionChanged: (Set<SearchScope> newSelection) {
+                    setState(() {
+                      _searchScope = newSelection.first;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
-          const Text(
-            'החיפוש מתחיל מהסמן הנוכחי וממשיך מהתחלה אם לא נמצא',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+          Text(
+            _searchScope == SearchScope.currentSection
+                ? 'החיפוש מתחיל מהסמן הנוכחי וממשיך מהתחלה אם לא נמצא'
+                : 'החיפוש יתבצע בכל הספר',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
             textDirection: TextDirection.rtl,
+            textAlign: TextAlign.center,
           ),
         ],
       ),
